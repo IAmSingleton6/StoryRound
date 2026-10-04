@@ -11,9 +11,18 @@ application {
 
 dependencies {
     api(project(":core"))
+    implementation(platform(libs.koin.bom))
+    implementation(libs.koin.ktor)
     implementation(libs.logback)
     implementation(libs.ktor.serverCore)
     implementation(libs.ktor.serverNetty)
+    implementation(libs.ktor.serverWebSockets)
+    implementation(libs.ktor.serializationJson)
+    implementation(libs.exposed.core)
+    implementation(libs.exposed.jdbc)
+    implementation(libs.postgresql)
     testImplementation(libs.ktor.serverTestHost)
+    testImplementation(libs.ktor.clientWebSockets)
     testImplementation(libs.kotlin.testJunit)
+    testImplementation(libs.mockk.jvm)
 }

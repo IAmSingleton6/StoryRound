@@ -1,20 +1,47 @@
 package com.example.storyround
 
-import io.ktor.server.application.*
-import io.ktor.server.engine.*
-import io.ktor.server.netty.*
-import io.ktor.server.response.*
-import io.ktor.server.routing.*
+import com.example.storyround.config.EnvironmentServerConfigProvider
+import com.example.storyround.di.serverModule
+import com.example.storyround.game.GameWebSocketHandler
+import com.example.storyround.history.StoryHistoryRouteInstaller
+import com.example.storyround.persistence.StoryRepository
+import com.example.storyround.room.InMemoryRoomRegistry
+import com.example.storyround.room.RoomRegistry
+import com.example.storyround.time.SystemTimeProvider
+import com.example.storyround.time.TimeProvider
+import io.ktor.server.application.Application
+import io.ktor.server.application.install
+import io.ktor.server.engine.embeddedServer
+import io.ktor.server.netty.Netty
+import io.ktor.server.response.respondText
+import io.ktor.server.routing.get
+import io.ktor.server.routing.routing
+import io.ktor.server.websocket.WebSockets
+import io.ktor.server.websocket.webSocket
+import org.koin.ktor.ext.inject
+import org.koin.ktor.plugin.Koin
 
 fun main() {
-    embeddedServer(Netty, port = 8080, host = "0.0.0.0", module = Application::module)
-        .start(wait = true)
+    val config = EnvironmentServerConfigProvider().load()
+    embeddedServer(Netty, port = config.port, host = config.host) {
+        module()
+    }.start(wait = true)
 }
 
-fun Application.module() {
+fun Application.module(
+    registry: RoomRegistry? = null,
+    storyRepository: StoryRepository? = null,
+    timeProvider: TimeProvider = SystemTimeProvider(),
+) {
+    val roomRegistry = registry ?: InMemoryRoomRegistry(timeProvider = timeProvider)
+    install(Koin) { modules(serverModule(roomRegistry, storyRepository, timeProvider)) }
+    val gameWebSocketHandler: GameWebSocketHandler by inject()
+    val storyHistoryRoutes: StoryHistoryRouteInstaller by inject()
+    install(WebSockets)
+
     routing {
-        get("/") {
-            call.respondText(sayHello("Ktor"))
-        }
+        get("/") { call.respondText("Story Relay server") }
+        storyHistoryRoutes.install(this)
+        webSocket("/game") { gameWebSocketHandler.handle(this) }
     }
 }
