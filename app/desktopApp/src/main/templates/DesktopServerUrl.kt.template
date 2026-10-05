@@ -1,0 +1,3 @@
+package com.example.storyround
+
+internal const val DESKTOP_SERVER_URL = "@serverUrl@"
