@@ -1,5 +1,10 @@
 package com.example.storyround
 
 import androidx.compose.ui.window.ComposeUIViewController
+import com.example.storyround.di.initializeStoryRound
 
-fun MainViewController() = ComposeUIViewController { App() }
+@Suppress("ktlint:standard:function-naming")
+fun MainViewController(): ComposeUIViewController {
+    initializeStoryRound(BundleServerUrlProvider())
+    return ComposeUIViewController { App() }
+}
