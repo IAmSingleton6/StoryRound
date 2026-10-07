@@ -1,0 +1,21 @@
+config:
+  validation: true
+
+complexity:
+  LongMethod:
+    active: true
+    allowedLines: 60
+  LongParameterList:
+    active: true
+    allowedFunctionParameters: 8
+    allowedConstructorParameters: 10
+
+style:
+  ReturnCount:
+    active: false
+  MagicNumber:
+    active: false
+
+exceptions:
+  TooGenericExceptionCaught:
+    active: false
