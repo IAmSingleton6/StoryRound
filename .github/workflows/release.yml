@@ -1,0 +1,163 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+  packages: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - run: ./gradlew qualityCheck
+      - run: ./gradlew :core:jvmTest :app:shared:jvmTest :server:test kotlinStoreYarnLock
+
+  deploy-web:
+    needs: verify
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    env:
+      STORY_ROUND_SERVER_URL: ${{ vars.PRODUCTION_SERVER_URL }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - uses: actions/configure-pages@v5
+      - name: Require the production server URL
+        run: test -n "$STORY_ROUND_SERVER_URL"
+      - run: ./gradlew :app:webApp:composeCompatibilityBrowserDistribution
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: app/webApp/build/dist/composeWebCompatibility/productionExecutable
+      - id: deployment
+        uses: actions/deploy-pages@v4
+
+  publish-server-image:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Publish the server image to GHCR
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY,,}:$GITHUB_REF_NAME"
+          ./gradlew :server:jib \
+            -Djib.to.image="$image" \
+            -Djib.to.auth.username="$GITHUB_ACTOR" \
+            -Djib.to.auth.password="$GITHUB_TOKEN"
+
+  android-release:
+    needs: verify
+    runs-on: ubuntu-latest
+    env:
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      STORY_ROUND_SERVER_URL: ${{ vars.PRODUCTION_SERVER_URL }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Restore the Android signing key
+        run: |
+          test -n "$ANDROID_KEYSTORE_BASE64"
+          test -n "$ANDROID_KEYSTORE_PASSWORD"
+          test -n "$ANDROID_KEY_ALIAS"
+          test -n "$ANDROID_KEY_PASSWORD"
+          test -n "$STORY_ROUND_SERVER_URL"
+          keystore="$RUNNER_TEMP/story-round-release.keystore"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$keystore"
+          echo "ANDROID_KEYSTORE_FILE=$keystore" >> "$GITHUB_ENV"
+      - run: >-
+          ./gradlew :app:androidApp:assembleRelease
+          -PversionName="${GITHUB_REF_NAME#v}"
+          -PversionCode="$GITHUB_RUN_NUMBER"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-release
+          path: app/androidApp/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+
+  desktop-release:
+    needs: verify
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            task: packageReleaseDeb
+            artifact: desktop-linux
+            path: app/desktopApp/build/compose/binaries/main-release/deb/*.deb
+          - os: macos-latest
+            task: packageReleaseDmg
+            artifact: desktop-macos
+            path: app/desktopApp/build/compose/binaries/main-release/dmg/*.dmg
+          - os: windows-latest
+            task: packageReleaseMsi
+            artifact: desktop-windows
+            path: app/desktopApp/build/compose/binaries/main-release/msi/*.msi
+    runs-on: ${{ matrix.os }}
+    env:
+      STORY_ROUND_SERVER_URL: ${{ vars.PRODUCTION_SERVER_URL }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build the native installer
+        shell: bash
+        run: >-
+          test -n "$STORY_ROUND_SERVER_URL" &&
+          ./gradlew :app:desktopApp:${{ matrix.task }}
+          -PversionName="${GITHUB_REF_NAME#v}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.path }}
+          if-no-files-found: error
+
+  publish-release:
+    needs: [android-release, desktop-release]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          path: release-assets
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mapfile -t assets < <(find release-assets -type f)
+          gh release create "$GITHUB_REF_NAME" --generate-notes "${assets[@]}"
