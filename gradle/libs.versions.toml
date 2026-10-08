@@ -25,6 +25,7 @@ koin = "4.2.0"
 mockk = "1.14.11"
 ktlint = "14.2.0"
 detekt = "2.0.0-alpha.4"
+kermit = "2.1.0"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -71,6 +72,7 @@ koin-compose = { module = "io.insert-koin:koin-compose" }
 koin-compose-viewmodel = { module = "io.insert-koin:koin-compose-viewmodel" }
 koin-ktor = { module = "io.insert-koin:koin-ktor" }
 mockk-jvm = { module = "io.mockk:mockk-jvm", version.ref = "mockk" }
+kermit = { module = "co.touchlab:kermit", version.ref = "kermit" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
