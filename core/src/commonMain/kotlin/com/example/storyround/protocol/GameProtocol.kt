@@ -23,6 +23,15 @@ sealed interface ClientMessage {
     data class StartGame(
         val roomCode: String,
         val playerId: String,
+        val openingPlayerId: String? = null,
+        val maxRounds: Int,
+    ) : ClientMessage
+
+    @Serializable
+    @SerialName("LEAVE_ROOM")
+    data class LeaveRoom(
+        val roomCode: String,
+        val playerId: String,
     ) : ClientMessage
 
     @Serializable

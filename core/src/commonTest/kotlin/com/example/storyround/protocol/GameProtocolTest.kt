@@ -29,7 +29,7 @@ class GameProtocolTest {
 
     @Test
     fun `given room state message when encoded then it preserves players`() {
-        val room = RoomState("AB12", "host", listOf(Player("host", "Alex", PlayerColour.Blue)), GameStatus.Lobby)
+        val room = RoomState("AB12", "host", listOf(Player("host", "Alex", PlayerColour.Blue)), GameStatus.Lobby, maxPlayers = 10, maxRounds = 3)
         val message: ServerMessage = ServerMessage.RoomStateChanged(room)
 
         val decoded = json.decodeFromString<ServerMessage>(json.encodeToString(ServerMessage.serializer(), message))
@@ -39,7 +39,7 @@ class GameProtocolTest {
 
     @Test
     fun `given a finished game when encoded then it preserves the saved story id`() {
-        val room = RoomState("AB12", "host", listOf(Player("host", "Alex", PlayerColour.Blue)), GameStatus.Finished)
+        val room = RoomState("AB12", "host", listOf(Player("host", "Alex", PlayerColour.Blue)), GameStatus.Finished, maxPlayers = 10, maxRounds = 3)
         val message: ServerMessage = ServerMessage.GameFinished(room, storyId = "story-1")
 
         val decoded = json.decodeFromString<ServerMessage>(json.encodeToString(ServerMessage.serializer(), message))

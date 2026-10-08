@@ -8,10 +8,12 @@ data class RoomState(
     val hostId: String,
     val players: List<Player>,
     val status: GameStatus,
+    val openingPlayerId: String? = null,
     val prompt: String? = null,
     val contributions: List<Contribution> = emptyList(),
     val currentPlayerId: String? = null,
     val turnNumber: Int = 0,
     val turnDeadlineEpochMillis: Long? = null,
-    val maxPlayers: Int = 10,
+    val maxPlayers: Int,
+    val maxRounds: Int,
 )
