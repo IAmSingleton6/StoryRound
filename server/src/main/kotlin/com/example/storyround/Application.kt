@@ -5,12 +5,11 @@ import com.example.storyround.di.serverModule
 import com.example.storyround.game.GameWebSocketHandler
 import com.example.storyround.history.StoryHistoryRouteInstaller
 import com.example.storyround.persistence.StoryRepository
-import com.example.storyround.room.InMemoryRoomRegistry
 import com.example.storyround.room.RoomRegistry
-import com.example.storyround.time.SystemTimeProvider
 import com.example.storyround.time.TimeProvider
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
+import io.ktor.server.engine.EngineConnectorBuilder
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import io.ktor.server.response.respondText
@@ -23,7 +22,15 @@ import org.koin.ktor.plugin.Koin
 
 fun main() {
     val config = EnvironmentServerConfigProvider().load()
-    embeddedServer(Netty, port = config.port, host = config.host) {
+    embeddedServer(Netty, configure = {
+        connectors.add(
+            EngineConnectorBuilder().apply {
+                host = config.host
+                port = config.port
+            },
+        )
+        maxHeaderSize = 65536
+    }) {
         module()
     }.start(wait = true)
 }
@@ -31,10 +38,9 @@ fun main() {
 fun Application.module(
     registry: RoomRegistry? = null,
     storyRepository: StoryRepository? = null,
-    timeProvider: TimeProvider = SystemTimeProvider(),
+    timeProvider: TimeProvider? = null,
 ) {
-    val roomRegistry = registry ?: InMemoryRoomRegistry(timeProvider = timeProvider)
-    install(Koin) { modules(serverModule(roomRegistry, storyRepository, timeProvider)) }
+    install(Koin) { modules(serverModule(registry, storyRepository, timeProvider)) }
     val gameWebSocketHandler: GameWebSocketHandler by inject()
     val storyHistoryRoutes: StoryHistoryRouteInstaller by inject()
     install(WebSockets)

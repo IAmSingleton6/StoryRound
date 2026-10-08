@@ -1,28 +1,29 @@
 package com.example.storyround.room
 
-import com.example.storyround.time.SystemTimeProvider
+import com.example.storyround.configuration.GameConfiguration
+import com.example.storyround.identity.RandomNumberGenerator
 import com.example.storyround.time.TimeProvider
-import java.security.SecureRandom
-import java.util.UUID
 
-class InMemoryRoomRegistry(
-    private val roomCodeGenerator: () -> String = ::generateRoomCode,
-    private val playerIdGenerator: () -> String = { UUID.randomUUID().toString() },
-    private val timeProvider: TimeProvider = SystemTimeProvider(),
-    private val rounds: Int = TurnRules.DEFAULT_ROUNDS,
-    private val firstTurnMillis: Long = TurnRules.DEFAULT_FIRST_TURN_MILLIS,
-    private val reductionMillis: Long = TurnRules.DEFAULT_REDUCTION_MILLIS,
-    private val minimumTurnMillis: Long = TurnRules.DEFAULT_MINIMUM_TURN_MILLIS,
-    private val sessionTokenGenerator: () -> String = { UUID.randomUUID().toString() },
+internal class InMemoryRoomRegistry(
+    roomStore: RoomStore,
+    roomIdentityGenerator: RoomIdentityGenerator,
+    timeProvider: TimeProvider,
+    turnRules: TurnRules,
+    roomStateMapper: RoomStateMapper,
+    gameConfiguration: GameConfiguration,
+    randomNumberGenerator: RandomNumberGenerator,
 ) : RoomRegistry {
     private val engine: GameRoomEngine =
         DefaultGameRoomEngine(
-            roomStore = InMemoryRoomStore(),
-            roomCodeGenerator = roomCodeGenerator,
-            playerIdGenerator = playerIdGenerator,
+            roomStore = roomStore,
+            roomCodeGenerator = roomIdentityGenerator::generateRoomCode,
+            playerIdGenerator = roomIdentityGenerator::generatePlayerId,
             timeProvider = timeProvider,
-            turnRules = TurnRules(rounds, firstTurnMillis, reductionMillis, minimumTurnMillis),
-            sessionTokenGenerator = sessionTokenGenerator,
+            turnRules = turnRules,
+            sessionTokenGenerator = roomIdentityGenerator::generateSessionToken,
+            roomStateMapper = roomStateMapper,
+            gameConfiguration = gameConfiguration,
+            randomNumberGenerator = randomNumberGenerator,
         )
 
     override fun createRoom(playerName: String) = engine.createRoom(playerName)
@@ -41,7 +42,12 @@ class InMemoryRoomRegistry(
     override fun startGame(
         roomCode: String,
         playerId: String,
-    ) = engine.startGame(roomCode, playerId)
+        openingPlayerId: String?,
+        maxRounds: Int,
+    ) =
+        engine.startGame(roomCode, playerId, openingPlayerId, maxRounds)
+
+    override fun leaveRoom(roomCode: String, playerId: String) = engine.leaveRoom(roomCode, playerId)
 
     override fun submitPrompt(
         roomCode: String,
@@ -65,13 +71,4 @@ class InMemoryRoomRegistry(
         deadlineEpochMillis: Long,
     ) = engine.expireTurn(roomCode, deadlineEpochMillis)
 
-    companion object {
-        private val random = SecureRandom()
-        private const val ROOM_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-
-        private fun generateRoomCode(): String =
-            buildString(4) {
-                repeat(4) { append(ROOM_CODE_ALPHABET[random.nextInt(ROOM_CODE_ALPHABET.length)]) }
-            }
-    }
 }

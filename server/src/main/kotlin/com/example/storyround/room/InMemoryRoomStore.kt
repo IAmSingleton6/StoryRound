@@ -7,6 +7,11 @@ internal class InMemoryRoomStore : RoomStore {
     override fun create(room: MutableGameRoom): Boolean = rooms.putIfAbsent(room.code, room) == null
 
     @Synchronized
+    override fun remove(roomCode: String) {
+        rooms.remove(roomCode.trim().uppercase())
+    }
+
+    @Synchronized
     override fun <T> withRoom(
         roomCode: String,
         block: (MutableGameRoom?) -> T,

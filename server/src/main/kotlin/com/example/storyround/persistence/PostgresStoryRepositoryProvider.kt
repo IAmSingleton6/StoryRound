@@ -1,10 +1,14 @@
 package com.example.storyround.persistence
 
-internal class PostgresStoryRepositoryProvider : StoryRepositoryProvider {
+import com.example.storyround.identity.IdentifierGenerator
+
+internal class PostgresStoryRepositoryProvider(
+    private val identifierGenerator: IdentifierGenerator,
+) : StoryRepositoryProvider {
     override fun provide(databaseUrl: String?): StoryRepository? =
         databaseUrl?.let { url ->
             val schema = StorySchema()
             ExposedDatabaseInitializer(schema).connect(url)
-            PostgresStoryRepository(schema)
+            PostgresStoryRepository(schema, identifierGenerator)
         }
 }

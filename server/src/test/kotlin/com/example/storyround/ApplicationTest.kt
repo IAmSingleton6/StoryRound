@@ -108,6 +108,7 @@ class ApplicationTest {
     ) = SavedStory(
         id = id,
         prompt = prompt,
+        promptPlayerId = "player-1",
         createdAtEpochMillis = createdAtEpochMillis,
         players = listOf(Player("player-1", "Alex", PlayerColour.Blue)),
         contributions = listOf(Contribution("player-1", "Ending.", 0)),

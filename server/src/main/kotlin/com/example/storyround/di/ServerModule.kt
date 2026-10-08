@@ -1,14 +1,28 @@
 package com.example.storyround.di
 
 import com.example.storyround.RoomSocketHub
+import com.example.storyround.configuration.GameConfiguration
 import com.example.storyround.config.EnvironmentServerConfigProvider
 import com.example.storyround.config.ServerConfig
 import com.example.storyround.game.GameWebSocketHandler
 import com.example.storyround.history.StoryHistoryRouteInstaller
+import com.example.storyround.identity.IdentifierGenerator
+import com.example.storyround.identity.RandomNumberGenerator
+import com.example.storyround.identity.SecureRandomNumberGenerator
+import com.example.storyround.identity.UuidIdentifierGenerator
 import com.example.storyround.persistence.PostgresStoryRepositoryProvider
 import com.example.storyround.persistence.StoryRepository
 import com.example.storyround.persistence.StoryRepositoryProvider
 import com.example.storyround.room.RoomRegistry
+import com.example.storyround.room.RoomStateMapper
+import com.example.storyround.room.RoomStateMapperImpl
+import com.example.storyround.room.RoomIdentityGenerator
+import com.example.storyround.room.InMemoryRoomRegistry
+import com.example.storyround.room.InMemoryRoomStore
+import com.example.storyround.room.RoomStore
+import com.example.storyround.room.SecureRoomIdentityGenerator
+import com.example.storyround.room.TurnRules
+import com.example.storyround.time.SystemTimeProvider
 import com.example.storyround.time.TimeProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -16,19 +30,24 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.serialization.json.Json
 import org.koin.core.module.Module
 import org.koin.dsl.module
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 
 internal fun serverModule(
-    registry: RoomRegistry,
+    registry: RoomRegistry?,
     storyRepository: StoryRepository?,
-    timeProvider: TimeProvider,
+    timeProvider: TimeProvider?,
 ): Module =
     module {
         single<ServerConfig> { EnvironmentServerConfigProvider().load() }
-        single<RoomRegistry> { registry }
-        single<TimeProvider> { timeProvider }
-        single<StoryRepositoryProvider> { PostgresStoryRepositoryProvider() }
+        single<TimeProvider> { timeProvider ?: SystemTimeProvider() }
+        single<RoomStore> { InMemoryRoomStore() }
+        single { GameConfiguration() }
+        single<RandomNumberGenerator> { SecureRandomNumberGenerator() }
+        single<IdentifierGenerator> { UuidIdentifierGenerator() }
+        single<RoomIdentityGenerator> { SecureRoomIdentityGenerator(get(), get()) }
+        single { TurnRules(get()) }
+        single<RoomStateMapper> { RoomStateMapperImpl() }
+        single<RoomRegistry> { registry ?: InMemoryRoomRegistry(get(), get(), get(), get(), get(), get(), get()) }
+        single<StoryRepositoryProvider> { PostgresStoryRepositoryProvider(get()) }
         single {
             StoryRepositoryAvailability(
                 storyRepository ?: get<StoryRepositoryProvider>().provide(get<ServerConfig>().databaseUrl),
@@ -38,7 +57,6 @@ internal fun serverModule(
         single { RoomSocketHub(get()) }
         single<CoroutineScope> { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
         single { StoryHistoryRouteInstaller(get(), get()) }
-        single<Logger> { LoggerFactory.getLogger(GameWebSocketHandler::class.java) }
         single {
             GameWebSocketHandler(
                 registry = get(),
@@ -46,7 +64,6 @@ internal fun serverModule(
                 storyRepository = get<StoryRepositoryAvailability>().repository,
                 json = get(),
                 relayScope = get(),
-                logger = get(),
                 timeProvider = get(),
             )
         }

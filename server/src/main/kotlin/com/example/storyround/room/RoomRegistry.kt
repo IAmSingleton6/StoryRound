@@ -17,6 +17,13 @@ interface RoomRegistry {
     fun startGame(
         roomCode: String,
         playerId: String,
+        openingPlayerId: String? = playerId,
+        maxRounds: Int,
+    ): RegistryResult
+
+    fun leaveRoom(
+        roomCode: String,
+        playerId: String,
     ): RegistryResult
 
     fun submitPrompt(

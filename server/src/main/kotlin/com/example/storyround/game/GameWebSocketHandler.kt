@@ -1,6 +1,7 @@
 package com.example.storyround.game
 
 import com.example.storyround.RoomSocketHub
+import com.example.storyround.logging.logger
 import com.example.storyround.persistence.StoryRepository
 import com.example.storyround.protocol.ClientMessage
 import com.example.storyround.protocol.GameStatus
@@ -18,7 +19,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
-import org.slf4j.Logger
 import java.util.concurrent.ConcurrentHashMap
 
 internal class GameWebSocketHandler(
@@ -27,7 +27,6 @@ internal class GameWebSocketHandler(
     private val storyRepository: StoryRepository?,
     private val json: Json,
     private val relayScope: CoroutineScope,
-    private val logger: Logger,
     private val timeProvider: TimeProvider,
 ) {
     private val finishedStoryIds = ConcurrentHashMap<String, String>()
@@ -66,6 +65,11 @@ internal class GameWebSocketHandler(
         message: ClientMessage,
         result: RegistryResult.Success,
     ) {
+        if (message is ClientMessage.LeaveRoom) {
+            sockets.unsubscribe(session)
+            publishRoomUpdate(result)
+            return
+        }
         sockets.subscribe(result.room.roomCode, session)
         result.sessionToken?.let { token ->
             sockets.send(
@@ -118,7 +122,7 @@ internal class GameWebSocketHandler(
         }.fold(
             onSuccess = { story -> StorySaveResult(story = story) },
             onFailure = { failure ->
-                logger.error("Could not save finished story for room ${result.room.roomCode}.", failure)
+                logger().e(failure, "GameWebSocketHandler") { "Could not save finished story for room ${result.room.roomCode}." }
                 StorySaveResult(failed = true)
             },
         )
@@ -142,11 +146,12 @@ internal class GameWebSocketHandler(
         }
     }
 
-    private suspend fun RoomRegistry.handle(message: ClientMessage): RegistryResult =
+    private fun RoomRegistry.handle(message: ClientMessage): RegistryResult =
         when (message) {
             is ClientMessage.CreateRoom -> createRoom(message.playerName)
             is ClientMessage.JoinRoom -> joinRoom(message.roomCode, message.playerName)
-            is ClientMessage.StartGame -> startGame(message.roomCode, message.playerId)
+            is ClientMessage.StartGame -> startGame(message.roomCode, message.playerId, message.openingPlayerId, message.maxRounds)
+            is ClientMessage.LeaveRoom -> leaveRoom(message.roomCode, message.playerId)
             is ClientMessage.SubmitPrompt -> submitPrompt(message.roomCode, message.playerId, message.text)
             is ClientMessage.SubmitContribution -> submitContribution(message.roomCode, message.playerId, message.text)
             is ClientMessage.PlayAgain -> playAgain(message.roomCode, message.playerId)

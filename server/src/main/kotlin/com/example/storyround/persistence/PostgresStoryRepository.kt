@@ -1,5 +1,6 @@
 package com.example.storyround.persistence
 
+import com.example.storyround.identity.IdentifierGenerator
 import com.example.storyround.protocol.Contribution
 import com.example.storyround.protocol.GameStatus
 import com.example.storyround.protocol.Player
@@ -12,10 +13,10 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import java.util.UUID
 
 internal class PostgresStoryRepository(
     private val schema: StorySchema,
+    private val identifierGenerator: IdentifierGenerator,
 ) : StoryRepository {
     override fun save(
         room: RoomState,
@@ -25,8 +26,9 @@ internal class PostgresStoryRepository(
         val prompt = requireNotNull(room.prompt)
         val story =
             SavedStory(
-                id = UUID.randomUUID().toString(),
+                id = identifierGenerator.generate(),
                 prompt = prompt,
+                promptPlayerId = requireNotNull(room.openingPlayerId),
                 createdAtEpochMillis = createdAtEpochMillis,
                 players = room.players,
                 contributions = room.contributions,
@@ -35,6 +37,7 @@ internal class PostgresStoryRepository(
             schema.stories.insert { row ->
                 row[id] = story.id
                 row[schema.stories.prompt] = story.prompt
+                row[schema.stories.promptPlayerId] = story.promptPlayerId
                 row[schema.stories.createdAtEpochMillis] = story.createdAtEpochMillis
             }
             story.players.forEach { player ->
@@ -83,6 +86,7 @@ internal class PostgresStoryRepository(
             SavedStory(
                 id = id,
                 prompt = story[schema.stories.prompt],
+                promptPlayerId = story[schema.stories.promptPlayerId],
                 createdAtEpochMillis = story[schema.stories.createdAtEpochMillis],
                 players = players,
                 contributions = contributions,

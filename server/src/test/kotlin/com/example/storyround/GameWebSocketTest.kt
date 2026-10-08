@@ -1,5 +1,7 @@
 package com.example.storyround
 
+import com.example.storyround.configuration.GameConfiguration
+import com.example.storyround.identity.RandomNumberGenerator
 import com.example.storyround.persistence.StoryRepository
 import com.example.storyround.protocol.ClientMessage
 import com.example.storyround.protocol.RoomState
@@ -7,6 +9,10 @@ import com.example.storyround.protocol.SavedStory
 import com.example.storyround.protocol.ServerMessage
 import com.example.storyround.protocol.StorySummary
 import com.example.storyround.room.InMemoryRoomRegistry
+import com.example.storyround.room.InMemoryRoomStore
+import com.example.storyround.room.RoomIdentityGenerator
+import com.example.storyround.room.RoomStateMapperImpl
+import com.example.storyround.room.TurnRules
 import com.example.storyround.time.SystemTimeProvider
 import com.example.storyround.time.TimeProvider
 import io.ktor.client.plugins.websocket.WebSockets
@@ -18,6 +24,8 @@ import io.ktor.websocket.readText
 import io.ktor.websocket.send
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
+import io.mockk.every
+import io.mockk.mockk
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -74,7 +82,7 @@ class GameWebSocketTest {
             host.receiveMessage()
             host.receiveMessage()
 
-            host.sendMessage(ClientMessage.StartGame("AB12", hostPlayer.id))
+            host.sendMessage(ClientMessage.StartGame("AB12", hostPlayer.id, hostPlayer.id, maxRounds = 3))
             host.receiveMessage()
             guest.receiveMessage()
             host.sendMessage(ClientMessage.SubmitPrompt("AB12", hostPlayer.id, "A door opened."))
@@ -130,7 +138,7 @@ class GameWebSocketTest {
             val session = assertIs<ServerMessage.SessionEstablished>(host.receiveMessage())
             host.receiveMessage()
             host.receiveMessage()
-            host.sendMessage(ClientMessage.StartGame("AB12", session.playerId))
+            host.sendMessage(ClientMessage.StartGame("AB12", session.playerId, session.playerId, maxRounds = 1))
             host.receiveMessage()
             host.sendMessage(ClientMessage.SubmitPrompt("AB12", session.playerId, "A door opened."))
             host.receiveMessage()
@@ -175,7 +183,7 @@ class GameWebSocketTest {
             host.receiveMessage()
             host.receiveMessage()
 
-            host.sendMessage(ClientMessage.StartGame("AB12", hostSession.playerId))
+            host.sendMessage(ClientMessage.StartGame("AB12", hostSession.playerId, hostSession.playerId, maxRounds = 3))
             host.receiveMessage()
             guest.receiveMessage()
             host.sendMessage(ClientMessage.SubmitPrompt("AB12", hostSession.playerId, "A door opened."))
@@ -201,7 +209,7 @@ class GameWebSocketTest {
             val session = assertIs<ServerMessage.SessionEstablished>(host.receiveMessage())
             host.receiveMessage()
             host.receiveMessage()
-            host.sendMessage(ClientMessage.StartGame("AB12", session.playerId))
+            host.sendMessage(ClientMessage.StartGame("AB12", session.playerId, session.playerId, maxRounds = 1))
             host.receiveMessage()
             host.sendMessage(ClientMessage.SubmitPrompt("AB12", session.playerId, "A door opened."))
             host.receiveMessage()
@@ -246,13 +254,26 @@ class GameWebSocketTest {
         timeProvider: TimeProvider = SystemTimeProvider(),
     ): InMemoryRoomRegistry {
         var nextPlayerId = 1
+        val identityGenerator = mockk<RoomIdentityGenerator>()
+        every { identityGenerator.generateRoomCode() } returns "AB12"
+        every { identityGenerator.generatePlayerId() } answers { "player-${nextPlayerId++}" }
+        every { identityGenerator.generateSessionToken() } returns "session-token"
+        val randomNumberGenerator = mockk<RandomNumberGenerator>()
+        every { randomNumberGenerator.nextInt(any()) } returns 0
+        val gameConfiguration =
+            GameConfiguration(
+                defaultRounds = rounds,
+                firstTurnMillis = firstTurnMillis,
+                minimumTurnMillis = firstTurnMillis,
+            )
         return InMemoryRoomRegistry(
-            roomCodeGenerator = { "AB12" },
-            playerIdGenerator = { "player-${nextPlayerId++}" },
+            roomStore = InMemoryRoomStore(),
+            roomIdentityGenerator = identityGenerator,
             timeProvider = timeProvider,
-            rounds = rounds,
-            firstTurnMillis = firstTurnMillis,
-            minimumTurnMillis = firstTurnMillis,
+            turnRules = TurnRules(gameConfiguration),
+            roomStateMapper = RoomStateMapperImpl(),
+            gameConfiguration = gameConfiguration,
+            randomNumberGenerator = randomNumberGenerator,
         )
     }
 
@@ -266,7 +287,14 @@ class GameWebSocketTest {
         ): SavedStory {
             savedRoom = room
             this.createdAtEpochMillis = createdAtEpochMillis
-            return SavedStory("story-1", requireNotNull(room.prompt), createdAtEpochMillis, room.players, room.contributions)
+            return SavedStory(
+                id = "story-1",
+                prompt = requireNotNull(room.prompt),
+                promptPlayerId = requireNotNull(room.openingPlayerId),
+                createdAtEpochMillis = createdAtEpochMillis,
+                players = room.players,
+                contributions = room.contributions,
+            )
         }
 
         override fun find(id: String): SavedStory? = null

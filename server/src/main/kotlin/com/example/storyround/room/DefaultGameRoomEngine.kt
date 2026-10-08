@@ -1,5 +1,7 @@
 package com.example.storyround.room
 
+import com.example.storyround.configuration.GameConfiguration
+import com.example.storyround.identity.RandomNumberGenerator
 import com.example.storyround.protocol.Contribution
 import com.example.storyround.protocol.GameStatus
 import com.example.storyround.protocol.MAX_PLAYER_NAME_LENGTH
@@ -16,7 +18,9 @@ internal class DefaultGameRoomEngine(
     private val timeProvider: TimeProvider,
     private val turnRules: TurnRules,
     private val sessionTokenGenerator: () -> String,
-    private val maxPlayers: Int = DEFAULT_MAX_PLAYERS,
+    private val roomStateMapper: RoomStateMapper,
+    private val gameConfiguration: GameConfiguration,
+    private val randomNumberGenerator: RandomNumberGenerator,
 ) : GameRoomEngine {
     override fun createRoom(playerName: String): RegistryResult {
         val validatedName =
@@ -30,11 +34,12 @@ internal class DefaultGameRoomEngine(
                     code = roomCodeGenerator().uppercase(),
                     hostId = host.id,
                     players = mutableListOf(host),
-                    maxPlayers = maxPlayers,
+                    maxPlayers = gameConfiguration.maxPlayers,
                     sessionTokens = mutableMapOf(host.id to sessionToken),
+                    maxRounds = gameConfiguration.defaultRounds,
                 )
             if (roomStore.create(room)) {
-                return RegistryResult.Success(room.toState(), host, sessionToken = sessionToken)
+                return RegistryResult.Success(roomStateMapper.map(room), host, sessionToken = sessionToken)
             }
         }
         error("Unable to allocate a unique room code.")
@@ -61,7 +66,7 @@ internal class DefaultGameRoomEngine(
             val sessionToken = sessionTokenGenerator()
             room.players += player
             room.sessionTokens[player.id] = sessionToken
-            RegistryResult.Success(room.toState(), player, sessionToken = sessionToken)
+            RegistryResult.Success(roomStateMapper.map(room), player, sessionToken = sessionToken)
         }
 
     override fun reconnect(
@@ -77,19 +82,34 @@ internal class DefaultGameRoomEngine(
             if (room.sessionTokens[playerId] != sessionToken) {
                 return@withRoom RegistryResult.Error("INVALID_SESSION", "That session cannot reconnect to this player.")
             }
-            RegistryResult.Success(room.toState(), player, sessionToken = sessionToken, isNewPlayer = false)
+            RegistryResult.Success(roomStateMapper.map(room), player, sessionToken = sessionToken, isNewPlayer = false)
         }
 
     override fun startGame(
         roomCode: String,
         playerId: String,
+        openingPlayerId: String?,
+        maxRounds: Int,
     ): RegistryResult =
         roomStore.withRoom(roomCode) { room ->
             room ?: return@withRoom RegistryResult.Error("ROOM_NOT_FOUND", "That room does not exist.")
             if (room.hostId != playerId) return@withRoom RegistryResult.Error("NOT_HOST", "Only the host can start the game.")
             if (room.status != GameStatus.Lobby) return@withRoom RegistryResult.Error("INVALID_GAME_STATE", "The game has already started.")
+            if (maxRounds !in gameConfiguration.minRounds..gameConfiguration.maxRounds) {
+                return@withRoom RegistryResult.Error(
+                    "INVALID_ROUNDS",
+                    "Choose between ${gameConfiguration.minRounds} and ${gameConfiguration.maxRounds} rounds.",
+                )
+            }
+            val selectedOpeningPlayerId =
+                openingPlayerId ?: room.players[randomNumberGenerator.nextInt(room.players.size)].id
+            if (room.players.none { it.id == selectedOpeningPlayerId }) {
+                return@withRoom RegistryResult.Error("INVALID_PROMPT_OWNER", "Choose a player in this room to start the story.")
+            }
+            room.openingPlayerId = selectedOpeningPlayerId
+            room.maxRounds = maxRounds
             room.status = GameStatus.Prompt
-            RegistryResult.Success(room.toState(), null)
+            RegistryResult.Success(roomStateMapper.map(room), null)
         }
 
     override fun submitPrompt(
@@ -102,14 +122,14 @@ internal class DefaultGameRoomEngine(
             if (room.status != GameStatus.Prompt) {
                 return@withRoom RegistryResult.Error("INVALID_GAME_STATE", "The game is not waiting for an opening prompt.")
             }
-            if (room.hostId != playerId) return@withRoom RegistryResult.Error("NOT_PROMPT_OWNER", "Only the host can start the story.")
+            if (room.openingPlayerId != playerId) return@withRoom RegistryResult.Error("NOT_PROMPT_OWNER", "Only the selected player can start the story.")
             val prompt =
                 validateText(text)
                     ?: return@withRoom RegistryResult.Error("INVALID_TEXT", "Enter up to $MAX_STORY_TEXT_LENGTH characters.")
             room.prompt = prompt
             room.status = GameStatus.Playing
             startTurn(room, 0, timeProvider.nowEpochMillis())
-            RegistryResult.Success(room.toState(), null, listOf(turnStarted(room)))
+            RegistryResult.Success(roomStateMapper.map(room), null, listOf(turnStarted(room)))
         }
 
     override fun submitContribution(
@@ -150,11 +170,12 @@ internal class DefaultGameRoomEngine(
             }
             room.status = GameStatus.Lobby
             room.prompt = null
+            room.openingPlayerId = null
             room.contributions.clear()
             room.currentPlayerId = null
             room.turnNumber = 0
             room.turnDeadlineEpochMillis = null
-            RegistryResult.Success(room.toState(), null)
+            RegistryResult.Success(roomStateMapper.map(room), null)
         }
 
     override fun expireTurn(
@@ -182,18 +203,37 @@ internal class DefaultGameRoomEngine(
         val events = initialEvents.toMutableList()
         contribution?.let { events += ServerMessage.ContributionAdded(it) }
         val nextTurnNumber = room.turnNumber + 1
-        if (turnRules.isComplete(nextTurnNumber, room.players.size)) {
+        if (turnRules.isComplete(nextTurnNumber, room.players.size, room.maxRounds)) {
             room.status = GameStatus.Finished
             room.currentPlayerId = null
             room.turnDeadlineEpochMillis = null
-            val state = room.toState()
+            val state = roomStateMapper.map(room)
             events += ServerMessage.GameFinished(state)
             return RegistryResult.Success(state, null, events)
         }
         startTurn(room, nextTurnNumber, timeProvider.nowEpochMillis())
         events += turnStarted(room)
-        return RegistryResult.Success(room.toState(), null, events)
+        return RegistryResult.Success(roomStateMapper.map(room), null, events)
     }
+
+    override fun leaveRoom(
+        roomCode: String,
+        playerId: String,
+    ): RegistryResult =
+        roomStore.withRoom(roomCode) { room ->
+            room ?: return@withRoom RegistryResult.Error("ROOM_NOT_FOUND", "That room does not exist.")
+            if (room.status != GameStatus.Lobby) {
+                return@withRoom RegistryResult.Error("CANNOT_LEAVE_GAME", "You can only leave while the game is in the lobby.")
+            }
+            if (room.players.none { it.id == playerId }) {
+                return@withRoom RegistryResult.Error("PLAYER_NOT_FOUND", "That player is not in this room.")
+            }
+            room.players.removeAll { it.id == playerId }
+            room.sessionTokens.remove(playerId)
+            if (room.players.isNotEmpty() && room.hostId == playerId) room.hostId = room.players.first().id
+            if (room.players.isEmpty()) roomStore.remove(room.code)
+            RegistryResult.Success(roomStateMapper.map(room), null, listOf(ServerMessage.PlayerLeft(playerId)), isNewPlayer = false)
+        }
 
     private fun startTurn(
         room: MutableGameRoom,
@@ -215,9 +255,7 @@ internal class DefaultGameRoomEngine(
 
     private fun validateText(text: String): String? = text.trim().takeIf { it.isNotEmpty() && it.length <= MAX_STORY_TEXT_LENGTH }
 
-    private companion object {
-        const val MAX_CODE_GENERATION_ATTEMPTS = 100
-        const val DEFAULT_MAX_PLAYERS = 10
-        val colours = PlayerColour.entries
-    }
 }
+
+private const val MAX_CODE_GENERATION_ATTEMPTS = 100
+private val colours = PlayerColour.entries
