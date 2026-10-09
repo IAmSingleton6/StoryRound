@@ -27,7 +27,7 @@ internal fun HomeScreen(
         color = StoryRoundInk,
     )
     Text(
-        "Create a room or join your friends with a room code.",
+        "Write a story. One sentence at a time. Less time every turn.",
         style = MaterialTheme.typography.titleMedium,
     )
     OutlinedTextField(
@@ -37,19 +37,36 @@ internal fun HomeScreen(
         modifier = Modifier.fillMaxWidth(),
         singleLine = true,
     )
-    OutlinedTextField(
-        value = uiState.roomCode,
-        onValueChange = { onAction(HomeAction.RoomCodeChanged(it)) },
-        label = { Text("Room code (leave blank to create)") },
-        modifier = Modifier.fillMaxWidth(),
-        singleLine = true,
-    )
+    if (uiState.isJoining) {
+        OutlinedTextField(
+            value = uiState.roomCode,
+            onValueChange = { onAction(HomeAction.RoomCodeChanged(it)) },
+            label = { Text("Room code") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+        )
+    }
     uiState.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
     Spacer(Modifier.weight(1f))
-    Action(
-        label = if (uiState.roomCode.isBlank()) "CREATE GAME" else "JOIN GAME",
-        onClick = { onAction(HomeAction.Submit) },
-        enabled = uiState.playerName.isNotBlank() && !uiState.isConnecting,
-    )
+    if (uiState.isJoining) {
+        Action(
+            label = "JOIN GAME",
+            onClick = { onAction(HomeAction.JoinGame) },
+            enabled = uiState.playerName.isNotBlank() && uiState.roomCode.isNotBlank() && !uiState.isConnecting,
+        )
+        Action("CANCEL", onClick = { onAction(HomeAction.CancelJoin) }, filled = false)
+    } else {
+        Action(
+            label = "CREATE GAME",
+            onClick = { onAction(HomeAction.CreateGame) },
+            enabled = uiState.playerName.isNotBlank() && !uiState.isConnecting,
+        )
+        Action(
+            label = "JOIN GAME",
+            onClick = { onAction(HomeAction.ShowJoinGame) },
+            enabled = uiState.playerName.isNotBlank() && !uiState.isConnecting,
+            filled = false,
+        )
+    }
     Action("HISTORY", onClick = { onAction(HomeAction.OpenHistory) }, filled = false)
 }

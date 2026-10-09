@@ -51,7 +51,7 @@ class HomeViewModelTest {
             advanceUntilIdle()
 
             viewModel.onAction(HomeAction.PlayerNameChanged("Alex"))
-            viewModel.onAction(HomeAction.Submit)
+            viewModel.onAction(HomeAction.CreateGame)
             advanceUntilIdle()
 
             assertEquals("Alex", viewModel.uiState.value.playerName)

@@ -31,20 +31,21 @@ internal class HomeViewModel(
                 formState.value = formState.value.copy(playerName = action.value.take(MAX_PLAYER_NAME_LENGTH))
             is HomeAction.RoomCodeChanged ->
                 formState.value = formState.value.copy(roomCode = action.value.uppercase())
-            HomeAction.Submit -> submit()
+            HomeAction.CreateGame -> createGame()
+            HomeAction.ShowJoinGame -> formState.value = formState.value.copy(isJoining = true)
+            HomeAction.JoinGame -> joinGame()
+            HomeAction.CancelJoin -> formState.value = formState.value.copy(isJoining = false, roomCode = "")
             HomeAction.OpenHistory -> Unit
         }
     }
 
-    private fun submit() {
+    private fun createGame() {
         val current = formState.value
+        viewModelScope.launch { createRoomUseCase(current.playerName) }
+    }
 
-        viewModelScope.launch {
-            if (current.roomCode.isNotBlank()) {
-                joinRoomUseCase(current.roomCode, current.playerName)
-            } else {
-                createRoomUseCase(current.playerName)
-            }
-        }
+    private fun joinGame() {
+        val current = formState.value
+        viewModelScope.launch { joinRoomUseCase(current.roomCode, current.playerName) }
     }
 }

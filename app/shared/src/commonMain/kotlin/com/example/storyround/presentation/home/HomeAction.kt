@@ -9,7 +9,13 @@ internal sealed interface HomeAction {
         val value: String,
     ) : HomeAction
 
-    data object Submit : HomeAction
+    data object CreateGame : HomeAction
+
+    data object ShowJoinGame : HomeAction
+
+    data object JoinGame : HomeAction
+
+    data object CancelJoin : HomeAction
 
     data object OpenHistory : HomeAction
 }
