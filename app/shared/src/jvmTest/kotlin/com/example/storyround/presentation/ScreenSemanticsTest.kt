@@ -50,7 +50,7 @@ class ScreenSemanticsTest {
 
             onNodeWithText("CREATE GAME").assertIsDisplayed().performClick()
 
-            assertEquals(HomeAction.Submit, action)
+            assertEquals(HomeAction.CreateGame, action)
         }
 
     @Test
@@ -71,6 +71,7 @@ class ScreenSemanticsTest {
                                         prompt = "A door opened.",
                                         contributions = emptyList(),
                                         turn = TurnUi(sam, number = 1, deadlineEpochMillis = Long.MAX_VALUE),
+                                        maxRounds = 3,
                                     ),
                                 playerId = alex.id,
                                 nowEpochMillis = 0,
@@ -92,7 +93,7 @@ class ScreenSemanticsTest {
             var action: LobbyAction? = null
             setContent {
                 StoryRoundTheme {
-                    LobbyScreen(LobbyUiState("AB12", listOf(alex), isHost = true)) { action = it }
+                    LobbyScreen(LobbyUiState("AB12", listOf(alex), maxPlayers = 10, isHost = true, maxRounds = 3)) { action = it }
                 }
             }
 
@@ -113,7 +114,7 @@ class ScreenSemanticsTest {
                     remember {
                         mutableStateOf(
                             StoryUiState.OpeningPrompt(
-                                room = RoomUi("AB12", alex.id, listOf(alex), "", emptyList(), null),
+                                room = RoomUi("AB12", alex.id, listOf(alex), "", emptyList(), null, maxRounds = 3),
                                 openingPromptDraft = "",
                                 canSubmitOpeningPrompt = true,
                                 hostName = alex.name,
@@ -130,7 +131,7 @@ class ScreenSemanticsTest {
                 }
             }
 
-            onNodeWithText("When I opened the door, I saw...").performTextInput("A door opened.")
+            onNodeWithText("Start the story...").performTextInput("A door opened.")
             onNodeWithText("START STORY").performClick()
 
             assertEquals(
@@ -157,6 +158,7 @@ class ScreenSemanticsTest {
                                         "A door opened.",
                                         emptyList(),
                                         TurnUi(alex, number = 1, deadlineEpochMillis = Long.MAX_VALUE),
+                                        maxRounds = 3,
                                     ),
                                 playerId = alex.id,
                                 nowEpochMillis = 0,

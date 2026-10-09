@@ -7,7 +7,7 @@ import com.example.storyround.domain.time.TimeProvider
 import com.example.storyround.domain.usecase.SubmitContributionUseCase
 import com.example.storyround.domain.usecase.SubmitPromptUseCase
 import com.example.storyround.presentation.model.MAX_CONTRIBUTION_LENGTH
-import com.example.storyround.presentation.model.toRoomUi
+import com.example.storyround.presentation.mapper.RoomUiMapper
 import com.example.storyround.protocol.GameStatus
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,6 +26,7 @@ internal class StoryViewModel(
     private val submitPromptUseCase: SubmitPromptUseCase,
     private val submitContributionUseCase: SubmitContributionUseCase,
     private val timeProvider: TimeProvider,
+    private val roomUiMapper: RoomUiMapper,
 ) : ViewModel() {
     private val openingPromptDraft = MutableStateFlow("")
     private val contributionDraft = MutableStateFlow("")
@@ -34,16 +35,16 @@ internal class StoryViewModel(
     val uiState: StateFlow<StoryUiState> =
         combine(repository.state, openingPromptDraft, contributionDraft, now) { state, prompt, contribution, time ->
             val room = state.room ?: return@combine StoryUiState.Loading
-            val roomUi = room.toRoomUi()
+            val roomUi = roomUiMapper.map(room)
             when (room.status) {
                 GameStatus.Prompt ->
                     StoryUiState.OpeningPrompt(
                         room = roomUi,
                         openingPromptDraft = prompt,
-                        canSubmitOpeningPrompt = room.hostId == state.playerId,
+                        canSubmitOpeningPrompt = (room.openingPlayerId ?: room.hostId) == state.playerId,
                         hostName =
                             roomUi.players
-                                .firstOrNull { it.id == room.hostId }
+                                .firstOrNull { it.id == (room.openingPlayerId ?: room.hostId) }
                                 ?.name
                                 .orEmpty(),
                     )
@@ -69,7 +70,7 @@ internal class StoryViewModel(
 
     fun onAction(action: StoryAction) {
         when (action) {
-            is StoryAction.OpeningPromptChanged -> openingPromptDraft.value = action.value
+            is StoryAction.OpeningPromptChanged -> openingPromptDraft.value = action.value.take(MAX_CONTRIBUTION_LENGTH)
             StoryAction.SubmitOpeningPrompt -> submitOpeningPrompt()
             is StoryAction.ContributionChanged -> contributionDraft.value = action.value.take(MAX_CONTRIBUTION_LENGTH)
             StoryAction.SubmitContribution -> submitContribution()

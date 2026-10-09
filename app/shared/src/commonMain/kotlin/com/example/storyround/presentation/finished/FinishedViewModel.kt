@@ -6,7 +6,7 @@ import com.example.storyround.domain.repository.GameRepository
 import com.example.storyround.domain.usecase.OpenSavedStoryUseCase
 import com.example.storyround.domain.usecase.PlayAgainUseCase
 import com.example.storyround.presentation.model.StoryUi
-import com.example.storyround.presentation.model.toRoomUi
+import com.example.storyround.presentation.mapper.RoomUiMapper
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
@@ -17,12 +17,13 @@ internal class FinishedViewModel(
     repository: GameRepository,
     private val openSavedStoryUseCase: OpenSavedStoryUseCase,
     private val playAgainUseCase: PlayAgainUseCase,
+    private val roomUiMapper: RoomUiMapper,
 ) : ViewModel() {
     val uiState: StateFlow<FinishedUiState> =
         repository.state
             .map { state ->
-                val room = state.room?.toRoomUi()
-                val story = room?.let { StoryUi(it.roomCode, it.prompt, it.players, it.contributions) }
+                val room = state.room?.let(roomUiMapper::map)
+                val story = room?.let { StoryUi(it.roomCode, it.prompt, it.players, it.contributions, it.promptAuthor) }
                 FinishedUiState(
                     story = story,
                     finishedStoryId = state.finishedStoryId,

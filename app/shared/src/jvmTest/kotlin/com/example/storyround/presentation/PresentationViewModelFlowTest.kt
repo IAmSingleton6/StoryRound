@@ -16,6 +16,10 @@ import com.example.storyround.presentation.history.HistoryUiState
 import com.example.storyround.presentation.history.HistoryViewModel
 import com.example.storyround.presentation.lobby.LobbyAction
 import com.example.storyround.presentation.lobby.LobbyViewModel
+import com.example.storyround.configuration.GameConfiguration
+import com.example.storyround.presentation.mapper.ContributionUiMapperImpl
+import com.example.storyround.presentation.mapper.PlayerUiMapperImpl
+import com.example.storyround.presentation.mapper.RoomUiMapperImpl
 import com.example.storyround.presentation.story.StoryAction
 import com.example.storyround.presentation.story.StoryUiState
 import com.example.storyround.presentation.story.StoryViewModel
@@ -47,6 +51,7 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalCoroutinesApi::class)
 class PresentationViewModelFlowTest {
     private val dispatcher = StandardTestDispatcher()
+    private val roomUiMapper = RoomUiMapperImpl(PlayerUiMapperImpl(), ContributionUiMapperImpl())
 
     @BeforeTest
     fun setUp() {
@@ -66,7 +71,13 @@ class PresentationViewModelFlowTest {
                     RemoteGameState(room = room(GameStatus.Lobby), playerId = HOST.id),
                 )
             val repository = repository(state)
-            val viewModel = LobbyViewModel(repository, StartGameUseCaseImpl(repository))
+            val viewModel =
+                LobbyViewModel(
+                    repository,
+                    StartGameUseCaseImpl(repository),
+                    roomUiMapper,
+                    GameConfiguration(defaultRounds = 4),
+                )
             val collection = backgroundScope.launch { viewModel.uiState.collect() }
             advanceUntilIdle()
 
@@ -79,7 +90,7 @@ class PresentationViewModelFlowTest {
                 viewModel.uiState.value.players
                     .map { player -> player.name }
             assertEquals(listOf(HOST.name), playerNames)
-            coVerify(exactly = 1) { repository.startGame() }
+            coVerify(exactly = 1) { repository.startGame(null, 4) }
             collection.cancel()
         }
 
@@ -94,6 +105,7 @@ class PresentationViewModelFlowTest {
                     SubmitPromptUseCaseImpl(repository),
                     SubmitContributionUseCaseImpl(repository),
                     FakeTimeProvider(),
+                    roomUiMapper,
                 )
             val collection = backgroundScope.launch { viewModel.uiState.collect() }
             runCurrent()
@@ -124,6 +136,7 @@ class PresentationViewModelFlowTest {
                     repository,
                     OpenSavedStoryUseCaseImpl(repository),
                     PlayAgainUseCaseImpl(repository),
+                    roomUiMapper,
                 )
             val collection = backgroundScope.launch { viewModel.uiState.collect() }
             advanceUntilIdle()
@@ -178,6 +191,8 @@ class PresentationViewModelFlowTest {
             prompt = "A door opened.",
             currentPlayerId = HOST.id,
             turnDeadlineEpochMillis = null,
+            maxPlayers = 10,
+            maxRounds = 3,
         )
 
     private companion object {

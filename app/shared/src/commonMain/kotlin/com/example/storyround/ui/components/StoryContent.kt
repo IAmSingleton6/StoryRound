@@ -1,29 +1,28 @@
 package com.example.storyround.ui.components
 
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
-import androidx.compose.foundation.background
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.unit.dp
 import com.example.storyround.presentation.model.ContributionUi
 import com.example.storyround.presentation.model.PlayerUi
@@ -31,56 +30,68 @@ import com.example.storyround.ui.theme.StoryRoundInk
 import com.example.storyround.ui.theme.toUiColor
 import kotlinx.coroutines.delay
 
+private data class StorySegment(
+    val text: String,
+    val author: PlayerUi?,
+)
+
 @Composable
 internal fun Story(
     prompt: String,
+    promptAuthor: PlayerUi? = null,
     contributions: List<ContributionUi>,
     modifier: Modifier,
+    emptyPlaceholder: String? = null,
 ) {
+    val segments =
+        remember(prompt, promptAuthor, contributions) {
+            buildList {
+                prompt.trim().takeIf(String::isNotEmpty)?.let { add(StorySegment(it, promptAuthor)) }
+                contributions.forEach { contribution ->
+                    contribution.text.trim().takeIf(String::isNotEmpty)?.let { add(StorySegment(it, contribution.player)) }
+                }
+            }
+        }
     val scroll = rememberScrollState()
-    LaunchedEffect(contributions.size) {
+    LaunchedEffect(segments.size) {
         delay(220)
         scroll.animateScrollTo(scroll.maxValue)
     }
-    Column(
-        modifier.verticalScroll(scroll).padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Text(prompt, style = MaterialTheme.typography.bodyLarge, color = StoryRoundInk)
-        contributions.forEachIndexed { index, contribution ->
-            AnimatedContribution(contribution, isNewest = index == contributions.lastIndex)
+    Column(modifier.verticalScroll(scroll).padding(24.dp)) {
+        if (segments.isEmpty()) {
+            emptyPlaceholder?.let {
+                Text(it, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        } else {
+            AnimatedContent(
+                targetState = segments,
+                transitionSpec = {
+                    (fadeIn(tween(220)) + slideInHorizontally(tween(220)) { it / 4 }) togetherWith fadeOut(tween(90))
+                },
+                label = "storyContribution",
+            ) { visibleSegments ->
+                Text(
+                    text = visibleSegments.toAnnotatedStory(),
+                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = visibleSegments.joinToString(" ") { it.text } },
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = StoryRoundInk,
+                )
+            }
         }
     }
 }
 
-@Composable
-private fun AnimatedContribution(
-    contribution: ContributionUi,
-    isNewest: Boolean,
-) {
-    var visible by remember(contribution.order) { mutableStateOf(!isNewest) }
-    LaunchedEffect(contribution.order, isNewest) {
-        if (isNewest) visible = true
+private fun List<StorySegment>.toAnnotatedStory() =
+    buildAnnotatedString {
+        forEachIndexed { index, segment ->
+            if (index > 0) append(' ')
+            val start = length
+            append(segment.text)
+            segment.author?.let { author ->
+                addStyle(SpanStyle(background = author.colour.toUiColor().copy(alpha = .26f)), start, length)
+            }
+        }
     }
-    AnimatedVisibility(
-        visible = visible,
-        enter = fadeIn(tween(220)) + expandVertically(tween(220)),
-    ) {
-        Text(
-            contribution.text,
-            Modifier
-                .fillMaxWidth()
-                .semantics { contentDescription = "${contribution.player.name}'s contribution: ${contribution.text}" }
-                .background(
-                    contribution.player.colour
-                        .toUiColor()
-                        .copy(alpha = .22f),
-                    RoundedCornerShape(8.dp),
-                ).padding(12.dp),
-            style = MaterialTheme.typography.bodyLarge,
-        )
-    }
-}
 
 @Composable
 internal fun StoryPlayers(players: List<PlayerUi>) {

@@ -46,27 +46,19 @@ private fun OpeningPromptContent(
 ) {
     Column(Modifier.safeContentPadding().fillMaxSize()) {
         StoryHeader(uiState.room)
-        if (uiState.canSubmitOpeningPrompt) {
-            Text("START THE STORY", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black)
-            Text("Create the opening line or premise. There is no timer yet.")
-            OutlinedTextField(
-                value = uiState.openingPromptDraft,
-                onValueChange = { onAction(StoryAction.OpeningPromptChanged(it)) },
-                modifier = Modifier.fillMaxWidth().weight(1f).padding(16.dp),
-                placeholder = { Text("When I opened the door, I saw...") },
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-            )
-            Action(
-                "START STORY",
-                onClick = { onAction(StoryAction.SubmitOpeningPrompt) },
-                enabled = uiState.openingPromptDraft.isNotBlank(),
-            )
-        } else {
-            Spacer(Modifier.weight(1f))
-            Text("${uiState.hostName} is starting the story...", style = MaterialTheme.typography.titleLarge)
-            Text("Waiting for the opening prompt.")
-            Spacer(Modifier.weight(1f))
-        }
+        Text("START THE STORY", Modifier.padding(horizontal = 24.dp), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black)
+        Text(
+            if (uiState.canSubmitOpeningPrompt) "Create the opening line or premise. There is no timer yet." else "${uiState.hostName} is starting the story...",
+            Modifier.padding(horizontal = 24.dp),
+        )
+        Story(
+            prompt = uiState.room.prompt,
+            promptAuthor = uiState.room.promptAuthor,
+            contributions = uiState.room.contributions,
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            emptyPlaceholder = "Start the story…",
+        )
+        OpeningPromptInput(uiState, onAction)
     }
 }
 
@@ -81,7 +73,7 @@ private fun PlayingContent(
     Column(Modifier.safeContentPadding().fillMaxSize()) {
         StoryHeader(uiState.room)
         TurnHeader(turn, uiState.nowEpochMillis, isYourTurn)
-        Story(uiState.room.prompt, uiState.room.contributions, Modifier.weight(1f).fillMaxWidth())
+        Story(uiState.room.prompt, uiState.room.promptAuthor, uiState.room.contributions, Modifier.weight(1f).fillMaxWidth())
         ContributionInput(uiState, isYourTurn, turn, onAction)
     }
 }
@@ -140,6 +132,35 @@ private fun ContributionInput(
                 "SUBMIT",
                 onClick = { onAction(StoryAction.SubmitContribution) },
                 enabled = isYourTurn && uiState.contributionDraft.isNotBlank(),
+            )
+        }
+    }
+}
+
+@Composable
+private fun OpeningPromptInput(
+    uiState: StoryUiState.OpeningPrompt,
+    onAction: (StoryAction) -> Unit,
+) {
+    Column(Modifier.imePadding().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedTextField(
+            value = uiState.openingPromptDraft,
+            onValueChange = { onAction(StoryAction.OpeningPromptChanged(it)) },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = uiState.canSubmitOpeningPrompt,
+            placeholder = { Text(if (uiState.canSubmitOpeningPrompt) "Start the story..." else "Waiting for ${uiState.hostName}...") },
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+        )
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("${uiState.openingPromptDraft.length}/$MAX_CONTRIBUTION_LENGTH", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Action(
+                "START STORY",
+                onClick = { onAction(StoryAction.SubmitOpeningPrompt) },
+                enabled = uiState.canSubmitOpeningPrompt && uiState.openingPromptDraft.isNotBlank(),
             )
         }
     }

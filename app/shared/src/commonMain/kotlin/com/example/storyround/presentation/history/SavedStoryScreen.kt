@@ -18,7 +18,7 @@ internal fun SavedStoryScreen(
 ) = Page {
     val story = uiState.story ?: return@Page
     Text("SAVED STORY", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Black)
-    Story(story.prompt, story.contributions, Modifier.weight(1f).fillMaxWidth())
+    Story(story.prompt, story.promptAuthor, story.contributions, Modifier.weight(1f).fillMaxWidth())
     StoryPlayers(story.players)
     Action("BACK TO HISTORY", onClick = onBack, filled = false)
 }

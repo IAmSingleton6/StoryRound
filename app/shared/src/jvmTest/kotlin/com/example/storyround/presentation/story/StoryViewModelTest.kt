@@ -5,6 +5,9 @@ import com.example.storyround.domain.repository.GameRepository
 import com.example.storyround.domain.time.TimeProvider
 import com.example.storyround.domain.usecase.SubmitContributionUseCaseImpl
 import com.example.storyround.domain.usecase.SubmitPromptUseCaseImpl
+import com.example.storyround.presentation.mapper.ContributionUiMapperImpl
+import com.example.storyround.presentation.mapper.PlayerUiMapperImpl
+import com.example.storyround.presentation.mapper.RoomUiMapperImpl
 import com.example.storyround.protocol.GameStatus
 import com.example.storyround.protocol.Player
 import com.example.storyround.protocol.PlayerColour
@@ -32,6 +35,7 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalCoroutinesApi::class)
 class StoryViewModelTest {
     private val dispatcher = StandardTestDispatcher()
+    private val roomUiMapper = RoomUiMapperImpl(PlayerUiMapperImpl(), ContributionUiMapperImpl())
 
     @BeforeTest
     fun setUp() {
@@ -50,7 +54,7 @@ class StoryViewModelTest {
             val repositoryState =
                 MutableStateFlow(
                     RemoteGameState(
-                        room = RoomState("AB12", host.id, listOf(host), GameStatus.Prompt),
+                        room = RoomState("AB12", host.id, listOf(host), GameStatus.Prompt, maxPlayers = 10, maxRounds = 3),
                         playerId = host.id,
                     ),
                 )
@@ -62,6 +66,7 @@ class StoryViewModelTest {
                     SubmitPromptUseCaseImpl(repository),
                     SubmitContributionUseCaseImpl(repository),
                     FakeTimeProvider(),
+                    roomUiMapper,
                 )
             val collection = backgroundScope.launch { viewModel.uiState.collect() }
             advanceUntilIdle()
@@ -84,7 +89,7 @@ class StoryViewModelTest {
             val repositoryState =
                 MutableStateFlow(
                     RemoteGameState(
-                        room = RoomState("AB12", host.id, listOf(host), GameStatus.Prompt),
+                        room = RoomState("AB12", host.id, listOf(host), GameStatus.Prompt, maxPlayers = 10, maxRounds = 3),
                         playerId = host.id,
                     ),
                 )
@@ -96,6 +101,7 @@ class StoryViewModelTest {
                     SubmitPromptUseCaseImpl(repository),
                     SubmitContributionUseCaseImpl(repository),
                     FakeTimeProvider(),
+                    roomUiMapper,
                 )
             val collection = backgroundScope.launch { viewModel.uiState.collect() }
             advanceUntilIdle()
@@ -111,6 +117,8 @@ class StoryViewModelTest {
                             prompt = "A door opened.",
                             currentPlayerId = host.id,
                             turnDeadlineEpochMillis = null,
+                            maxPlayers = 10,
+                            maxRounds = 3,
                         ),
                     playerId = host.id,
                 )

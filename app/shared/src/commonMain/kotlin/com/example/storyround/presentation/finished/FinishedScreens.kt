@@ -18,7 +18,7 @@ internal fun FinishedScreen(
 ) = Page {
     val story = uiState.story ?: return@Page
     Text("STORY COMPLETE", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Black)
-    Story(story.prompt, story.contributions, Modifier.weight(1f).fillMaxWidth())
+    Story(story.prompt, story.promptAuthor, story.contributions, Modifier.weight(1f).fillMaxWidth())
     StoryPlayers(story.players)
     if (uiState.canViewStory) Action("VIEW STORY", onClick = { onAction(FinishedAction.ViewStory) })
     Action("STORY HISTORY", onClick = { onAction(FinishedAction.OpenHistory) }, filled = false)
