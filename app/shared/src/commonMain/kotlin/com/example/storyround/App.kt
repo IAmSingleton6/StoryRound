@@ -43,7 +43,7 @@ private fun StoryRoundApp() {
             Box(Modifier.fillMaxSize()) {
                 when (destination) {
                     AppDestination.Home -> HomeRoute(onOpenHistory = viewModel::showHistory)
-                    AppDestination.Lobby -> LobbyRoute(onLeave = viewModel::returnHome)
+                    AppDestination.Lobby -> LobbyRoute(onLeave = viewModel::leaveLobby)
                     AppDestination.Story -> StoryRoute()
                     AppDestination.Finished ->
                         FinishedRoute(

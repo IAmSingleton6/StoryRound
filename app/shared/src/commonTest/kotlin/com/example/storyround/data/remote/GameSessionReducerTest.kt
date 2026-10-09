@@ -21,6 +21,8 @@ class GameSessionReducerTest {
             hostId = player.id,
             players = listOf(player),
             status = GameStatus.Lobby,
+            maxPlayers = 10,
+            maxRounds = 3,
         )
 
     @Test

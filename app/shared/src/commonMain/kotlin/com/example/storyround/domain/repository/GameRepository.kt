@@ -15,7 +15,10 @@ internal interface GameRepository {
         playerName: String,
     )
 
-    suspend fun startGame()
+    suspend fun startGame(
+        openingPlayerId: String?,
+        maxRounds: Int,
+    )
 
     suspend fun submitPrompt(text: String)
 
@@ -28,6 +31,8 @@ internal interface GameRepository {
     suspend fun openStory(id: String): Boolean
 
     fun closeStory()
+
+    suspend fun leaveRoom()
 
     fun disconnect()
 

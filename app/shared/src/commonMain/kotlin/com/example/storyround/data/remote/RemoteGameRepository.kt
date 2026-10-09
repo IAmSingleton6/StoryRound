@@ -1,15 +1,15 @@
 package com.example.storyround.data.remote
 
 import com.example.storyround.data.local.RemoteSessionStore
-import com.example.storyround.data.local.SettingsRemoteSessionStore
+import com.example.storyround.data.local.StoryHistoryStore
 import com.example.storyround.domain.model.RemoteGameState
 import com.example.storyround.domain.repository.GameRepository
 import com.example.storyround.protocol.ClientMessage
 import com.example.storyround.protocol.ServerMessage
+import com.example.storyround.protocol.RoomState
+import com.example.storyround.protocol.SavedStory
 import com.example.storyround.protocol.StorySummary
-import com.russhwolf.settings.Settings
 import io.ktor.client.HttpClient
-import io.ktor.client.plugins.websocket.WebSockets
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -23,13 +23,13 @@ import kotlinx.coroutines.launch
 
 internal class RemoteGameRepository(
     private val serverUrl: String,
-    private val client: HttpClient = HttpClient { install(WebSockets) },
-    private val sessionStore: RemoteSessionStore = SettingsRemoteSessionStore(Settings()),
-    private val reconnectPolicy: ReconnectPolicy = FixedIntervalReconnectPolicy(),
-    private val sessionReducer: GameSessionReducer = GameSessionReducer(),
-    private val gameSocket: GameSocket = KtorGameSocket(client),
-    private val storyHistoryDataSource: StoryHistoryDataSource = KtorStoryHistoryDataSource(client),
-    private val connectionManager: GameConnectionManager = DefaultGameConnectionManager(gameSocket),
+    private val client: HttpClient,
+    private val sessionStore: RemoteSessionStore,
+    private val storyHistoryStore: StoryHistoryStore,
+    private val reconnectPolicy: ReconnectPolicy,
+    private val sessionReducer: GameSessionReducer,
+    private val gameSocket: GameSocket,
+    private val connectionManager: GameConnectionManager,
 ) : GameRepository {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val mutableState = MutableStateFlow(RemoteGameState(playerId = sessionStore.load()?.playerId))
@@ -75,7 +75,8 @@ internal class RemoteGameRepository(
         playerName: String,
     ) = sendWithPlayerName(playerName, ClientMessage.JoinRoom(roomCode, playerName))
 
-    override suspend fun startGame() = sendForCurrentPlayer { roomCode, playerId -> ClientMessage.StartGame(roomCode, playerId) }
+    override suspend fun startGame(openingPlayerId: String?, maxRounds: Int) =
+        sendForCurrentPlayer { roomCode, playerId -> ClientMessage.StartGame(roomCode, playerId, openingPlayerId, maxRounds) }
 
     override suspend fun submitPrompt(text: String) =
         sendForCurrentPlayer { roomCode, playerId -> ClientMessage.SubmitPrompt(roomCode, playerId, text) }
@@ -85,24 +86,14 @@ internal class RemoteGameRepository(
 
     override suspend fun playAgain() = sendForCurrentPlayer { roomCode, playerId -> ClientMessage.PlayAgain(roomCode, playerId) }
 
-    override suspend fun loadHistory() = loadHistoryResult { storyHistoryDataSource.loadStories(serverUrl) }
+    override suspend fun loadHistory() {
+        mutableState.value = mutableState.value.copy(history = storyHistoryStore.load().map { it.toSummary() }, isLoadingHistory = false, error = null)
+    }
 
     override suspend fun openStory(id: String): Boolean {
-        mutableState.value = mutableState.value.copy(isLoadingHistory = true, error = null)
-        return runCatching { storyHistoryDataSource.loadStory(serverUrl, id) }.fold(
-            onSuccess = { story ->
-                mutableState.value = mutableState.value.copy(selectedStory = story, isLoadingHistory = false)
-                true
-            },
-            onFailure = { failure ->
-                mutableState.value =
-                    mutableState.value.copy(
-                        isLoadingHistory = false,
-                        error = failure.message ?: "Could not load this story.",
-                    )
-                false
-            },
-        )
+        val story = storyHistoryStore.load().firstOrNull { it.id == id } ?: return false
+        mutableState.value = mutableState.value.copy(selectedStory = story, error = null)
+        return true
     }
 
     override fun closeStory() {
@@ -115,6 +106,16 @@ internal class RemoteGameRepository(
         connectionManager.disconnect()
         pendingPlayerName = null
         mutableState.value = RemoteGameState()
+    }
+
+    override suspend fun leaveRoom() {
+        val room = mutableState.value.room
+        val playerId = mutableState.value.playerId
+        if (room != null && playerId != null && connectionManager.isConnected) {
+            connectionManager.send(ClientMessage.LeaveRoom(room.roomCode, playerId))
+        }
+        disconnect()
+        sessionStore.clear()
     }
 
     override fun close() {
@@ -179,7 +180,16 @@ internal class RemoteGameRepository(
                     ),
                 message = message,
             )
-        mutableState.value = reduction.context.state
+        var updatedState = reduction.context.state
+        if (message is ServerMessage.GameFinished) {
+            val story = message.room.toLocalSavedStory()
+            storyHistoryStore.save(story)
+            updatedState = updatedState.copy(
+                history = storyHistoryStore.load().map { it.toSummary() },
+                finishedStoryId = story.id,
+            )
+        }
+        mutableState.value = updatedState
         sessionToken = reduction.context.sessionToken
         pendingPlayerName = reduction.context.pendingPlayerName
         when (val command = reduction.persistenceCommand) {
@@ -189,19 +199,22 @@ internal class RemoteGameRepository(
         }
     }
 
-    private suspend fun loadHistoryResult(load: suspend () -> List<StorySummary>) {
-        mutableState.value = mutableState.value.copy(isLoadingHistory = true, error = null)
-        runCatching { load() }
-            .onSuccess { stories ->
-                mutableState.value = mutableState.value.copy(history = stories, isLoadingHistory = false)
-            }.onFailure { failure ->
-                mutableState.value =
-                    mutableState.value.copy(
-                        isLoadingHistory = false,
-                        error = failure.message ?: "Could not load story history.",
-                    )
-            }
+    private fun RoomState.toLocalSavedStory(): SavedStory {
+        val promptText = requireNotNull(prompt)
+        val openingPlayer = openingPlayerId ?: hostId
+        val fingerprint = "$roomCode|$promptText|${contributions.joinToString { "${it.playerId}:${it.turnNumber}:${it.text}" }}"
+        return SavedStory(
+            id = "local-${fingerprint.hashCode()}",
+            prompt = promptText,
+            promptPlayerId = openingPlayer,
+            createdAtEpochMillis = kotlin.time.Clock.System.now().toEpochMilliseconds(),
+            players = players,
+            contributions = contributions,
+        )
     }
+
+    private fun SavedStory.toSummary() =
+        StorySummary(id, prompt, createdAtEpochMillis, players.size, contributions.size)
 
     private fun scheduleReconnect() {
         if (

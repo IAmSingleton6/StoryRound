@@ -57,6 +57,11 @@ internal class AppViewModel(
         repository.disconnect()
     }
 
+    fun leaveLobby() {
+        manualDestination.value = ManualDestination.Home
+        viewModelScope.launch { repository.leaveRoom() }
+    }
+
     override fun onCleared() {
         repository.close()
     }

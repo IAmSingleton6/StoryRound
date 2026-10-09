@@ -7,8 +7,16 @@ import com.example.storyround.data.remote.GameSocketConnection
 import com.example.storyround.data.remote.GameSocketIncomingMessage
 import com.example.storyround.data.remote.ReconnectPolicy
 import com.example.storyround.data.remote.RemoteGameRepository
-import com.example.storyround.data.remote.StoryHistoryDataSource
+import com.example.storyround.data.local.StoryHistoryStore
+import com.example.storyround.data.remote.DefaultGameConnectionManager
+import com.example.storyround.data.remote.GameSessionReducer
 import com.example.storyround.protocol.ClientMessage
+import com.example.storyround.protocol.Contribution
+import com.example.storyround.protocol.GameStatus
+import com.example.storyround.protocol.Player
+import com.example.storyround.protocol.PlayerColour
+import com.example.storyround.protocol.RoomState
+import com.example.storyround.protocol.SavedStory
 import com.example.storyround.protocol.ServerMessage
 import io.ktor.client.HttpClient
 import io.mockk.coEvery
@@ -126,16 +134,59 @@ class RemoteGameRepositoryTest {
             repository.close()
         }
 
+    @Test
+    fun `given a completed game when it is received then history is saved locally`() =
+        runBlocking {
+            val player = Player("player-1", "Alex", PlayerColour.Blue)
+            val room =
+                RoomState(
+                    roomCode = "AB12",
+                    hostId = player.id,
+                    players = listOf(player),
+                    status = GameStatus.Finished,
+                    openingPlayerId = player.id,
+                    prompt = "A door opened.",
+                    contributions = listOf(Contribution(player.id, "The end.", 0)),
+                    maxPlayers = 10,
+                    maxRounds = 3,
+                )
+            var savedStories = emptyList<SavedStory>()
+            val historyStore = mockk<StoryHistoryStore>()
+            every { historyStore.load() } answers { savedStories }
+            every { historyStore.save(any()) } answers { savedStories = listOf(firstArg()) }
+            val sessionStore = mockk<RemoteSessionStore>()
+            every { sessionStore.load() } returns null
+            val connection = mockk<GameSocketConnection>()
+            every { connection.incomingMessages } returns flowOf(GameSocketIncomingMessage.Received(ServerMessage.GameFinished(room)))
+            coEvery { connection.closeReason() } returns null
+            coEvery { connection.close() } returns Unit
+            val socket = mockk<GameSocket>()
+            coEvery { socket.connect(SERVER_URL) } returns connection
+            val repository = repository(socket, sessionStore, historyStore)
+
+            repository.connect()
+            withTimeout(1_000) {
+                while (repository.state.value.history.isEmpty()) delay(10)
+            }
+
+            assertEquals(listOf("A door opened."), repository.state.value.history.map { it.prompt })
+            assertEquals(player.id, savedStories.single().promptPlayerId)
+            repository.close()
+        }
+
     private fun repository(
         socket: GameSocket,
         sessionStore: RemoteSessionStore,
+        historyStore: StoryHistoryStore = mockk(relaxed = true),
     ) = RemoteGameRepository(
         serverUrl = SERVER_URL,
         client = HttpClient(),
         sessionStore = sessionStore,
         reconnectPolicy = mockk<ReconnectPolicy> { every { shouldReconnect(any(), any()) } returns false },
         gameSocket = socket,
-        storyHistoryDataSource = mockk<StoryHistoryDataSource>(),
+        storyHistoryStore = historyStore,
+        sessionReducer = GameSessionReducer(),
+        connectionManager = DefaultGameConnectionManager(socket),
     )
 
     private companion object {
