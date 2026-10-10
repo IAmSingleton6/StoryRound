@@ -16,7 +16,5 @@ internal class TurnRules(
         playerCount: Int,
     ): Int = turnNumber % playerCount
 
-    fun durationMillis(turnNumber: Int): Long =
-        (gameConfiguration.firstTurnMillis - turnNumber * gameConfiguration.turnReductionMillis)
-            .coerceAtLeast(gameConfiguration.minimumTurnMillis)
+    fun durationMillis(turnNumber: Int): Long = gameConfiguration.turnDurationMillis(turnNumber)
 }
