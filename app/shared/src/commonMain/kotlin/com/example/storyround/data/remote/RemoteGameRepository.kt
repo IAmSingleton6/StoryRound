@@ -32,7 +32,13 @@ internal class RemoteGameRepository(
     private val connectionManager: GameConnectionManager,
 ) : GameRepository {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private val mutableState = MutableStateFlow(RemoteGameState(playerId = sessionStore.load()?.playerId))
+    private val mutableState =
+        MutableStateFlow(
+            RemoteGameState(
+                playerId = sessionStore.load()?.playerId,
+                history = storyHistoryStore.load().map { it.toSummary() },
+            ),
+        )
     private var reconnectJob: Job? = null
     private var pendingPlayerName: String? = null
     private var sessionToken: String? = sessionStore.load()?.sessionToken
@@ -105,7 +111,7 @@ internal class RemoteGameRepository(
         reconnectJob = null
         connectionManager.disconnect()
         pendingPlayerName = null
-        mutableState.value = RemoteGameState()
+        mutableState.value = RemoteGameState(history = mutableState.value.history)
     }
 
     override suspend fun leaveRoom() {

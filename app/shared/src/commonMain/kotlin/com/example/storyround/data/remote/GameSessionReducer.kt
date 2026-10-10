@@ -75,7 +75,12 @@ internal class GameSessionReducer(
         return GameSessionReduction(
             context =
                 context.copy(
-                    state = RemoteGameState(isConnected = context.isConnected, error = message.message),
+                    state =
+                        RemoteGameState(
+                            isConnected = context.isConnected,
+                            history = context.state.history,
+                            error = message.message,
+                        ),
                     sessionToken = null,
                     pendingPlayerName = null,
                 ),

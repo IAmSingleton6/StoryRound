@@ -174,6 +174,32 @@ class RemoteGameRepositoryTest {
             repository.close()
         }
 
+    @Test
+    fun `given stories saved on this device when the repository starts and disconnects then history is kept`() {
+        val player = Player(id = "player-1", name = "Alex", colour = PlayerColour.Blue)
+        val savedStory =
+            SavedStory(
+                id = "story-1",
+                prompt = "A door opened.",
+                promptPlayerId = player.id,
+                createdAtEpochMillis = 1,
+                players = listOf(player),
+                contributions = listOf(Contribution(player.id, "The end.", 0)),
+            )
+        val historyStore = mockk<StoryHistoryStore>()
+        every { historyStore.load() } returns listOf(savedStory)
+        val sessionStore = mockk<RemoteSessionStore>()
+        every { sessionStore.load() } returns null
+        val repository = repository(mockk<GameSocket>(), sessionStore, historyStore)
+
+        assertEquals(listOf("story-1"), repository.state.value.history.map { it.id })
+
+        repository.disconnect()
+
+        assertEquals(listOf("story-1"), repository.state.value.history.map { it.id })
+        repository.close()
+    }
+
     private fun repository(
         socket: GameSocket,
         sessionStore: RemoteSessionStore,
