@@ -18,6 +18,7 @@ import com.example.storyround.protocol.PlayerColour
 import com.example.storyround.protocol.RoomState
 import com.example.storyround.protocol.SavedStory
 import com.example.storyround.protocol.ServerMessage
+import com.example.storyround.protocol.StorySummary
 import io.ktor.client.HttpClient
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -192,11 +193,11 @@ class RemoteGameRepositoryTest {
         every { sessionStore.load() } returns null
         val repository = repository(mockk<GameSocket>(), sessionStore, historyStore)
 
-        assertEquals(listOf("story-1"), repository.state.value.history.map { it.id })
+        assertEquals(listOf("story-1"), repository.savedStoryIds())
 
         repository.disconnect()
 
-        assertEquals(listOf("story-1"), repository.state.value.history.map { it.id })
+        assertEquals(listOf("story-1"), repository.savedStoryIds())
         repository.close()
     }
 
@@ -218,4 +219,6 @@ class RemoteGameRepositoryTest {
     private companion object {
         const val SERVER_URL = "ws://localhost:8080/game"
     }
+
+    private fun RemoteGameRepository.savedStoryIds(): List<String> = state.value.history.map(StorySummary::id)
 }

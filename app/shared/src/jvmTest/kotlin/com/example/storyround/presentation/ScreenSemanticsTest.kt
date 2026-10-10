@@ -93,7 +93,9 @@ class ScreenSemanticsTest {
             var action: LobbyAction? = null
             setContent {
                 StoryRoundTheme {
-                    LobbyScreen(LobbyUiState("AB12", listOf(alex), maxPlayers = 10, isHost = true, maxRounds = 3)) { action = it }
+                    LobbyScreen(
+                        LobbyUiState("AB12", listOf(alex), maxPlayers = 10, hostId = alex.id, currentPlayerId = alex.id, maxRounds = 3),
+                    ) { action = it }
                 }
             }
 
