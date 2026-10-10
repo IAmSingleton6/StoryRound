@@ -20,11 +20,14 @@ The overall game specification is split into these documents:
 
 - `docs/game/architecture.md`
 - `docs/game/screens.md`
+- `docs/game/user-flows.md`
 - `docs/game/game_design.md`
 
 `architecture.md` defines the technical architecture, including KMP structure, client/server responsibilities, WebSockets, state management, persistence, and networking. Read it before making architectural, networking, backend, or significant state-management changes.
 
 `screens.md` defines the client UI, screens, navigation, transitions, and user interactions. Read it before creating or modifying screens or UI behaviour.
+
+`user-flows.md` defines the implemented end-to-end journeys, state transitions, local persistence, reconnect behaviour, and error handling. Read it before modifying navigation, user actions, or cross-screen behaviour.
 
 `game_design.md` defines the game itself, including the game loop, turns, timers, player behaviour, rules, and completion flow. Read it before implementing or modifying gameplay behaviour.
 
@@ -36,6 +39,7 @@ The overall game specification is split into these documents:
 - Follow the clean-code conventions in `docs/clean_code/`.
 - Follow the game architecture in `docs/game/architecture.md`.
 - Follow the documented UI in `docs/game/screens.md`.
+- Follow the documented user flows in `docs/game/user-flows.md`.
 - Follow the documented game rules in `docs/game/game_design.md`.
 - Prefer simple, maintainable solutions over unnecessary abstraction.
 - Do not introduce dependencies, frameworks, modules, or patterns without a reason.
