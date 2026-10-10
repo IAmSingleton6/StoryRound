@@ -1,5 +1,6 @@
 package com.example.storyround.presentation.story
 
+import com.example.storyround.configuration.GameConfiguration
 import com.example.storyround.domain.model.RemoteGameState
 import com.example.storyround.domain.repository.GameRepository
 import com.example.storyround.domain.time.TimeProvider
@@ -68,6 +69,7 @@ class StoryViewModelTest {
                     SubmitContributionUseCaseImpl(repository),
                     FakeTimeProvider(),
                     roomUiMapper,
+                    GameConfiguration(),
                 )
             val collection = backgroundScope.launch { viewModel.uiState.collect() }
             advanceUntilIdle()
@@ -103,6 +105,7 @@ class StoryViewModelTest {
                     SubmitContributionUseCaseImpl(repository),
                     FakeTimeProvider(),
                     roomUiMapper,
+                    GameConfiguration(),
                 )
             val collection = backgroundScope.launch { viewModel.uiState.collect() }
             advanceUntilIdle()
@@ -153,6 +156,7 @@ class StoryViewModelTest {
                     SubmitContributionUseCaseImpl(repository),
                     FakeTimeProvider(),
                     roomUiMapper,
+                    GameConfiguration(),
                 )
             val collection = backgroundScope.launch { viewModel.uiState.collect() }
 

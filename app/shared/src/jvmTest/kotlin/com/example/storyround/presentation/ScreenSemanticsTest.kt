@@ -6,7 +6,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -83,8 +82,8 @@ class ScreenSemanticsTest {
                 }
             }
 
-            onNodeWithText("Waiting for Sam...").assertIsDisplayed()
-            onNodeWithText("SUBMIT").assertIsNotEnabled()
+            onNodeWithText("Sam is writing…").assertIsDisplayed()
+            onNodeWithText("SUBMIT").assertDoesNotExist()
         }
 
     @Test
@@ -179,7 +178,7 @@ class ScreenSemanticsTest {
                 }
             }
 
-            onNodeWithText("Continue the story...").performTextInput("A horse arrived.")
+            onNode(hasSetTextAction()).performTextInput("A horse arrived.")
             onNodeWithText("SUBMIT").performClick()
 
             assertEquals(StoryAction.SubmitContribution, action)

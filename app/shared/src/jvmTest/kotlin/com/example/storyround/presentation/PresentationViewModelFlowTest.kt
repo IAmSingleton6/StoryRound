@@ -106,6 +106,7 @@ class PresentationViewModelFlowTest {
                     SubmitContributionUseCaseImpl(repository),
                     FakeTimeProvider(),
                     roomUiMapper,
+                    GameConfiguration(),
                 )
             val collection = backgroundScope.launch { viewModel.uiState.collect() }
             runCurrent()

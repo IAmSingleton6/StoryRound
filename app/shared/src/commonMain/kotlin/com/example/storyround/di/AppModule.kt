@@ -94,7 +94,7 @@ internal val appModule =
         factory { AppViewModel(get(), get()) }
         factory { HomeViewModel(get(), get(), get()) }
         factory { LobbyViewModel(get(), get(), get(), get()) }
-        factory { StoryViewModel(get(), get(), get(), get(), get()) }
+        factory { StoryViewModel(get(), get(), get(), get(), get(), get()) }
         factory { FinishedViewModel(get(), get(), get(), get()) }
         factory { HistoryViewModel(get(), get(), get()) }
         factory { SavedStoryViewModel(get(), get()) }
