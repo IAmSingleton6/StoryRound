@@ -65,6 +65,9 @@ internal data class StoryRoundTypography(
     val story: TextStyle,
     val storyInput: TextStyle,
     val storyPlaceholder: TextStyle,
+    val turnTag: TextStyle,
+    val countdown: TextStyle,
+    val toast: TextStyle,
 )
 
 @Composable
@@ -155,5 +158,8 @@ internal fun storyRoundTypography(fonts: StoryRoundFonts): StoryRoundTypography 
         story = serif.copy(fontSize = 19.sp, lineHeight = 1.75.em),
         storyInput = serif.copy(fontSize = 17.sp, lineHeight = 1.5.em),
         storyPlaceholder = serif.copy(fontSize = 22.sp, fontStyle = FontStyle.Italic),
+        turnTag = ui.copy(fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, letterSpacing = 0.04.em),
+        countdown = mono.copy(fontSize = 36.sp, lineHeight = 1.em, fontFeatureSettings = "tnum"),
+        toast = ui.copy(fontWeight = FontWeight.ExtraBold, fontSize = 15.sp),
     )
 }
