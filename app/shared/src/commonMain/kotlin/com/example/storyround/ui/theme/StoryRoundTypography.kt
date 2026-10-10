@@ -38,6 +38,20 @@ internal data class StoryRoundTypography(
     val badge: TextStyle,
     val callout: TextStyle,
     val link: TextStyle,
+    val eyebrow: TextStyle,
+    val eyebrowSmall: TextStyle,
+    val title: TextStyle,
+    val bodyStrong: TextStyle,
+    val caption: TextStyle,
+    val captionStrong: TextStyle,
+    val meta: TextStyle,
+    val metaStrong: TextStyle,
+    val tag: TextStyle,
+    val micro: TextStyle,
+    val avatarInitial: TextStyle,
+    val roomCode: TextStyle,
+    val numberLarge: TextStyle,
+    val numberSmall: TextStyle,
 )
 
 @Composable
@@ -60,6 +74,7 @@ internal fun storyRoundFonts(): StoryRoundFonts =
 
 internal fun storyRoundTypography(fonts: StoryRoundFonts): StoryRoundTypography {
     val ui = TextStyle(fontFamily = fonts.ui)
+    val mono = TextStyle(fontFamily = fonts.mono, fontWeight = FontWeight.Bold)
     return StoryRoundTypography(
         display =
             TextStyle(
@@ -85,5 +100,19 @@ internal fun storyRoundTypography(fonts: StoryRoundFonts): StoryRoundTypography 
         badge = ui.copy(fontWeight = FontWeight.ExtraBold, fontSize = 13.sp),
         callout = ui.copy(fontWeight = FontWeight.Bold, fontSize = 14.sp, lineHeight = 1.4.em),
         link = ui.copy(fontWeight = FontWeight.Bold, fontSize = 16.sp, textDecoration = TextDecoration.Underline),
+        eyebrow = ui.copy(fontWeight = FontWeight.ExtraBold, fontSize = 13.sp, letterSpacing = 0.14.em),
+        eyebrowSmall = ui.copy(fontWeight = FontWeight.ExtraBold, fontSize = 12.sp, letterSpacing = 0.14.em),
+        title = ui.copy(fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, lineHeight = 1.3.em),
+        bodyStrong = ui.copy(fontWeight = FontWeight.Bold, fontSize = 16.sp),
+        caption = ui.copy(fontWeight = FontWeight.Medium, fontSize = 14.sp, lineHeight = 1.4.em),
+        captionStrong = ui.copy(fontWeight = FontWeight.SemiBold, fontSize = 14.sp),
+        meta = ui.copy(fontWeight = FontWeight.Medium, fontSize = 13.sp, lineHeight = 1.4.em),
+        metaStrong = ui.copy(fontWeight = FontWeight.SemiBold, fontSize = 13.sp),
+        tag = ui.copy(fontWeight = FontWeight.ExtraBold, fontSize = 11.sp, letterSpacing = 0.06.em),
+        micro = ui.copy(fontWeight = FontWeight.ExtraBold, fontSize = 10.sp, letterSpacing = 0.08.em, lineHeight = 1.em),
+        avatarInitial = ui.copy(fontWeight = FontWeight.ExtraBold),
+        roomCode = mono.copy(fontSize = 44.sp, letterSpacing = 0.12.em, lineHeight = 1.1.em),
+        numberLarge = mono.copy(fontSize = 28.sp),
+        numberSmall = mono.copy(fontSize = 20.sp, lineHeight = 1.em),
     )
 }

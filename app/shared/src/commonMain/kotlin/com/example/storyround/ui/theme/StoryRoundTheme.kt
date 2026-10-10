@@ -72,3 +72,10 @@ internal fun PlayerColour.toUiColor(): Color =
         PlayerColour.Indigo -> Color(0xFF5367C9)
         PlayerColour.Lime -> Color(0xFF82A83D)
     }
+
+internal fun PlayerColour.toOnUiColor(): Color =
+    when (this) {
+        PlayerColour.Yellow, PlayerColour.Orange, PlayerColour.Teal, PlayerColour.Lime -> MidnightPaperColors.ink
+        PlayerColour.Blue, PlayerColour.Green, PlayerColour.Red, PlayerColour.Purple, PlayerColour.Pink, PlayerColour.Indigo ->
+            MidnightPaperColors.paperWhite
+    }
