@@ -29,6 +29,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
@@ -76,8 +77,8 @@ class StoryViewModelTest {
             advanceUntilIdle()
 
             val uiState = assertIs<StoryUiState.OpeningPrompt>(viewModel.uiState.value)
-            assertTrue(uiState.canSubmitOpeningPrompt)
-            assertEquals("Alex", uiState.hostName)
+            assertTrue(uiState.isOpeningWriter)
+            assertEquals("Alex", uiState.openingPlayer?.name)
             coVerify(exactly = 1) { repository.submitPrompt("A door opened.") }
             collection.cancel()
         }
@@ -127,6 +128,42 @@ class StoryViewModelTest {
             val uiState = assertIs<StoryUiState.Playing>(viewModel.uiState.value)
             assertEquals("A door opened.", uiState.room.prompt)
             assertEquals(0, uiState.nowEpochMillis)
+            collection.cancel()
+        }
+
+    @Test
+    fun `given a guest while another player opens and the socket drops when observed then the guest waits and sees reconnecting`() =
+        runTest(dispatcher) {
+            val host = Player("host", "Alex", PlayerColour.Blue)
+            val guest = Player("guest", "Sam", PlayerColour.Yellow)
+            val repositoryState =
+                MutableStateFlow(
+                    RemoteGameState(
+                        room = RoomState("AB12", host.id, listOf(host, guest), GameStatus.Prompt, maxPlayers = 10, maxRounds = 3),
+                        playerId = guest.id,
+                        isConnected = false,
+                    ),
+                )
+            val repository = mockk<GameRepository>(relaxed = true)
+            every { repository.state } returns repositoryState
+            val viewModel =
+                StoryViewModel(
+                    repository,
+                    SubmitPromptUseCaseImpl(repository),
+                    SubmitContributionUseCaseImpl(repository),
+                    FakeTimeProvider(),
+                    roomUiMapper,
+                )
+            val collection = backgroundScope.launch { viewModel.uiState.collect() }
+
+            viewModel.onAction(StoryAction.OpeningPromptChanged("I should not be able to send this."))
+            advanceUntilIdle()
+
+            val uiState = assertIs<StoryUiState.OpeningPrompt>(viewModel.uiState.value)
+            assertFalse(uiState.isOpeningWriter)
+            assertFalse(uiState.canSubmitOpeningPrompt)
+            assertEquals("Alex", uiState.openingPlayer?.name)
+            assertTrue(uiState.isReconnecting)
             collection.cancel()
         }
 

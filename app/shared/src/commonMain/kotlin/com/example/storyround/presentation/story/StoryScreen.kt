@@ -3,7 +3,6 @@ package com.example.storyround.presentation.story
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
@@ -36,29 +35,6 @@ internal fun StoryScreen(
         StoryUiState.Loading -> Unit
         is StoryUiState.OpeningPrompt -> OpeningPromptContent(uiState, onAction)
         is StoryUiState.Playing -> PlayingContent(uiState, onAction)
-    }
-}
-
-@Composable
-private fun OpeningPromptContent(
-    uiState: StoryUiState.OpeningPrompt,
-    onAction: (StoryAction) -> Unit,
-) {
-    Column(Modifier.safeContentPadding().fillMaxSize()) {
-        StoryHeader(uiState.room)
-        Text("START THE STORY", Modifier.padding(horizontal = 24.dp), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black)
-        Text(
-            if (uiState.canSubmitOpeningPrompt) "Create the opening line or premise. There is no timer yet." else "${uiState.hostName} is starting the story...",
-            Modifier.padding(horizontal = 24.dp),
-        )
-        Story(
-            prompt = uiState.room.prompt,
-            promptAuthor = uiState.room.promptAuthor,
-            contributions = uiState.room.contributions,
-            modifier = Modifier.weight(1f).fillMaxWidth(),
-            emptyPlaceholder = "Start the story…",
-        )
-        OpeningPromptInput(uiState, onAction)
     }
 }
 
@@ -132,35 +108,6 @@ private fun ContributionInput(
                 "SUBMIT",
                 onClick = { onAction(StoryAction.SubmitContribution) },
                 enabled = isYourTurn && uiState.contributionDraft.isNotBlank(),
-            )
-        }
-    }
-}
-
-@Composable
-private fun OpeningPromptInput(
-    uiState: StoryUiState.OpeningPrompt,
-    onAction: (StoryAction) -> Unit,
-) {
-    Column(Modifier.imePadding().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedTextField(
-            value = uiState.openingPromptDraft,
-            onValueChange = { onAction(StoryAction.OpeningPromptChanged(it)) },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = uiState.canSubmitOpeningPrompt,
-            placeholder = { Text(if (uiState.canSubmitOpeningPrompt) "Start the story..." else "Waiting for ${uiState.hostName}...") },
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-        )
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("${uiState.openingPromptDraft.length}/$MAX_CONTRIBUTION_LENGTH", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Action(
-                "START STORY",
-                onClick = { onAction(StoryAction.SubmitOpeningPrompt) },
-                enabled = uiState.canSubmitOpeningPrompt && uiState.openingPromptDraft.isNotBlank(),
             )
         }
     }

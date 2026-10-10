@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
@@ -118,8 +119,8 @@ class ScreenSemanticsTest {
                             StoryUiState.OpeningPrompt(
                                 room = RoomUi("AB12", alex.id, listOf(alex), "", emptyList(), null, maxRounds = 3),
                                 openingPromptDraft = "",
-                                canSubmitOpeningPrompt = true,
-                                hostName = alex.name,
+                                openingPlayer = alex,
+                                isOpeningWriter = true,
                             ),
                         )
                     }
@@ -133,7 +134,7 @@ class ScreenSemanticsTest {
                 }
             }
 
-            onNodeWithText("Start the story...").performTextInput("A door opened.")
+            onNode(hasSetTextAction()).performTextInput("A door opened.")
             onNodeWithText("START STORY").performClick()
 
             assertEquals(

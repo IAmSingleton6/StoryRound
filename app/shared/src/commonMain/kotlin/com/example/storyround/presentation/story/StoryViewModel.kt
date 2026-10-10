@@ -6,8 +6,8 @@ import com.example.storyround.domain.repository.GameRepository
 import com.example.storyround.domain.time.TimeProvider
 import com.example.storyround.domain.usecase.SubmitContributionUseCase
 import com.example.storyround.domain.usecase.SubmitPromptUseCase
-import com.example.storyround.presentation.model.MAX_CONTRIBUTION_LENGTH
 import com.example.storyround.presentation.mapper.RoomUiMapper
+import com.example.storyround.presentation.model.MAX_CONTRIBUTION_LENGTH
 import com.example.storyround.protocol.GameStatus
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,17 +37,16 @@ internal class StoryViewModel(
             val room = state.room ?: return@combine StoryUiState.Loading
             val roomUi = roomUiMapper.map(room)
             when (room.status) {
-                GameStatus.Prompt ->
+                GameStatus.Prompt -> {
+                    val openingPlayerId = room.openingPlayerId ?: room.hostId
                     StoryUiState.OpeningPrompt(
                         room = roomUi,
                         openingPromptDraft = prompt,
-                        canSubmitOpeningPrompt = (room.openingPlayerId ?: room.hostId) == state.playerId,
-                        hostName =
-                            roomUi.players
-                                .firstOrNull { it.id == (room.openingPlayerId ?: room.hostId) }
-                                ?.name
-                                .orEmpty(),
+                        openingPlayer = roomUi.players.firstOrNull { it.id == openingPlayerId },
+                        isOpeningWriter = openingPlayerId == state.playerId,
+                        isReconnecting = !state.isConnected,
                     )
+                }
                 GameStatus.Playing ->
                     StoryUiState.Playing(
                         room = roomUi,
