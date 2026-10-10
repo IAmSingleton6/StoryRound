@@ -22,7 +22,7 @@ internal class HomeViewModel(
 
     val uiState: StateFlow<HomeUiState> =
         combine(formState, repository.state) { form, state ->
-            form.copy(isConnecting = state.isConnecting, error = state.error)
+            form.copy(isConnecting = state.isConnecting, shelfCount = state.history.size, error = state.error)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
 
     fun onAction(action: HomeAction) {
