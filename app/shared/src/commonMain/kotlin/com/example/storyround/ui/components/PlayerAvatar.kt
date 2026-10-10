@@ -11,7 +11,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.isSpecified
 import com.example.storyround.presentation.model.PlayerUi
 import com.example.storyround.ui.theme.StoryRoundTheme
 import com.example.storyround.ui.theme.toOnUiColor
@@ -25,8 +27,10 @@ internal fun PlayerAvatar(
     size: Dp,
     modifier: Modifier = Modifier,
     borderWidth: Dp = 2.dp,
+    initialSize: TextUnit = TextUnit.Unspecified,
 ) {
-    val fontSize = with(LocalDensity.current) { (size * INITIAL_TO_SIZE_RATIO).toSp() }
+    val scaledSize = with(LocalDensity.current) { (size * INITIAL_TO_SIZE_RATIO).toSp() }
+    val fontSize = if (initialSize.isSpecified) initialSize else scaledSize
     Box(
         modifier =
             modifier

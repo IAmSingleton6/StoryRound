@@ -56,6 +56,18 @@ internal object SrIcons {
         )
     }
 
+    val Feather: ImageVector by lazy {
+        strokeIcon(
+            name = "Feather",
+            strokeWidth = 2.2f,
+            paths = listOf("M20.2 12.2a6 6 0 0 0-8.5-8.5L5 10.5V19h8.5z", "M16 8L2 22M17.5 15H9"),
+        )
+    }
+
+    val Send: ImageVector by lazy {
+        strokeIcon(name = "Send", strokeWidth = 2.8f, paths = listOf("M5 12h14M13 6l6 6-6 6"))
+    }
+
     val Minus: ImageVector by lazy {
         strokeIcon(name = "Minus", strokeWidth = 3f, paths = listOf("M5 12h14"))
     }

@@ -27,7 +27,9 @@ internal data class StoryRoundColors(
     val disabledFill: Color,
     val cue: Color,
     val marigold: Color,
+    val marigoldOutline: Color,
     val coral: Color,
+    val coralInk: Color,
 )
 
 internal val MidnightPaperColors =
@@ -54,5 +56,7 @@ internal val MidnightPaperColors =
         disabledFill = Color(0xFFE9E1CF),
         cue = Color(0xFF46D4F2),
         marigold = Color(0xFFFFC53D),
+        marigoldOutline = Color(0x99FFC53D),
         coral = Color(0xFFFF6B5A),
+        coralInk = Color(0xFFC2412F),
     )

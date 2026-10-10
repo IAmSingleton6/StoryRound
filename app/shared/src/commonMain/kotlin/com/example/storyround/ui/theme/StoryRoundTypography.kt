@@ -4,6 +4,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextDecoration
@@ -18,12 +20,17 @@ import storyround.app.shared.generated.resources.bricolage_grotesque_medium
 import storyround.app.shared.generated.resources.bricolage_grotesque_semibold
 import storyround.app.shared.generated.resources.jetbrains_mono_bold
 import storyround.app.shared.generated.resources.jetbrains_mono_medium
+import storyround.app.shared.generated.resources.literata
+import storyround.app.shared.generated.resources.literata_italic
+
+private const val LITERATA_OPTICAL_SIZE = 18f
 
 @Immutable
 internal data class StoryRoundFonts(
     val ui: FontFamily,
     val display: FontFamily,
     val mono: FontFamily,
+    val serif: FontFamily,
 )
 
 @Immutable
@@ -52,6 +59,12 @@ internal data class StoryRoundTypography(
     val roomCode: TextStyle,
     val numberLarge: TextStyle,
     val numberSmall: TextStyle,
+    val heading: TextStyle,
+    val counter: TextStyle,
+    val sendButton: TextStyle,
+    val story: TextStyle,
+    val storyInput: TextStyle,
+    val storyPlaceholder: TextStyle,
 )
 
 @Composable
@@ -70,11 +83,33 @@ internal fun storyRoundFonts(): StoryRoundFonts =
                 Font(Res.font.jetbrains_mono_medium, FontWeight.Medium),
                 Font(Res.font.jetbrains_mono_bold, FontWeight.Bold),
             ),
+        serif =
+            FontFamily(
+                literata(FontWeight.Normal, FontStyle.Normal),
+                literata(FontWeight.SemiBold, FontStyle.Normal),
+                literata(FontWeight.Normal, FontStyle.Italic),
+            ),
     )
+
+@Composable
+private fun literata(
+    weight: FontWeight,
+    style: FontStyle,
+) = Font(
+    resource = if (style == FontStyle.Italic) Res.font.literata_italic else Res.font.literata,
+    weight = weight,
+    style = style,
+    variationSettings =
+        FontVariation.Settings(
+            FontVariation.weight(weight.weight),
+            FontVariation.Setting("opsz", LITERATA_OPTICAL_SIZE),
+        ),
+)
 
 internal fun storyRoundTypography(fonts: StoryRoundFonts): StoryRoundTypography {
     val ui = TextStyle(fontFamily = fonts.ui)
     val mono = TextStyle(fontFamily = fonts.mono, fontWeight = FontWeight.Bold)
+    val serif = TextStyle(fontFamily = fonts.serif, fontWeight = FontWeight.Normal)
     return StoryRoundTypography(
         display =
             TextStyle(
@@ -114,5 +149,11 @@ internal fun storyRoundTypography(fonts: StoryRoundFonts): StoryRoundTypography 
         roomCode = mono.copy(fontSize = 44.sp, letterSpacing = 0.12.em, lineHeight = 1.1.em),
         numberLarge = mono.copy(fontSize = 28.sp),
         numberSmall = mono.copy(fontSize = 20.sp, lineHeight = 1.em),
+        heading = ui.copy(fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, letterSpacing = 0.02.em),
+        counter = mono.copy(fontWeight = FontWeight.Medium, fontSize = 13.sp),
+        sendButton = ui.copy(fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, letterSpacing = 0.06.em),
+        story = serif.copy(fontSize = 19.sp, lineHeight = 1.75.em),
+        storyInput = serif.copy(fontSize = 17.sp, lineHeight = 1.5.em),
+        storyPlaceholder = serif.copy(fontSize = 22.sp, fontStyle = FontStyle.Italic),
     )
 }
