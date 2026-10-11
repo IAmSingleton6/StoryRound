@@ -3,7 +3,6 @@ package com.example.storyround.presentation.finished
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.storyround.domain.repository.GameRepository
-import com.example.storyround.domain.usecase.OpenSavedStoryUseCase
 import com.example.storyround.domain.usecase.PlayAgainUseCase
 import com.example.storyround.presentation.mapper.RoomUiMapper
 import com.example.storyround.presentation.model.StoryUi
@@ -17,7 +16,6 @@ import kotlinx.coroutines.launch
 
 internal class FinishedViewModel(
     repository: GameRepository,
-    private val openSavedStoryUseCase: OpenSavedStoryUseCase,
     private val playAgainUseCase: PlayAgainUseCase,
     private val roomUiMapper: RoomUiMapper,
 ) : ViewModel() {
@@ -33,8 +31,6 @@ internal class FinishedViewModel(
                     writers = room?.let { storyWriters(it.players, segments) }.orEmpty(),
                     host = room?.let { it.players.firstOrNull { player -> player.id == it.hostId } },
                     playerId = state.playerId,
-                    finishedStoryId = state.finishedStoryId,
-                    canViewStory = state.finishedStoryId != null,
                     canPlayAgain = room?.hostId == state.playerId,
                     isReconnecting = room != null && !state.isConnected,
                 )
@@ -42,12 +38,8 @@ internal class FinishedViewModel(
 
     fun onAction(action: FinishedAction) {
         when (action) {
-            FinishedAction.ViewStory ->
-                uiState.value.finishedStoryId?.let { id ->
-                    viewModelScope.launch { openSavedStoryUseCase(id) }
-                }
             FinishedAction.PlayAgain -> viewModelScope.launch { playAgainUseCase() }
-            FinishedAction.OpenHistory, FinishedAction.Home -> Unit
+            FinishedAction.Home -> Unit
         }
     }
 }

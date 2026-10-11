@@ -5,7 +5,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -72,16 +71,7 @@ internal fun FinishedScreen(
                 )
             }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            StageButton(
-                "View story",
-                onClick = { onAction(FinishedAction.ViewStory) },
-                modifier = Modifier.weight(1f),
-                enabled = uiState.canViewStory,
-            )
-            StageButton("Shelf", onClick = { onAction(FinishedAction.OpenHistory) }, modifier = Modifier.weight(1f))
-            StageButton("Home", onClick = { onAction(FinishedAction.Home) }, modifier = Modifier.weight(1f))
-        }
+        StageButton("Home", onClick = { onAction(FinishedAction.Home) }, modifier = Modifier.fillMaxWidth())
     }
     if (uiState.isReconnecting) {
         ReconnectingBanner(
@@ -119,7 +109,7 @@ private fun FinishedHeader(uiState: FinishedUiState) {
             style = typography.headline.copy(color = colors.onStage, textAlign = TextAlign.Center),
         )
         BasicText(
-            text = "${plural(contributions, "contribution")} · ${plural(uiState.writers.size, "writer")} · saved to your shelf",
+            text = "${plural(contributions, "contribution")} · ${plural(uiState.writers.size, "writer")} · saved to your history",
             style = typography.caption.copy(color = colors.onStageMuted, textAlign = TextAlign.Center),
         )
     }

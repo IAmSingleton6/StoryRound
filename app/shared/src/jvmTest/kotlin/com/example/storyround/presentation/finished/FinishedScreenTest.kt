@@ -2,7 +2,6 @@ package com.example.storyround.presentation.finished
 
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -25,8 +24,6 @@ class FinishedScreenTest {
             writers = listOf(StoryWriterUi(alex, 1), StoryWriterUi(sam, 1)),
             host = alex,
             playerId = alex.id,
-            finishedStoryId = "story-1",
-            canViewStory = true,
             canPlayAgain = true,
         )
 
@@ -37,31 +34,28 @@ class FinishedScreenTest {
             setContent { StoryRoundTheme { FinishedScreen(finished) { actions += it } } }
 
             onNodeWithText("STORY COMPLETE").assertIsDisplayed()
-            onNodeWithText("1 contribution · 2 writers · saved to your shelf").assertIsDisplayed()
+            onNodeWithText("1 contribution · 2 writers · saved to your history").assertIsDisplayed()
             onNodeWithContentDescription("Alex (you), 1 pieces").assertIsDisplayed()
             onNodeWithText("PLAY AGAIN").performClick()
-            onNodeWithText("View story").performClick()
-            onNodeWithText("Shelf").performClick()
             onNodeWithText("Home").performClick()
+            onNodeWithText("View story").assertDoesNotExist()
+            onNodeWithText("Story history").assertDoesNotExist()
 
-            assertEquals(
-                listOf(FinishedAction.PlayAgain, FinishedAction.ViewStory, FinishedAction.OpenHistory, FinishedAction.Home),
-                actions,
-            )
+            assertEquals(listOf(FinishedAction.PlayAgain, FinishedAction.Home), actions)
         }
 
     @Test
-    fun `given a guest without a saved story when shown then the host is named and view story is disabled`() =
+    fun `given a guest when shown then the host is named and only home is offered`() =
         runComposeUiTest {
             setContent {
                 StoryRoundTheme {
-                    FinishedScreen(finished.copy(playerId = sam.id, canPlayAgain = false, canViewStory = false)) {}
+                    FinishedScreen(finished.copy(playerId = sam.id, canPlayAgain = false)) {}
                 }
             }
 
             onNodeWithText("Alex can start another round from here.").assertIsDisplayed()
             onNodeWithText("PLAY AGAIN").assertDoesNotExist()
-            onNodeWithText("View story").assertIsNotEnabled()
+            onNodeWithText("Home").assertIsDisplayed()
         }
 
     @Test

@@ -6,15 +6,11 @@ import androidx.compose.runtime.getValue
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
-internal fun FinishedRoute(
-    onOpenHistory: () -> Unit,
-    onHome: () -> Unit,
-) {
+internal fun FinishedRoute(onHome: () -> Unit) {
     val viewModel = koinViewModel<FinishedViewModel>()
     val uiState by viewModel.uiState.collectAsState()
     FinishedScreen(uiState = uiState) { action ->
         when (action) {
-            FinishedAction.OpenHistory -> onOpenHistory()
             FinishedAction.Home -> onHome()
             else -> viewModel.onAction(action)
         }

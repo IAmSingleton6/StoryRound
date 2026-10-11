@@ -11,8 +11,6 @@ internal data class FinishedUiState(
     val writers: List<StoryWriterUi> = emptyList(),
     val host: PlayerUi? = null,
     val playerId: String? = null,
-    val finishedStoryId: String? = null,
-    val canViewStory: Boolean = false,
     val canPlayAgain: Boolean = false,
     val isReconnecting: Boolean = false,
 )

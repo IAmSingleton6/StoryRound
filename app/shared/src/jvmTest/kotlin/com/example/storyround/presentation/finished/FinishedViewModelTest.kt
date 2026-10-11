@@ -2,7 +2,6 @@ package com.example.storyround.presentation.finished
 
 import com.example.storyround.domain.model.RemoteGameState
 import com.example.storyround.domain.repository.GameRepository
-import com.example.storyround.domain.usecase.OpenSavedStoryUseCaseImpl
 import com.example.storyround.domain.usecase.PlayAgainUseCaseImpl
 import com.example.storyround.presentation.mapper.ContributionUiMapperImpl
 import com.example.storyround.presentation.mapper.PlayerUiMapperImpl
@@ -91,7 +90,6 @@ class FinishedViewModelTest {
         every { repository.state } returns state
         return FinishedViewModel(
             repository,
-            OpenSavedStoryUseCaseImpl(repository),
             PlayAgainUseCaseImpl(repository),
             RoomUiMapperImpl(PlayerUiMapperImpl(), ContributionUiMapperImpl()),
         )
