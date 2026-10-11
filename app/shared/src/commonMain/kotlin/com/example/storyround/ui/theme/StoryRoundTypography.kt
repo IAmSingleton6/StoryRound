@@ -76,6 +76,7 @@ internal data class StoryRoundTypography(
     val emptyTitle: TextStyle,
     val body: TextStyle,
     val storyExcerpt: TextStyle,
+    val storySaved: TextStyle,
 )
 
 @Composable
@@ -184,5 +185,6 @@ internal fun storyRoundTypography(fonts: StoryRoundFonts): StoryRoundTypography 
         emptyTitle = ui.copy(fontWeight = FontWeight.ExtraBold, fontSize = 24.sp),
         body = ui.copy(fontWeight = FontWeight.Medium, fontSize = 15.sp, lineHeight = 1.5.em),
         storyExcerpt = serif.copy(fontSize = 18.sp, lineHeight = 1.45.em),
+        storySaved = serif.copy(fontSize = 18.sp, lineHeight = 1.75.em),
     )
 }

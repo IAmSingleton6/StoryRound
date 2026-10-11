@@ -27,8 +27,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -47,10 +45,10 @@ import com.example.storyround.ui.components.SrButtonVariant
 import com.example.storyround.ui.components.SrIcon
 import com.example.storyround.ui.components.SrIcons
 import com.example.storyround.ui.components.StageScaffold
+import com.example.storyround.ui.components.WriterShareStrip
 import com.example.storyround.ui.components.hardShadow
 import com.example.storyround.ui.components.tilt
 import com.example.storyround.ui.theme.StoryRoundTheme
-import com.example.storyround.ui.theme.toUiColor
 
 private const val SHELF_CARD_TILT_DEGREES = 0.6f
 private const val SHELF_CARD_AVATAR_LIMIT = 5
@@ -146,7 +144,7 @@ private fun ShelfCard(
                 .clip(ShelfCardShape)
                 .clickable(role = Role.Button, onClick = onOpen),
     ) {
-        WriterStrip(story)
+        WriterShareStrip(story.writers)
         Column(
             modifier = Modifier.padding(start = 16.dp, top = 14.dp, end = 16.dp, bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -164,26 +162,6 @@ private fun ShelfCard(
                     style = typography.metaStrong.copy(color = colors.onPaperMuted),
                 )
             }
-        }
-    }
-}
-
-@Composable
-private fun WriterStrip(story: ShelfStoryUi) {
-    val ink = StoryRoundTheme.colors.ink
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .height(14.dp)
-            .drawBehind { drawRect(ink, topLeft = Offset(0f, size.height - 2.dp.toPx())) },
-    ) {
-        story.writers.forEach { writer ->
-            Box(
-                Modifier
-                    .weight(writer.pieces.toFloat())
-                    .height(12.dp)
-                    .background(writer.player.colour.toUiColor()),
-            )
         }
     }
 }
