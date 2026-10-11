@@ -80,6 +80,7 @@ internal fun OpeningPromptContent(
                 sendLabel = "START STORY",
                 canSend = uiState.canSubmitOpeningPrompt,
                 onSend = { onAction(StoryAction.SubmitOpeningPrompt) },
+                onRandomIdea = { onAction(StoryAction.RandomOpeningPrompt) },
             )
         } else {
             uiState.openingPlayer?.let { opener -> TurnWaitingPill(opener, "Waiting for $openerName…") }

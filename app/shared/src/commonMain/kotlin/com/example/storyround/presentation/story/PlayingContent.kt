@@ -23,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.contentDescription
@@ -89,6 +90,7 @@ internal fun PlayingContent(
                 sendLabel = "SUBMIT",
                 canSend = uiState.canSubmitContribution,
                 onSend = { onAction(StoryAction.SubmitContribution) },
+                onRandomIdea = { onAction(StoryAction.RandomContribution) },
             )
         } else {
             TurnWaitingPill(activePlayer, "${activePlayer.name} is writing…")
@@ -155,19 +157,27 @@ private fun TurnCard(
                 BasicText("s", modifier = Modifier.alignByBaseline(), style = typography.callout.copy(color = timerColour))
             }
         }
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .height(10.dp)
-                    .background(colors.stageHairline, BarShape)
-                    .semantics {
-                        contentDescription = "Time left"
-                        progressBarRangeInfo = ProgressBarRangeInfo(uiState.timeLeftFraction, 0f..1f)
-                    },
-        ) {
-            Box(Modifier.fillMaxHeight().fillMaxWidth(uiState.timeLeftFraction).background(barColour, BarShape))
-        }
+        TimeLeftBar(uiState.timeLeftFraction, barColour)
+    }
+}
+
+@Composable
+private fun TimeLeftBar(
+    fraction: Float,
+    colour: Color,
+) {
+    Box(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .height(10.dp)
+                .background(StoryRoundTheme.colors.stageHairline, BarShape)
+                .semantics {
+                    contentDescription = "Time left"
+                    progressBarRangeInfo = ProgressBarRangeInfo(fraction, 0f..1f)
+                },
+    ) {
+        Box(Modifier.fillMaxHeight().fillMaxWidth(fraction).background(colour, BarShape))
     }
 }
 

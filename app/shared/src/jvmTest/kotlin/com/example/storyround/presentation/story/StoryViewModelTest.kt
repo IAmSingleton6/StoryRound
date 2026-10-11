@@ -1,9 +1,9 @@
 package com.example.storyround.presentation.story
 
 import com.example.storyround.configuration.GameConfiguration
+import com.example.storyround.domain.idea.StoryIdeaProvider
 import com.example.storyround.domain.model.RemoteGameState
 import com.example.storyround.domain.repository.GameRepository
-import com.example.storyround.domain.time.TimeProvider
 import com.example.storyround.domain.usecase.SubmitContributionUseCaseImpl
 import com.example.storyround.domain.usecase.SubmitPromptUseCaseImpl
 import com.example.storyround.presentation.mapper.ContributionUiMapperImpl
@@ -13,6 +13,7 @@ import com.example.storyround.protocol.GameStatus
 import com.example.storyround.protocol.Player
 import com.example.storyround.protocol.PlayerColour
 import com.example.storyround.protocol.RoomState
+import com.example.storyround.time.TimeProvider
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
@@ -38,6 +39,7 @@ import kotlin.test.assertTrue
 class StoryViewModelTest {
     private val dispatcher = StandardTestDispatcher()
     private val roomUiMapper = RoomUiMapperImpl(PlayerUiMapperImpl(), ContributionUiMapperImpl())
+    private val storyIdeaProvider = mockk<StoryIdeaProvider>()
 
     @BeforeTest
     fun setUp() {
@@ -70,6 +72,7 @@ class StoryViewModelTest {
                     FakeTimeProvider(),
                     roomUiMapper,
                     GameConfiguration(),
+                    storyIdeaProvider,
                 )
             val collection = backgroundScope.launch { viewModel.uiState.collect() }
             advanceUntilIdle()
@@ -106,6 +109,7 @@ class StoryViewModelTest {
                     FakeTimeProvider(),
                     roomUiMapper,
                     GameConfiguration(),
+                    storyIdeaProvider,
                 )
             val collection = backgroundScope.launch { viewModel.uiState.collect() }
             advanceUntilIdle()
@@ -157,6 +161,7 @@ class StoryViewModelTest {
                     FakeTimeProvider(),
                     roomUiMapper,
                     GameConfiguration(),
+                    storyIdeaProvider,
                 )
             val collection = backgroundScope.launch { viewModel.uiState.collect() }
 
@@ -168,6 +173,41 @@ class StoryViewModelTest {
             assertFalse(uiState.canSubmitOpeningPrompt)
             assertEquals("Alex", uiState.openingPlayer?.name)
             assertTrue(uiState.isReconnecting)
+            collection.cancel()
+        }
+
+    @Test
+    fun `given an opening draft when a random idea is requested then the draft is replaced with an opening idea`() =
+        runTest(dispatcher) {
+            val host = Player("host", "Alex", PlayerColour.Blue)
+            val repository = mockk<GameRepository>(relaxed = true)
+            every { repository.state } returns
+                MutableStateFlow(
+                    RemoteGameState(
+                        room = RoomState("AB12", host.id, listOf(host), GameStatus.Prompt, maxPlayers = 10, maxRounds = 3),
+                        playerId = host.id,
+                    ),
+                )
+            every { storyIdeaProvider.openingIdea("My own start") } returns "The goldfish won the lottery."
+            val viewModel =
+                StoryViewModel(
+                    repository,
+                    SubmitPromptUseCaseImpl(repository),
+                    SubmitContributionUseCaseImpl(repository),
+                    FakeTimeProvider(),
+                    roomUiMapper,
+                    GameConfiguration(),
+                    storyIdeaProvider,
+                )
+            val collection = backgroundScope.launch { viewModel.uiState.collect() }
+
+            viewModel.onAction(StoryAction.OpeningPromptChanged("My own start"))
+            viewModel.onAction(StoryAction.RandomOpeningPrompt)
+            advanceUntilIdle()
+
+            val uiState = assertIs<StoryUiState.OpeningPrompt>(viewModel.uiState.value)
+            assertEquals("The goldfish won the lottery.", uiState.openingPromptDraft)
+            assertTrue(uiState.canSubmitOpeningPrompt)
             collection.cancel()
         }
 

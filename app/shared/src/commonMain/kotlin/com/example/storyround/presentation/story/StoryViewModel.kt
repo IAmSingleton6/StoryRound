@@ -3,9 +3,9 @@ package com.example.storyround.presentation.story
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.storyround.configuration.GameConfiguration
+import com.example.storyround.domain.idea.StoryIdeaProvider
 import com.example.storyround.domain.model.RemoteGameState
 import com.example.storyround.domain.repository.GameRepository
-import com.example.storyround.domain.time.TimeProvider
 import com.example.storyround.domain.usecase.SubmitContributionUseCase
 import com.example.storyround.domain.usecase.SubmitPromptUseCase
 import com.example.storyround.presentation.mapper.RoomUiMapper
@@ -15,6 +15,7 @@ import com.example.storyround.presentation.model.TIME_UP_TOAST_MILLIS
 import com.example.storyround.presentation.model.storySegments
 import com.example.storyround.protocol.GameStatus
 import com.example.storyround.protocol.RoomState
+import com.example.storyround.time.TimeProvider
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -36,6 +37,7 @@ internal class StoryViewModel(
     private val timeProvider: TimeProvider,
     private val roomUiMapper: RoomUiMapper,
     private val gameConfiguration: GameConfiguration,
+    private val storyIdeaProvider: StoryIdeaProvider,
 ) : ViewModel() {
     private val openingPromptDraft = MutableStateFlow("")
     private val contributionDraft = MutableStateFlow("")
@@ -82,9 +84,18 @@ internal class StoryViewModel(
         when (action) {
             is StoryAction.OpeningPromptChanged -> openingPromptDraft.value = action.value.take(MAX_CONTRIBUTION_LENGTH)
             StoryAction.SubmitOpeningPrompt -> submitOpeningPrompt()
+            StoryAction.RandomOpeningPrompt -> openingPromptDraft.value = storyIdeaProvider.openingIdea(openingPromptDraft.value)
             is StoryAction.ContributionChanged -> contributionDraft.value = action.value.take(MAX_CONTRIBUTION_LENGTH)
             StoryAction.SubmitContribution -> submitContribution()
+            StoryAction.RandomContribution ->
+                contributionDraft.value =
+                    storyIdeaProvider.continuationIdea(storySoFar(), contributionDraft.value)
         }
+    }
+
+    private fun storySoFar(): String {
+        val room = repository.state.value.room ?: return ""
+        return room.contributions.lastOrNull()?.text ?: room.prompt.orEmpty()
     }
 
     private fun playing(

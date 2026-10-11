@@ -1,9 +1,9 @@
 package com.example.storyround.presentation.story
 
 import com.example.storyround.configuration.GameConfiguration
+import com.example.storyround.domain.idea.StoryIdeaProvider
 import com.example.storyround.domain.model.RemoteGameState
 import com.example.storyround.domain.repository.GameRepository
-import com.example.storyround.domain.time.TimeProvider
 import com.example.storyround.domain.usecase.SubmitContributionUseCaseImpl
 import com.example.storyround.domain.usecase.SubmitPromptUseCaseImpl
 import com.example.storyround.presentation.mapper.ContributionUiMapperImpl
@@ -14,6 +14,7 @@ import com.example.storyround.protocol.GameStatus
 import com.example.storyround.protocol.Player
 import com.example.storyround.protocol.PlayerColour
 import com.example.storyround.protocol.RoomState
+import com.example.storyround.time.TimeProvider
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
@@ -41,6 +42,7 @@ class StoryPlayingViewModelTest {
     private val alex = Player("alex", "Alex", PlayerColour.Blue)
     private val sam = Player("sam", "Sam", PlayerColour.Yellow)
     private val configuration = GameConfiguration(firstTurnMillis = 15_000L, turnReductionMillis = 1_000L, minimumTurnMillis = 5_000L)
+    private val storyIdeaProvider = mockk<StoryIdeaProvider>()
 
     @BeforeTest
     fun setUp() {
@@ -115,6 +117,22 @@ class StoryPlayingViewModelTest {
             collection.cancel()
         }
 
+    @Test
+    fun `given your turn with a draft when a random idea is requested then the draft is replaced with a story idea`() =
+        runTest(dispatcher) {
+            every { storyIdeaProvider.continuationIdea("It wore a hat.", "Half a thought") } returns "Then came a knock at the door."
+            val viewModel = viewModel(MutableStateFlow(RemoteGameState(room = playingRoom(turnNumber = 2), playerId = alex.id)))
+            val collection = backgroundScope.launch { viewModel.uiState.collect() }
+
+            viewModel.onAction(StoryAction.ContributionChanged("Half a thought"))
+            viewModel.onAction(StoryAction.RandomContribution)
+            advanceUntilIdle()
+
+            val uiState = assertIs<StoryUiState.Playing>(viewModel.uiState.value)
+            assertEquals("Then came a knock at the door.", uiState.contributionDraft)
+            collection.cancel()
+        }
+
     private fun playingRoom(turnNumber: Int) =
         RoomState(
             roomCode = "AB12",
@@ -141,6 +159,7 @@ class StoryPlayingViewModelTest {
             timeProvider = FixedTimeProvider,
             roomUiMapper = RoomUiMapperImpl(PlayerUiMapperImpl(), ContributionUiMapperImpl()),
             gameConfiguration = configuration,
+            storyIdeaProvider = storyIdeaProvider,
         )
     }
 
