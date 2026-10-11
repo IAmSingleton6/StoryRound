@@ -2,14 +2,15 @@ package com.example.storyround
 
 import com.example.storyround.data.local.RemoteSession
 import com.example.storyround.data.local.RemoteSessionStore
+import com.example.storyround.data.local.StoryHistoryStore
+import com.example.storyround.data.remote.DefaultGameConnectionManager
+import com.example.storyround.data.remote.GameSessionReducer
 import com.example.storyround.data.remote.GameSocket
 import com.example.storyround.data.remote.GameSocketConnection
 import com.example.storyround.data.remote.GameSocketIncomingMessage
 import com.example.storyround.data.remote.ReconnectPolicy
 import com.example.storyround.data.remote.RemoteGameRepository
-import com.example.storyround.data.local.StoryHistoryStore
-import com.example.storyround.data.remote.DefaultGameConnectionManager
-import com.example.storyround.data.remote.GameSessionReducer
+import com.example.storyround.data.remote.SERVER_UNREACHABLE_MESSAGE
 import com.example.storyround.protocol.ClientMessage
 import com.example.storyround.protocol.Contribution
 import com.example.storyround.protocol.GameStatus
@@ -33,7 +34,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
-import kotlin.test.assertTrue
 
 class RemoteGameRepositoryTest {
     @Test
@@ -49,8 +49,69 @@ class RemoteGameRepositoryTest {
 
             assertFalse(repository.state.value.isConnecting)
             assertFalse(repository.state.value.isConnected)
-            assertTrue(requireNotNull(repository.state.value.error).contains("offline"))
+            assertEquals(SERVER_UNREACHABLE_MESSAGE, repository.state.value.error)
             coVerify(exactly = 1) { socket.connect(SERVER_URL) }
+            repository.close()
+        }
+
+    @Test
+    fun `given the launch connection failed when creating a room then it connects again and creates without resuming the old session`() =
+        runBlocking {
+            val sessionStore = mockk<RemoteSessionStore>()
+            every { sessionStore.load() } returns RemoteSession("OLD1", "player-1", "token-1")
+            val connection = mockk<GameSocketConnection>()
+            every { connection.incomingMessages } returns flow { awaitCancellation() }
+            coEvery { connection.close() } returns Unit
+            coEvery { connection.send(any<ClientMessage>()) } returns Unit
+            val socket = mockk<GameSocket>()
+            coEvery { socket.connect(SERVER_URL) } throws IllegalStateException("offline") andThen connection
+            val repository = repository(socket, sessionStore)
+            repository.connect()
+
+            repository.createRoom("Alex")
+
+            coVerify(exactly = 2) { socket.connect(SERVER_URL) }
+            coVerify(exactly = 1) { connection.send(ClientMessage.CreateRoom("Alex")) }
+            coVerify(exactly = 0) { connection.send(ofType<ClientMessage.Reconnect>()) }
+            assertNull(repository.state.value.error)
+            repository.close()
+        }
+
+    @Test
+    fun `given the server is still unreachable when joining a room then a player-facing error is shown`() =
+        runBlocking {
+            val sessionStore = mockk<RemoteSessionStore>()
+            every { sessionStore.load() } returns null
+            val socket = mockk<GameSocket>()
+            coEvery { socket.connect(SERVER_URL) } throws IllegalStateException("offline")
+            val repository = repository(socket, sessionStore)
+
+            repository.joinRoom("ABCD", "Sam")
+
+            assertEquals(SERVER_UNREACHABLE_MESSAGE, repository.state.value.error)
+            assertFalse(repository.state.value.isConnecting)
+            repository.close()
+        }
+
+    @Test
+    fun `given the server drops the socket when reading then the repository reports a disconnect instead of crashing`() =
+        runBlocking {
+            val sessionStore = mockk<RemoteSessionStore>()
+            every { sessionStore.load() } returns null
+            val connection = mockk<GameSocketConnection>()
+            every { connection.incomingMessages } returns flow { throw java.io.EOFException() }
+            coEvery { connection.closeReason() } returns null
+            coEvery { connection.close() } returns Unit
+            val socket = mockk<GameSocket>()
+            coEvery { socket.connect(SERVER_URL) } returns connection
+            val repository = repository(socket, sessionStore)
+
+            repository.connect()
+            withTimeout(1_000) {
+                while (repository.state.value.isConnected) delay(10)
+            }
+
+            assertFalse(repository.state.value.isConnected)
             repository.close()
         }
 
@@ -75,10 +136,10 @@ class RemoteGameRepositoryTest {
 
             repository.connect()
             withTimeout(1_000) {
-                while (repository.state.value.error != "Session expired.") delay(10)
+                while (savedSession != null) delay(10)
             }
 
-            assertNull(savedSession)
+            assertNull(repository.state.value.error)
             assertFalse(repository.state.value.isConnected)
             coVerify(exactly = 1) { sessionStore.clear() }
             coVerify(exactly = 1) { socket.connect(SERVER_URL) }
@@ -126,7 +187,7 @@ class RemoteGameRepositoryTest {
 
             repository.connect()
             withTimeout(1_000) {
-                while (repository.state.value.error != "Received an unreadable server message.") delay(10)
+                while (repository.state.value.isConnected) delay(10)
             }
 
             assertEquals("Received an unreadable server message.", repository.state.value.error)
@@ -166,10 +227,18 @@ class RemoteGameRepositoryTest {
 
             repository.connect()
             withTimeout(1_000) {
-                while (repository.state.value.history.isEmpty()) delay(10)
+                while (repository.state.value.history
+                        .isEmpty()
+                ) {
+                    delay(10)
+                }
             }
 
-            assertEquals(listOf("A door opened."), repository.state.value.history.map { it.prompt })
+            assertEquals(
+                listOf("A door opened."),
+                repository.state.value.history
+                    .map { it.prompt },
+            )
             assertEquals(player.id, savedStories.single().promptPlayerId)
             repository.close()
         }
@@ -209,10 +278,10 @@ class RemoteGameRepositoryTest {
         client = HttpClient(),
         sessionStore = sessionStore,
         reconnectPolicy = mockk<ReconnectPolicy> { every { shouldReconnect(any(), any()) } returns false },
-        gameSocket = socket,
         storyHistoryStore = historyStore,
         sessionReducer = GameSessionReducer(),
         connectionManager = DefaultGameConnectionManager(socket),
+        timeProvider = mockk { every { nowEpochMillis() } returns 1L },
     )
 
     private companion object {

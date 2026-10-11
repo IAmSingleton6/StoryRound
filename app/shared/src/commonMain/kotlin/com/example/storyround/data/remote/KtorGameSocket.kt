@@ -8,7 +8,6 @@ import io.ktor.client.plugins.websocket.webSocketSession
 import io.ktor.websocket.Frame
 import io.ktor.websocket.close
 import io.ktor.websocket.readText
-import io.ktor.websocket.send
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.json.Json
@@ -48,5 +47,9 @@ private class KtorGameSocketConnection(
         session.close()
     }
 
-    override suspend fun closeReason(): String? = session.closeReason.await()?.message
+    override suspend fun closeReason(): String? =
+        session.closeReason
+            .await()
+            ?.message
+            ?.takeIf(String::isNotBlank)
 }

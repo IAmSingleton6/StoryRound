@@ -99,4 +99,21 @@ class GameSessionReducerTest {
         assertNull(result.context.state.room)
         assertEquals(history, result.context.state.history)
     }
+
+    @Test
+    fun `given a saved session resumed on launch when the room no longer exists then no error is shown`() {
+        val context =
+            GameSessionContext(
+                state = RemoteGameState(playerId = player.id, history = emptyList()),
+                sessionToken = "token-1",
+                pendingPlayerName = null,
+                isConnected = true,
+            )
+
+        val result = reducer.reduce(context, ServerMessage.Error("ROOM_NOT_FOUND", "That room does not exist."))
+
+        assertNull(result.context.state.error)
+        assertNull(result.context.state.playerId)
+        assertIs<SessionPersistenceCommand.Clear>(result.persistenceCommand)
+    }
 }

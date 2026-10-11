@@ -1,6 +1,7 @@
 package com.example.storyround.data.remote
 
 import com.example.storyround.protocol.ClientMessage
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -21,6 +22,7 @@ internal class DefaultGameConnectionManager(
 
     override suspend fun connect(
         serverUrl: String,
+        onConnected: () -> Unit,
         onIncomingMessage: suspend (GameSocketIncomingMessage) -> Unit,
         onDisconnected: (String?) -> Unit,
     ): GameConnectionResult {
@@ -28,10 +30,14 @@ internal class DefaultGameConnectionManager(
         return runCatching { gameSocket.connect(serverUrl) }.fold(
             onSuccess = { connectedSession ->
                 session = connectedSession
+                onConnected()
                 reader =
                     scope.launch {
                         try {
                             connectedSession.incomingMessages.collect(onIncomingMessage)
+                        } catch (cancellation: CancellationException) {
+                            throw cancellation
+                        } catch (_: Exception) {
                         } finally {
                             if (session === connectedSession) {
                                 session = null
@@ -49,8 +55,14 @@ internal class DefaultGameConnectionManager(
 
     override suspend fun send(message: ClientMessage): Boolean {
         val activeSession = session ?: return false
-        activeSession.send(message)
-        return true
+        return try {
+            activeSession.send(message)
+            true
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (_: Exception) {
+            false
+        }
     }
 
     override fun disconnect() {

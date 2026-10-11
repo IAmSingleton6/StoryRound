@@ -57,7 +57,12 @@ class UiMappersTest {
         val mapped = roomMapper.map(room)
 
         assertEquals("ABCD", mapped.roomCode)
-        assertEquals("Alex", mapped.contributions.single().player.name)
+        assertEquals(
+            "Alex",
+            mapped.contributions
+                .single()
+                .player.name,
+        )
         assertEquals(3, mapped.contributions.single().order)
         assertEquals(12_000, mapped.turn?.deadlineEpochMillis)
         assertEquals("Alex", mapped.promptAuthor?.name)

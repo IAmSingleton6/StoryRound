@@ -7,6 +7,7 @@ internal interface GameConnectionManager {
 
     suspend fun connect(
         serverUrl: String,
+        onConnected: () -> Unit,
         onIncomingMessage: suspend (GameSocketIncomingMessage) -> Unit,
         onDisconnected: (String?) -> Unit,
     ): GameConnectionResult

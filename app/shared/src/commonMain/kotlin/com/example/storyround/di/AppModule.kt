@@ -2,6 +2,7 @@ package com.example.storyround.di
 
 import com.example.storyround.configuration.GameConfiguration
 import com.example.storyround.configuration.ServerUrlProvider
+import com.example.storyround.data.idea.BundledStoryIdeaProvider
 import com.example.storyround.data.local.RemoteSessionStore
 import com.example.storyround.data.local.SettingsRemoteSessionStore
 import com.example.storyround.data.local.SettingsStoryHistoryStore
@@ -14,9 +15,8 @@ import com.example.storyround.data.remote.GameSocket
 import com.example.storyround.data.remote.KtorGameSocket
 import com.example.storyround.data.remote.ReconnectPolicy
 import com.example.storyround.data.remote.RemoteGameRepository
-import com.example.storyround.data.time.SystemTimeProvider
+import com.example.storyround.domain.idea.StoryIdeaProvider
 import com.example.storyround.domain.repository.GameRepository
-import com.example.storyround.domain.time.TimeProvider
 import com.example.storyround.domain.usecase.ConnectToGameUseCase
 import com.example.storyround.domain.usecase.ConnectToGameUseCaseImpl
 import com.example.storyround.domain.usecase.CreateRoomUseCase
@@ -50,6 +50,12 @@ import com.example.storyround.presentation.mapper.SavedStoryUiMapper
 import com.example.storyround.presentation.mapper.SavedStoryUiMapperImpl
 import com.example.storyround.presentation.navigation.AppViewModel
 import com.example.storyround.presentation.story.StoryViewModel
+import com.example.storyround.protocol.DefaultUserTextSanitizer
+import com.example.storyround.protocol.UserTextSanitizer
+import com.example.storyround.random.DefaultRandomNumberGenerator
+import com.example.storyround.random.RandomNumberGenerator
+import com.example.storyround.time.SystemTimeProvider
+import com.example.storyround.time.TimeProvider
 import com.russhwolf.settings.Settings
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.websocket.WebSockets
@@ -62,6 +68,9 @@ internal val appModule =
         single<RemoteSessionStore> { SettingsRemoteSessionStore(Settings()) }
         single<ReconnectPolicy> { FixedIntervalReconnectPolicy() }
         single<TimeProvider> { SystemTimeProvider() }
+        single<RandomNumberGenerator> { DefaultRandomNumberGenerator() }
+        single<UserTextSanitizer> { DefaultUserTextSanitizer() }
+        single<StoryIdeaProvider> { BundledStoryIdeaProvider(get()) }
         single { GameSessionReducer() }
         single<GameSocket> { KtorGameSocket(get()) }
         single<GameConnectionManager> { DefaultGameConnectionManager(get()) }
@@ -78,8 +87,8 @@ internal val appModule =
                 storyHistoryStore = get(),
                 reconnectPolicy = get(),
                 sessionReducer = get(),
-                gameSocket = get(),
                 connectionManager = get(),
+                timeProvider = get(),
             )
         }
         factory<ConnectToGameUseCase> { ConnectToGameUseCaseImpl(get()) }
@@ -92,10 +101,10 @@ internal val appModule =
         factory<LoadStoryHistoryUseCase> { LoadStoryHistoryUseCaseImpl(get()) }
         factory<OpenSavedStoryUseCase> { OpenSavedStoryUseCaseImpl(get()) }
         factory { AppViewModel(get(), get()) }
-        factory { HomeViewModel(get(), get(), get()) }
+        factory { HomeViewModel(get(), get(), get(), get()) }
         factory { LobbyViewModel(get(), get(), get(), get()) }
-        factory { StoryViewModel(get(), get(), get(), get(), get(), get()) }
-        factory { FinishedViewModel(get(), get(), get(), get()) }
+        factory { StoryViewModel(get(), get(), get(), get(), get(), get(), get()) }
+        factory { FinishedViewModel(get(), get(), get()) }
         factory { HistoryViewModel(get(), get(), get(), get()) }
         factory { SavedStoryViewModel(get(), get()) }
     }

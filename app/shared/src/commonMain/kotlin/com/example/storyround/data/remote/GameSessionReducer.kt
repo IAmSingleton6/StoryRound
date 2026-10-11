@@ -79,7 +79,7 @@ internal class GameSessionReducer(
                         RemoteGameState(
                             isConnected = context.isConnected,
                             history = context.state.history,
-                            error = message.message,
+                            error = message.message.takeIf { context.state.room != null },
                         ),
                     sessionToken = null,
                     pendingPlayerName = null,

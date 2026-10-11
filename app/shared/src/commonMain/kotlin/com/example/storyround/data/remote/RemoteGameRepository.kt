@@ -4,10 +4,12 @@ import com.example.storyround.data.local.RemoteSessionStore
 import com.example.storyround.data.local.StoryHistoryStore
 import com.example.storyround.domain.model.RemoteGameState
 import com.example.storyround.domain.repository.GameRepository
+import com.example.storyround.logging.logger
 import com.example.storyround.protocol.ClientMessage
-import com.example.storyround.protocol.ServerMessage
 import com.example.storyround.protocol.RoomState
 import com.example.storyround.protocol.SavedStory
+import com.example.storyround.protocol.ServerMessage
+import com.example.storyround.time.TimeProvider
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -20,6 +22,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+private const val LOG_TAG = "RemoteGameRepository"
+internal const val SERVER_UNREACHABLE_MESSAGE = "Can't reach Story Round right now. Check your internet connection and try again."
+
 internal class RemoteGameRepository(
     private val serverUrl: String,
     private val client: HttpClient,
@@ -27,9 +32,10 @@ internal class RemoteGameRepository(
     private val storyHistoryStore: StoryHistoryStore,
     private val reconnectPolicy: ReconnectPolicy,
     private val sessionReducer: GameSessionReducer,
-    private val gameSocket: GameSocket,
     private val connectionManager: GameConnectionManager,
+    private val timeProvider: TimeProvider,
 ) : GameRepository {
+    private val log = logger()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val mutableState =
         MutableStateFlow(
@@ -44,7 +50,9 @@ internal class RemoteGameRepository(
 
     override val state: StateFlow<RemoteGameState> = mutableState.asStateFlow()
 
-    override suspend fun connect() {
+    override suspend fun connect() = openConnection(resumeSavedSession = true)
+
+    private suspend fun openConnection(resumeSavedSession: Boolean) {
         if (connectionManager.isConnected) return
         val savedSession = sessionStore.load()
         mutableState.value = mutableState.value.copy(playerId = savedSession?.playerId, isConnecting = true, error = null)
@@ -52,23 +60,20 @@ internal class RemoteGameRepository(
             val result =
                 connectionManager.connect(
                     serverUrl = serverUrl,
+                    onConnected = ::handleConnection,
                     onIncomingMessage = ::handleIncomingMessage,
                     onDisconnected = ::handleDisconnection,
                 )
         ) {
             GameConnectionResult.Connected -> {
-                mutableState.value = mutableState.value.copy(isConnecting = false, isConnected = true)
-                savedSession?.let { saved ->
+                savedSession?.takeIf { resumeSavedSession }?.let { saved ->
                     send(ClientMessage.Reconnect(saved.roomCode, saved.playerId, saved.sessionToken))
                 }
             }
 
             is GameConnectionResult.Failed -> {
-                mutableState.value =
-                    mutableState.value.copy(
-                        isConnecting = false,
-                        error = "Could not connect to the game server: ${result.message}",
-                    )
+                log.w("Could not connect to $serverUrl: ${result.message}", throwable = null, tag = LOG_TAG)
+                mutableState.value = mutableState.value.copy(isConnecting = false, error = SERVER_UNREACHABLE_MESSAGE)
             }
         }
     }
@@ -80,8 +85,10 @@ internal class RemoteGameRepository(
         playerName: String,
     ) = sendWithPlayerName(playerName, ClientMessage.JoinRoom(roomCode, playerName))
 
-    override suspend fun startGame(openingPlayerId: String?, maxRounds: Int) =
-        sendForCurrentPlayer { roomCode, playerId -> ClientMessage.StartGame(roomCode, playerId, openingPlayerId, maxRounds) }
+    override suspend fun startGame(
+        openingPlayerId: String?,
+        maxRounds: Int,
+    ) = sendForCurrentPlayer { roomCode, playerId -> ClientMessage.StartGame(roomCode, playerId, openingPlayerId, maxRounds) }
 
     override suspend fun submitPrompt(text: String) =
         sendForCurrentPlayer { roomCode, playerId -> ClientMessage.SubmitPrompt(roomCode, playerId, text) }
@@ -135,6 +142,7 @@ internal class RemoteGameRepository(
         message: ClientMessage,
     ) {
         pendingPlayerName = playerName.trim()
+        openConnection(resumeSavedSession = false)
         send(message)
     }
 
@@ -150,7 +158,7 @@ internal class RemoteGameRepository(
 
     private suspend fun send(message: ClientMessage) {
         if (!connectionManager.send(message)) {
-            mutableState.value = mutableState.value.copy(error = "Connect to the game server first.")
+            mutableState.value = mutableState.value.copy(error = SERVER_UNREACHABLE_MESSAGE)
         }
     }
 
@@ -161,6 +169,10 @@ internal class RemoteGameRepository(
                 mutableState.value = mutableState.value.copy(error = "Received an unreadable server message.")
             }
         }
+    }
+
+    private fun handleConnection() {
+        mutableState.value = mutableState.value.copy(isConnecting = false, isConnected = true)
     }
 
     private fun handleDisconnection(reason: String?) {
@@ -189,10 +201,11 @@ internal class RemoteGameRepository(
         if (message is ServerMessage.GameFinished) {
             val story = message.room.toLocalSavedStory()
             storyHistoryStore.save(story)
-            updatedState = updatedState.copy(
-                history = storyHistoryStore.load(),
-                finishedStoryId = story.id,
-            )
+            updatedState =
+                updatedState.copy(
+                    history = storyHistoryStore.load(),
+                    finishedStoryId = story.id,
+                )
         }
         mutableState.value = updatedState
         sessionToken = reduction.context.sessionToken
@@ -212,7 +225,7 @@ internal class RemoteGameRepository(
             id = "local-${fingerprint.hashCode()}",
             prompt = promptText,
             promptPlayerId = openingPlayer,
-            createdAtEpochMillis = kotlin.time.Clock.System.now().toEpochMilliseconds(),
+            createdAtEpochMillis = timeProvider.nowEpochMillis(),
             players = players,
             contributions = contributions,
         )
