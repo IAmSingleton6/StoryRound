@@ -1,13 +1,14 @@
 package com.example.storyround
 
 import com.example.storyround.configuration.GameConfiguration
-import com.example.storyround.identity.RandomNumberGenerator
 import com.example.storyround.persistence.StoryRepository
 import com.example.storyround.protocol.ClientMessage
+import com.example.storyround.protocol.DefaultUserTextSanitizer
 import com.example.storyround.protocol.RoomState
 import com.example.storyround.protocol.SavedStory
 import com.example.storyround.protocol.ServerMessage
 import com.example.storyround.protocol.StorySummary
+import com.example.storyround.random.RandomNumberGenerator
 import com.example.storyround.room.InMemoryRoomRegistry
 import com.example.storyround.room.InMemoryRoomStore
 import com.example.storyround.room.RoomIdentityGenerator
@@ -22,10 +23,10 @@ import io.ktor.websocket.DefaultWebSocketSession
 import io.ktor.websocket.Frame
 import io.ktor.websocket.readText
 import io.ktor.websocket.send
-import kotlinx.coroutines.withTimeout
-import kotlinx.serialization.json.Json
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.withTimeout
+import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -274,6 +275,7 @@ class GameWebSocketTest {
             roomStateMapper = RoomStateMapperImpl(),
             gameConfiguration = gameConfiguration,
             randomNumberGenerator = randomNumberGenerator,
+            userTextSanitizer = DefaultUserTextSanitizer(),
         )
     }
 

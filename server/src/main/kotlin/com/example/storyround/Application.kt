@@ -43,7 +43,7 @@ fun Application.module(
     install(Koin) { modules(serverModule(registry, storyRepository, timeProvider)) }
     val gameWebSocketHandler: GameWebSocketHandler by inject()
     val storyHistoryRoutes: StoryHistoryRouteInstaller by inject()
-    install(WebSockets)
+    install(WebSockets) { maxFrameSize = MAX_WEBSOCKET_FRAME_BYTES }
 
     routing {
         get("/") { call.respondText("Story Relay server") }
@@ -51,3 +51,5 @@ fun Application.module(
         webSocket("/game") { gameWebSocketHandler.handle(this) }
     }
 }
+
+private const val MAX_WEBSOCKET_FRAME_BYTES = 16L * 1024

@@ -1,11 +1,13 @@
 package com.example.storyround.room
 
+import com.example.storyround.configuration.GameConfiguration
+import com.example.storyround.protocol.DefaultUserTextSanitizer
 import com.example.storyround.protocol.GameStatus
 import com.example.storyround.protocol.MAX_PLAYER_NAME_LENGTH
-import com.example.storyround.configuration.GameConfiguration
-import com.example.storyround.identity.RandomNumberGenerator
+import com.example.storyround.protocol.MAX_STORY_TEXT_LENGTH
 import com.example.storyround.protocol.PlayerColour
 import com.example.storyround.protocol.ServerMessage
+import com.example.storyround.random.RandomNumberGenerator
 import com.example.storyround.time.TimeProvider
 import io.mockk.every
 import io.mockk.mockk
@@ -27,13 +29,26 @@ class InMemoryRoomRegistryTest {
     }
 
     @Test
-    fun `given a player name longer than the persistence limit when creating a room then it is rejected`() {
+    fun `given a player name longer than the limit when creating a room then it is rejected`() {
         val result = registry.createRoom("A".repeat(MAX_PLAYER_NAME_LENGTH + 1))
 
-        assertEquals(
-            RegistryResult.Error("INVALID_NAME", "Enter a player name up to 100 characters."),
-            result,
-        )
+        assertEquals(RegistryResult.Error("INVALID_NAME", "Enter a player name of 2 to 20 characters."), result)
+    }
+
+    @Test
+    fun `given a player name shorter than the limit after sanitising when joining then it is rejected`() {
+        val created = assertIs<RegistryResult.Success>(registry.createRoom("Alex"))
+
+        val result = registry.joinRoom(created.room.roomCode, " S\u200B ")
+
+        assertEquals(RegistryResult.Error("INVALID_NAME", "Enter a player name of 2 to 20 characters."), result)
+    }
+
+    @Test
+    fun `given a player name with padding and control characters when creating a room then the sanitised name is used`() {
+        val created = assertIs<RegistryResult.Success>(registry.createRoom("  Mary\u0000 \n Jane  "))
+
+        assertEquals("Mary Jane", created.affectedPlayer?.name)
     }
 
     @Test
@@ -47,6 +62,26 @@ class InMemoryRoomRegistryTest {
         assertEquals(
             RegistryResult.Error("ROOM_NOT_FOUND", "That room does not exist."),
             registry.reconnect(created.room.roomCode, hostId, requireNotNull(created.sessionToken)),
+        )
+    }
+
+    @Test
+    fun `given a generated code is already in use when creating a room then another code is generated`() {
+        val collidingRegistry = newRegistry(roomCodes = listOf("AB12", "AB12", "CD34"))
+
+        val first = assertIs<RegistryResult.Success>(collidingRegistry.createRoom("Alex"))
+        val second = assertIs<RegistryResult.Success>(collidingRegistry.createRoom("Sam"))
+
+        assertEquals("AB12", first.room.roomCode)
+        assertEquals("CD34", second.room.roomCode)
+        assertEquals(listOf("Alex"), first.room.players.map { it.name })
+    }
+
+    @Test
+    fun `given no room with the code when joining then the player is told to check the code`() {
+        assertEquals(
+            RegistryResult.Error("ROOM_NOT_FOUND", "No game found with that code. Check it and try again."),
+            registry.joinRoom("ZZZZ", "Sam"),
         )
     }
 
@@ -131,11 +166,35 @@ class InMemoryRoomRegistryTest {
         registry.submitPrompt(created.room.roomCode, hostId, "A door opened.")
 
         val afterFirstContribution = assertIs<RegistryResult.Success>(registry.submitContribution(created.room.roomCode, hostId, "First."))
-        val afterSecondContribution = assertIs<RegistryResult.Success>(registry.submitContribution(created.room.roomCode, hostId, "Second."))
+        val afterSecondContribution =
+            assertIs<RegistryResult.Success>(registry.submitContribution(created.room.roomCode, hostId, "Second."))
 
         assertEquals(GameStatus.Playing, afterFirstContribution.room.status)
         assertEquals(GameStatus.Finished, afterSecondContribution.room.status)
         assertEquals(2, afterSecondContribution.room.contributions.size)
+    }
+
+    @Test
+    fun `given a prompt with line breaks and invisible characters when submitted then the sanitised prompt is stored`() {
+        val created = assertIs<RegistryResult.Success>(registry.createRoom("Alex"))
+        val hostId = requireNotNull(created.affectedPlayer).id
+        registry.startGame(created.room.roomCode, hostId, hostId, 3)
+
+        val result = assertIs<RegistryResult.Success>(registry.submitPrompt(created.room.roomCode, hostId, "A door\n\n\u202Eopened.  "))
+
+        assertEquals("A door opened.", result.room.prompt)
+    }
+
+    @Test
+    fun `given a contribution that is blank after sanitising or over the limit when submitted then it is rejected`() {
+        val created = assertIs<RegistryResult.Success>(registry.createRoom("Alex"))
+        val hostId = requireNotNull(created.affectedPlayer).id
+        registry.startGame(created.room.roomCode, hostId, hostId, 3)
+        registry.submitPrompt(created.room.roomCode, hostId, "A door opened.")
+        val expected = RegistryResult.Error("INVALID_TEXT", "Enter up to 280 characters.")
+
+        assertEquals(expected, registry.submitContribution(created.room.roomCode, hostId, " \u200B\n "))
+        assertEquals(expected, registry.submitContribution(created.room.roomCode, hostId, "A".repeat(MAX_STORY_TEXT_LENGTH + 1)))
     }
 
     @Test
@@ -220,9 +279,10 @@ class InMemoryRoomRegistryTest {
         rounds: Int = 3,
         firstTurnMillis: Long = GameConfiguration().firstTurnMillis,
         randomPlayerIndex: Int = 0,
+        roomCodes: List<String> = listOf(roomCode),
     ): InMemoryRoomRegistry {
         val identityGenerator = mockk<RoomIdentityGenerator>()
-        every { identityGenerator.generateRoomCode() } returns roomCode
+        every { identityGenerator.generateRoomCode() } returnsMany roomCodes
         every { identityGenerator.generatePlayerId() } answers { playerIdGenerator() }
         every { identityGenerator.generateSessionToken() } returns "session-token"
         val randomNumberGenerator = mockk<RandomNumberGenerator>()
@@ -241,6 +301,7 @@ class InMemoryRoomRegistryTest {
             roomStateMapper = RoomStateMapperImpl(),
             gameConfiguration = gameConfiguration,
             randomNumberGenerator = randomNumberGenerator,
+            userTextSanitizer = DefaultUserTextSanitizer(),
         )
     }
 }

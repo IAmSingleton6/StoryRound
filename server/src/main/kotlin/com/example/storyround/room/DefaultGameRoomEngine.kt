@@ -1,14 +1,16 @@
 package com.example.storyround.room
 
 import com.example.storyround.configuration.GameConfiguration
-import com.example.storyround.identity.RandomNumberGenerator
 import com.example.storyround.protocol.Contribution
 import com.example.storyround.protocol.GameStatus
 import com.example.storyround.protocol.MAX_PLAYER_NAME_LENGTH
 import com.example.storyround.protocol.MAX_STORY_TEXT_LENGTH
+import com.example.storyround.protocol.MIN_PLAYER_NAME_LENGTH
 import com.example.storyround.protocol.Player
 import com.example.storyround.protocol.PlayerColour
 import com.example.storyround.protocol.ServerMessage
+import com.example.storyround.protocol.UserTextSanitizer
+import com.example.storyround.random.RandomNumberGenerator
 import com.example.storyround.time.TimeProvider
 
 internal class DefaultGameRoomEngine(
@@ -21,11 +23,12 @@ internal class DefaultGameRoomEngine(
     private val roomStateMapper: RoomStateMapper,
     private val gameConfiguration: GameConfiguration,
     private val randomNumberGenerator: RandomNumberGenerator,
+    private val userTextSanitizer: UserTextSanitizer,
 ) : GameRoomEngine {
     override fun createRoom(playerName: String): RegistryResult {
         val validatedName =
             validatePlayerName(playerName)
-                ?: return RegistryResult.Error("INVALID_NAME", "Enter a player name up to $MAX_PLAYER_NAME_LENGTH characters.")
+                ?: return RegistryResult.Error("INVALID_NAME", INVALID_NAME_MESSAGE)
         repeat(MAX_CODE_GENERATION_ATTEMPTS) {
             val host = Player(playerIdGenerator(), validatedName, PlayerColour.Blue)
             val sessionToken = sessionTokenGenerator()
@@ -50,7 +53,7 @@ internal class DefaultGameRoomEngine(
         playerName: String,
     ): RegistryResult =
         roomStore.withRoom(roomCode) { room ->
-            room ?: return@withRoom RegistryResult.Error("ROOM_NOT_FOUND", "That room does not exist.")
+            room ?: return@withRoom RegistryResult.Error("ROOM_NOT_FOUND", "No game found with that code. Check it and try again.")
             if (room.status !=
                 GameStatus.Lobby
             ) {
@@ -61,7 +64,7 @@ internal class DefaultGameRoomEngine(
             }
             val validatedName =
                 validatePlayerName(playerName)
-                    ?: return@withRoom RegistryResult.Error("INVALID_NAME", "Enter a player name up to $MAX_PLAYER_NAME_LENGTH characters.")
+                    ?: return@withRoom RegistryResult.Error("INVALID_NAME", INVALID_NAME_MESSAGE)
             val player = Player(playerIdGenerator(), validatedName, colours[room.players.size])
             val sessionToken = sessionTokenGenerator()
             room.players += player
@@ -122,10 +125,12 @@ internal class DefaultGameRoomEngine(
             if (room.status != GameStatus.Prompt) {
                 return@withRoom RegistryResult.Error("INVALID_GAME_STATE", "The game is not waiting for an opening prompt.")
             }
-            if (room.openingPlayerId != playerId) return@withRoom RegistryResult.Error("NOT_PROMPT_OWNER", "Only the selected player can start the story.")
+            if (room.openingPlayerId != playerId) {
+                return@withRoom RegistryResult.Error("NOT_PROMPT_OWNER", "Only the selected player can start the story.")
+            }
             val prompt =
                 validateText(text)
-                    ?: return@withRoom RegistryResult.Error("INVALID_TEXT", "Enter up to $MAX_STORY_TEXT_LENGTH characters.")
+                    ?: return@withRoom RegistryResult.Error("INVALID_TEXT", INVALID_TEXT_MESSAGE)
             room.prompt = prompt
             room.status = GameStatus.Playing
             startTurn(room, 0, timeProvider.nowEpochMillis())
@@ -152,7 +157,7 @@ internal class DefaultGameRoomEngine(
             if (room.currentPlayerId != playerId) return@withRoom RegistryResult.Error("NOT_CURRENT_PLAYER", "It is not your turn.")
             val contributionText =
                 validateText(text)
-                    ?: return@withRoom RegistryResult.Error("INVALID_TEXT", "Enter up to $MAX_STORY_TEXT_LENGTH characters.")
+                    ?: return@withRoom RegistryResult.Error("INVALID_TEXT", INVALID_TEXT_MESSAGE)
             val contribution = Contribution(playerId, contributionText, room.turnNumber)
             room.contributions += contribution
             advance(room, contribution)
@@ -251,11 +256,13 @@ internal class DefaultGameRoomEngine(
             requireNotNull(room.turnDeadlineEpochMillis),
         )
 
-    private fun validatePlayerName(name: String): String? = name.trim().takeIf { it.isNotEmpty() && it.length <= MAX_PLAYER_NAME_LENGTH }
+    private fun validatePlayerName(name: String): String? =
+        userTextSanitizer.sanitize(name).takeIf { it.length in MIN_PLAYER_NAME_LENGTH..MAX_PLAYER_NAME_LENGTH }
 
-    private fun validateText(text: String): String? = text.trim().takeIf { it.isNotEmpty() && it.length <= MAX_STORY_TEXT_LENGTH }
-
+    private fun validateText(text: String): String? = userTextSanitizer.sanitize(text).takeIf { it.length in 1..MAX_STORY_TEXT_LENGTH }
 }
 
 private const val MAX_CODE_GENERATION_ATTEMPTS = 100
+private const val INVALID_NAME_MESSAGE = "Enter a player name of $MIN_PLAYER_NAME_LENGTH to $MAX_PLAYER_NAME_LENGTH characters."
+private const val INVALID_TEXT_MESSAGE = "Enter up to $MAX_STORY_TEXT_LENGTH characters."
 private val colours = PlayerColour.entries

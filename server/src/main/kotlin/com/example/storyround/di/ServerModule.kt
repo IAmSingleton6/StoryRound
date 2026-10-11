@@ -1,24 +1,26 @@
 package com.example.storyround.di
 
 import com.example.storyround.RoomSocketHub
-import com.example.storyround.configuration.GameConfiguration
 import com.example.storyround.config.EnvironmentServerConfigProvider
 import com.example.storyround.config.ServerConfig
+import com.example.storyround.configuration.GameConfiguration
 import com.example.storyround.game.GameWebSocketHandler
 import com.example.storyround.history.StoryHistoryRouteInstaller
 import com.example.storyround.identity.IdentifierGenerator
-import com.example.storyround.identity.RandomNumberGenerator
 import com.example.storyround.identity.SecureRandomNumberGenerator
 import com.example.storyround.identity.UuidIdentifierGenerator
 import com.example.storyround.persistence.PostgresStoryRepositoryProvider
 import com.example.storyround.persistence.StoryRepository
 import com.example.storyround.persistence.StoryRepositoryProvider
+import com.example.storyround.protocol.DefaultUserTextSanitizer
+import com.example.storyround.protocol.UserTextSanitizer
+import com.example.storyround.random.RandomNumberGenerator
+import com.example.storyround.room.InMemoryRoomRegistry
+import com.example.storyround.room.InMemoryRoomStore
+import com.example.storyround.room.RoomIdentityGenerator
 import com.example.storyround.room.RoomRegistry
 import com.example.storyround.room.RoomStateMapper
 import com.example.storyround.room.RoomStateMapperImpl
-import com.example.storyround.room.RoomIdentityGenerator
-import com.example.storyround.room.InMemoryRoomRegistry
-import com.example.storyround.room.InMemoryRoomStore
 import com.example.storyround.room.RoomStore
 import com.example.storyround.room.SecureRoomIdentityGenerator
 import com.example.storyround.room.TurnRules
@@ -42,11 +44,12 @@ internal fun serverModule(
         single<RoomStore> { InMemoryRoomStore() }
         single { GameConfiguration() }
         single<RandomNumberGenerator> { SecureRandomNumberGenerator() }
+        single<UserTextSanitizer> { DefaultUserTextSanitizer() }
         single<IdentifierGenerator> { UuidIdentifierGenerator() }
         single<RoomIdentityGenerator> { SecureRoomIdentityGenerator(get(), get()) }
         single { TurnRules(get()) }
         single<RoomStateMapper> { RoomStateMapperImpl() }
-        single<RoomRegistry> { registry ?: InMemoryRoomRegistry(get(), get(), get(), get(), get(), get(), get()) }
+        single<RoomRegistry> { registry ?: InMemoryRoomRegistry(get(), get(), get(), get(), get(), get(), get(), get()) }
         single<StoryRepositoryProvider> { PostgresStoryRepositoryProvider(get()) }
         single {
             StoryRepositoryAvailability(

@@ -1,7 +1,8 @@
 package com.example.storyround.room
 
 import com.example.storyround.configuration.GameConfiguration
-import com.example.storyround.identity.RandomNumberGenerator
+import com.example.storyround.protocol.UserTextSanitizer
+import com.example.storyround.random.RandomNumberGenerator
 import com.example.storyround.time.TimeProvider
 
 internal class InMemoryRoomRegistry(
@@ -12,6 +13,7 @@ internal class InMemoryRoomRegistry(
     roomStateMapper: RoomStateMapper,
     gameConfiguration: GameConfiguration,
     randomNumberGenerator: RandomNumberGenerator,
+    userTextSanitizer: UserTextSanitizer,
 ) : RoomRegistry {
     private val engine: GameRoomEngine =
         DefaultGameRoomEngine(
@@ -24,6 +26,7 @@ internal class InMemoryRoomRegistry(
             roomStateMapper = roomStateMapper,
             gameConfiguration = gameConfiguration,
             randomNumberGenerator = randomNumberGenerator,
+            userTextSanitizer = userTextSanitizer,
         )
 
     override fun createRoom(playerName: String) = engine.createRoom(playerName)
@@ -44,10 +47,12 @@ internal class InMemoryRoomRegistry(
         playerId: String,
         openingPlayerId: String?,
         maxRounds: Int,
-    ) =
-        engine.startGame(roomCode, playerId, openingPlayerId, maxRounds)
+    ) = engine.startGame(roomCode, playerId, openingPlayerId, maxRounds)
 
-    override fun leaveRoom(roomCode: String, playerId: String) = engine.leaveRoom(roomCode, playerId)
+    override fun leaveRoom(
+        roomCode: String,
+        playerId: String,
+    ) = engine.leaveRoom(roomCode, playerId)
 
     override fun submitPrompt(
         roomCode: String,
@@ -70,5 +75,4 @@ internal class InMemoryRoomRegistry(
         roomCode: String,
         deadlineEpochMillis: Long,
     ) = engine.expireTurn(roomCode, deadlineEpochMillis)
-
 }
