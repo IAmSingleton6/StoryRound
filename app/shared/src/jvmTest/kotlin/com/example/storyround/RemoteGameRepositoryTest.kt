@@ -18,7 +18,6 @@ import com.example.storyround.protocol.PlayerColour
 import com.example.storyround.protocol.RoomState
 import com.example.storyround.protocol.SavedStory
 import com.example.storyround.protocol.ServerMessage
-import com.example.storyround.protocol.StorySummary
 import io.ktor.client.HttpClient
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -220,5 +219,5 @@ class RemoteGameRepositoryTest {
         const val SERVER_URL = "ws://localhost:8080/game"
     }
 
-    private fun RemoteGameRepository.savedStoryIds(): List<String> = state.value.history.map(StorySummary::id)
+    private fun RemoteGameRepository.savedStoryIds(): List<String> = state.value.history.map(SavedStory::id)
 }

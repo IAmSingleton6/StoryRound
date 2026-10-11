@@ -4,7 +4,7 @@ import com.example.storyround.domain.model.RemoteGameState
 import com.example.storyround.domain.repository.GameRepository
 import com.example.storyround.domain.usecase.CreateRoomUseCaseImpl
 import com.example.storyround.domain.usecase.JoinRoomUseCaseImpl
-import com.example.storyround.protocol.StorySummary
+import com.example.storyround.protocol.SavedStory
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
@@ -104,8 +104,8 @@ class HomeViewModelTest {
                 RemoteGameState(
                     history =
                         listOf(
-                            StorySummary("story-1", "A door opened.", 1, 2, 3),
-                            StorySummary("story-2", "A horse arrived.", 2, 3, 4),
+                            SavedStory("story-1", "A door opened.", "player-1", 1, emptyList(), emptyList()),
+                            SavedStory("story-2", "A horse arrived.", "player-1", 2, emptyList(), emptyList()),
                         ),
                 )
             advanceUntilIdle()

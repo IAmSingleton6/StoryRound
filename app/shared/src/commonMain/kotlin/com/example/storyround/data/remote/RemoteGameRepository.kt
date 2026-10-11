@@ -8,7 +8,6 @@ import com.example.storyround.protocol.ClientMessage
 import com.example.storyround.protocol.ServerMessage
 import com.example.storyround.protocol.RoomState
 import com.example.storyround.protocol.SavedStory
-import com.example.storyround.protocol.StorySummary
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -36,7 +35,7 @@ internal class RemoteGameRepository(
         MutableStateFlow(
             RemoteGameState(
                 playerId = sessionStore.load()?.playerId,
-                history = storyHistoryStore.load().map { it.toSummary() },
+                history = storyHistoryStore.load(),
             ),
         )
     private var reconnectJob: Job? = null
@@ -93,7 +92,7 @@ internal class RemoteGameRepository(
     override suspend fun playAgain() = sendForCurrentPlayer { roomCode, playerId -> ClientMessage.PlayAgain(roomCode, playerId) }
 
     override suspend fun loadHistory() {
-        mutableState.value = mutableState.value.copy(history = storyHistoryStore.load().map { it.toSummary() }, isLoadingHistory = false, error = null)
+        mutableState.value = mutableState.value.copy(history = storyHistoryStore.load(), isLoadingHistory = false, error = null)
     }
 
     override suspend fun openStory(id: String): Boolean {
@@ -191,7 +190,7 @@ internal class RemoteGameRepository(
             val story = message.room.toLocalSavedStory()
             storyHistoryStore.save(story)
             updatedState = updatedState.copy(
-                history = storyHistoryStore.load().map { it.toSummary() },
+                history = storyHistoryStore.load(),
                 finishedStoryId = story.id,
             )
         }
@@ -218,9 +217,6 @@ internal class RemoteGameRepository(
             contributions = contributions,
         )
     }
-
-    private fun SavedStory.toSummary() =
-        StorySummary(id, prompt, createdAtEpochMillis, players.size, contributions.size)
 
     private fun scheduleReconnect() {
         if (

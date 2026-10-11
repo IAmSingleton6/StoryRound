@@ -1,5 +1,6 @@
 package com.example.storyround.presentation
 
+import com.example.storyround.configuration.GameConfiguration
 import com.example.storyround.domain.model.RemoteGameState
 import com.example.storyround.domain.repository.GameRepository
 import com.example.storyround.domain.time.TimeProvider
@@ -16,10 +17,10 @@ import com.example.storyround.presentation.history.HistoryUiState
 import com.example.storyround.presentation.history.HistoryViewModel
 import com.example.storyround.presentation.lobby.LobbyAction
 import com.example.storyround.presentation.lobby.LobbyViewModel
-import com.example.storyround.configuration.GameConfiguration
 import com.example.storyround.presentation.mapper.ContributionUiMapperImpl
 import com.example.storyround.presentation.mapper.PlayerUiMapperImpl
 import com.example.storyround.presentation.mapper.RoomUiMapperImpl
+import com.example.storyround.presentation.mapper.SavedStoryUiMapperImpl
 import com.example.storyround.presentation.story.StoryAction
 import com.example.storyround.presentation.story.StoryUiState
 import com.example.storyround.presentation.story.StoryViewModel
@@ -27,7 +28,7 @@ import com.example.storyround.protocol.GameStatus
 import com.example.storyround.protocol.Player
 import com.example.storyround.protocol.PlayerColour
 import com.example.storyround.protocol.RoomState
-import com.example.storyround.protocol.StorySummary
+import com.example.storyround.protocol.SavedStory
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
@@ -46,6 +47,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -156,7 +158,7 @@ class PresentationViewModelFlowTest {
     @Test
     fun `given history state when loading and opening a story then UI flows and repository is delegated`() =
         runTest(dispatcher) {
-            val summary = StorySummary("story-1", "A door opened.", 1, 2, 3)
+            val summary = SavedStory("story-1", "A door opened.", HOST.id, 1, listOf(HOST), emptyList())
             val state = MutableStateFlow(RemoteGameState(history = listOf(summary)))
             val repository = repository(state)
             val viewModel =
@@ -164,6 +166,7 @@ class PresentationViewModelFlowTest {
                     repository,
                     LoadStoryHistoryUseCaseImpl(repository),
                     OpenSavedStoryUseCaseImpl(repository),
+                    SavedStoryUiMapperImpl(PlayerUiMapperImpl(), ContributionUiMapperImpl()),
                 )
             val collection = backgroundScope.launch { viewModel.uiState.collect() }
             advanceUntilIdle()
@@ -171,7 +174,10 @@ class PresentationViewModelFlowTest {
             viewModel.onAction(HistoryAction.OpenStory(summary.id))
             advanceUntilIdle()
 
-            assertEquals(HistoryUiState.Content(listOf(summary)), viewModel.uiState.value)
+            val content = assertIs<HistoryUiState.Content>(viewModel.uiState.value)
+            assertEquals(listOf("story-1"), content.stories.map { it.id })
+            val writers = content.stories.single().writers
+            assertEquals(listOf(HOST.name to 1), writers.map { it.player.name to it.pieces })
             coVerify(exactly = 1) { repository.loadHistory() }
             coVerify(exactly = 1) { repository.openStory(summary.id) }
             collection.cancel()

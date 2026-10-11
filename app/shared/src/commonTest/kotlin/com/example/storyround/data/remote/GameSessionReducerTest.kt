@@ -6,8 +6,8 @@ import com.example.storyround.protocol.GameStatus
 import com.example.storyround.protocol.Player
 import com.example.storyround.protocol.PlayerColour
 import com.example.storyround.protocol.RoomState
+import com.example.storyround.protocol.SavedStory
 import com.example.storyround.protocol.ServerMessage
-import com.example.storyround.protocol.StorySummary
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -85,7 +85,7 @@ class GameSessionReducerTest {
 
     @Test
     fun `given saved stories when an invalid session error is reduced then local history is kept`() {
-        val history = listOf(StorySummary("story-1", "A door opened.", 1, 1, 1))
+        val history = listOf(SavedStory("story-1", "A door opened.", player.id, 1, listOf(player), emptyList()))
         val context =
             GameSessionContext(
                 state = RemoteGameState(room = room, playerId = player.id, history = history),
