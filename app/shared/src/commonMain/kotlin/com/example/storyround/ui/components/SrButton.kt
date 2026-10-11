@@ -38,6 +38,7 @@ internal fun SrButton(
     size: SrButtonSize = SrButtonSize.Large,
     enabled: Boolean = true,
     shadowColor: Color = StoryRoundTheme.colors.inkShadow,
+    leadingIcon: ImageVector? = null,
     trailingIcon: ImageVector? = null,
     contentPadding: PaddingValues = NoPadding,
     textStyle: TextStyle = StoryRoundTheme.typography.button,
@@ -63,9 +64,10 @@ internal fun SrButton(
                     role = Role.Button,
                     onClick = onClick,
                 ).padding(contentPadding),
-        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+        horizontalArrangement = Arrangement.spacedBy(if (leadingIcon != null) 10.dp else 8.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        leadingIcon?.let { SrIcon(it, tint = content, modifier = Modifier.size(20.dp)) }
         BasicText(text = label, style = textStyle.copy(color = content))
         trailingIcon?.let { SrIcon(it, tint = content, modifier = Modifier.size(18.dp)) }
     }

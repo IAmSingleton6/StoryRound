@@ -4,6 +4,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentSize
@@ -38,6 +39,7 @@ import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.withStyle
@@ -63,12 +65,15 @@ private val HighlightRadius = 4.dp
 private val HighlightUnderline = 3.dp
 private val TagShape = RoundedCornerShape(6.dp)
 private val TagGap = 6.dp
+private val StoryTextPadding = PaddingValues(start = 20.dp, top = 22.dp, end = 20.dp, bottom = 28.dp)
 
 @Composable
 internal fun StoryText(
     segments: List<StorySegmentUi>,
     modifier: Modifier = Modifier,
     newestTag: String? = null,
+    textStyle: TextStyle = StoryRoundTheme.typography.story,
+    contentPadding: PaddingValues = StoryTextPadding,
 ) {
     val scroll = rememberScrollState()
     val newestAlpha = remember { Animatable(1f) }
@@ -79,11 +84,13 @@ internal fun StoryText(
         }
     }
     LaunchedEffect(segments.size) {
-        delay(SCROLL_DELAY_MILLIS)
-        scroll.animateScrollTo(scroll.maxValue)
+        if (newestTag != null) {
+            delay(SCROLL_DELAY_MILLIS)
+            scroll.animateScrollTo(scroll.maxValue)
+        }
     }
     val colors = StoryRoundTheme.colors
-    val style = StoryRoundTheme.typography.story.copy(color = colors.ink)
+    val style = textStyle.copy(color = colors.ink)
     val newestIndex = if (newestTag != null) segments.lastIndex else -1
     val story =
         remember(segments, newestIndex, newestAlpha.value) {
@@ -98,7 +105,7 @@ internal fun StoryText(
             modifier
                 .fillMaxSize()
                 .verticalScroll(scroll)
-                .padding(start = 20.dp, top = 22.dp, end = 20.dp, bottom = 28.dp)
+                .padding(contentPadding)
                 .semantics { contentDescription = segments.joinToString(" ") { it.text } }
                 .drawBehind {
                     val result = layout ?: return@drawBehind

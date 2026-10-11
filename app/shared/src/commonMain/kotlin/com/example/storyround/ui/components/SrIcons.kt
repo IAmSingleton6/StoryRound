@@ -68,6 +68,10 @@ internal object SrIcons {
         strokeIcon(name = "Send", strokeWidth = 2.8f, paths = listOf("M5 12h14M13 6l6 6-6 6"))
     }
 
+    val Replay: ImageVector by lazy {
+        strokeIcon(name = "Replay", strokeWidth = 2.6f, paths = listOf("M3 12a9 9 0 1 0 3-6.7L3 8", "M3 3v5h5"))
+    }
+
     val Minus: ImageVector by lazy {
         strokeIcon(name = "Minus", strokeWidth = 3f, paths = listOf("M5 12h14"))
     }
