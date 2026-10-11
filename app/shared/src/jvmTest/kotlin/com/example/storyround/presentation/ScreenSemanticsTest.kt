@@ -201,7 +201,7 @@ class ScreenSemanticsTest {
                 }
             }
 
-            onNodeWithText("VIEW STORY").performClick()
+            onNodeWithText("View story").performClick()
 
             assertEquals(FinishedAction.ViewStory, finishedAction)
         }
