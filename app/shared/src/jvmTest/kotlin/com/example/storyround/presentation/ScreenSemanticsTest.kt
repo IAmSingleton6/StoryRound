@@ -25,13 +25,13 @@ import com.example.storyround.presentation.lobby.LobbyScreen
 import com.example.storyround.presentation.lobby.LobbyUiState
 import com.example.storyround.presentation.model.PlayerUi
 import com.example.storyround.presentation.model.RoomUi
+import com.example.storyround.presentation.model.ShelfStoryUi
 import com.example.storyround.presentation.model.StoryUi
 import com.example.storyround.presentation.model.TurnUi
 import com.example.storyround.presentation.story.StoryAction
 import com.example.storyround.presentation.story.StoryScreen
 import com.example.storyround.presentation.story.StoryUiState
 import com.example.storyround.protocol.PlayerColour
-import com.example.storyround.protocol.StorySummary
 import com.example.storyround.ui.theme.StoryRoundTheme
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -209,11 +209,12 @@ class ScreenSemanticsTest {
     @Test
     fun `given history content when a saved story is selected then open action is exposed`() =
         runComposeUiTest {
+            val alex = PlayerUi("alex", "Alex", PlayerColour.Blue)
             var historyAction: HistoryAction? = null
             setContent {
                 StoryRoundTheme {
                     HistoryScreen(
-                        HistoryUiState.Content(listOf(StorySummary("story-1", "Saved prompt", 1, 2, 3))),
+                        HistoryUiState.Content(listOf(ShelfStoryUi("story-1", "Saved prompt", listOf(alex), 2, emptyList()))),
                     ) { historyAction = it }
                 }
             }

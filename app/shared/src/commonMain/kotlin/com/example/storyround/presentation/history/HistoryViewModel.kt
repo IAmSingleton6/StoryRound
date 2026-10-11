@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.storyround.domain.repository.GameRepository
 import com.example.storyround.domain.usecase.LoadStoryHistoryUseCase
 import com.example.storyround.domain.usecase.OpenSavedStoryUseCase
+import com.example.storyround.presentation.mapper.SavedStoryUiMapper
+import com.example.storyround.presentation.model.toShelfStory
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
@@ -15,6 +17,7 @@ internal class HistoryViewModel(
     repository: GameRepository,
     private val loadStoryHistory: LoadStoryHistoryUseCase,
     private val openSavedStory: OpenSavedStoryUseCase,
+    private val savedStoryUiMapper: SavedStoryUiMapper,
 ) : ViewModel() {
     val uiState: StateFlow<HistoryUiState> =
         repository.state
@@ -22,7 +25,7 @@ internal class HistoryViewModel(
                 when {
                     state.isLoadingHistory -> HistoryUiState.Loading
                     state.error != null -> HistoryUiState.Error(state.error)
-                    else -> HistoryUiState.Content(state.history)
+                    else -> HistoryUiState.Content(state.history.map { savedStoryUiMapper.map(it).toShelfStory() })
                 }
             }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HistoryUiState.Loading)
 

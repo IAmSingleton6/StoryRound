@@ -9,6 +9,7 @@ import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
@@ -28,6 +29,7 @@ internal fun PlayerAvatar(
     modifier: Modifier = Modifier,
     borderWidth: Dp = 2.dp,
     initialSize: TextUnit = TextUnit.Unspecified,
+    borderColor: Color = StoryRoundTheme.colors.ink,
 ) {
     val scaledSize = with(LocalDensity.current) { (size * INITIAL_TO_SIZE_RATIO).toSp() }
     val fontSize = if (initialSize.isSpecified) initialSize else scaledSize
@@ -36,7 +38,7 @@ internal fun PlayerAvatar(
             modifier
                 .size(size)
                 .background(player.colour.toUiColor(), CircleShape)
-                .border(borderWidth, StoryRoundTheme.colors.ink, CircleShape),
+                .border(borderWidth, borderColor, CircleShape),
         contentAlignment = Alignment.Center,
     ) {
         BasicText(

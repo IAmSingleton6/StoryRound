@@ -9,5 +9,6 @@ internal enum class SrButtonSize(
     val shadow: Dp,
 ) {
     Large(height = 60.dp, cornerRadius = 16.dp, shadow = 5.dp),
+    Medium(height = 52.dp, cornerRadius = 16.dp, shadow = 5.dp),
     Compact(height = 48.dp, cornerRadius = 14.dp, shadow = 4.dp),
 }

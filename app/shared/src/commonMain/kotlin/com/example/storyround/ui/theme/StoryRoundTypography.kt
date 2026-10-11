@@ -72,6 +72,10 @@ internal data class StoryRoundTypography(
     val headline: TextStyle,
     val counterSmall: TextStyle,
     val storyFinished: TextStyle,
+    val screenTitle: TextStyle,
+    val emptyTitle: TextStyle,
+    val body: TextStyle,
+    val storyExcerpt: TextStyle,
 )
 
 @Composable
@@ -176,5 +180,9 @@ internal fun storyRoundTypography(fonts: StoryRoundFonts): StoryRoundTypography 
             ),
         counterSmall = mono.copy(fontWeight = FontWeight.Medium, fontSize = 12.sp),
         storyFinished = serif.copy(fontSize = 17.sp, lineHeight = 1.75.em),
+        screenTitle = ui.copy(fontWeight = FontWeight.ExtraBold, fontSize = 28.sp, letterSpacing = (-0.01).em, lineHeight = 1.1.em),
+        emptyTitle = ui.copy(fontWeight = FontWeight.ExtraBold, fontSize = 24.sp),
+        body = ui.copy(fontWeight = FontWeight.Medium, fontSize = 15.sp, lineHeight = 1.5.em),
+        storyExcerpt = serif.copy(fontSize = 18.sp, lineHeight = 1.45.em),
     )
 }
