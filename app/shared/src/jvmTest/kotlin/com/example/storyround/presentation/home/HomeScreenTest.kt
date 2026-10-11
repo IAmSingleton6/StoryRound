@@ -4,6 +4,7 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
@@ -14,17 +15,16 @@ import kotlin.test.assertEquals
 @OptIn(ExperimentalTestApi::class)
 class HomeScreenTest {
     @Test
-    fun `given saved stories when the shelf pill is pressed then its count is shown and history is opened`() =
+    fun `given saved stories when the history pill is pressed then its count is shown and history is opened`() =
         runComposeUiTest {
             var action: HomeAction? = null
             setContent {
                 StoryRoundTheme {
-                    HomeScreen(HomeUiState(shelfCount = 3)) { action = it }
+                    HomeScreen(HomeUiState(historyCount = 3)) { action = it }
                 }
             }
 
-            onNodeWithText("3").assertIsDisplayed()
-            onNodeWithText("Shelf").performClick()
+            onNodeWithContentDescription("Story history, 3 saved stories").assertIsDisplayed().performClick()
 
             assertEquals(HomeAction.OpenHistory, action)
         }
@@ -46,12 +46,23 @@ class HomeScreenTest {
         }
 
     @Test
+    fun `given a name shorter than the minimum when home is shown then create is disabled`() =
+        runComposeUiTest {
+            setContent { StoryRoundTheme { HomeScreen(HomeUiState(playerName = " A ")) {} } }
+
+            onNodeWithText("CREATE GAME").assertIsNotEnabled()
+        }
+
+    @Test
     fun `given join mode with a name and room code when join and cancel are pressed then both actions are emitted`() =
         runComposeUiTest {
             val actions = mutableListOf<HomeAction>()
             setContent {
                 StoryRoundTheme {
-                    HomeScreen(HomeUiState(playerName = "Sam", roomCode = "7F2K", isJoining = true)) { actions += it }
+                    HomeScreen(HomeUiState(playerName = "Sam", hasValidPlayerName = true, roomCode = "7F2K", isJoining = true)) {
+                        actions +=
+                            it
+                    }
                 }
             }
 
@@ -66,7 +77,7 @@ class HomeScreenTest {
         runComposeUiTest {
             setContent {
                 StoryRoundTheme {
-                    HomeScreen(HomeUiState(playerName = "Sam", isJoining = true)) {}
+                    HomeScreen(HomeUiState(playerName = "Sam", hasValidPlayerName = true, isJoining = true)) {}
                 }
             }
 
@@ -79,7 +90,7 @@ class HomeScreenTest {
         runComposeUiTest {
             setContent {
                 StoryRoundTheme {
-                    HomeScreen(HomeUiState(playerName = "Alex", isConnecting = true)) {}
+                    HomeScreen(HomeUiState(playerName = "Alex", hasValidPlayerName = true, isConnecting = true)) {}
                 }
             }
 

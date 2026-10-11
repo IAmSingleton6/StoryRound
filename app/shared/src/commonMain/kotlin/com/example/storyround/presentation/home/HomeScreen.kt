@@ -31,6 +31,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
@@ -66,7 +68,7 @@ internal fun HomeScreen(
     onAction: (HomeAction) -> Unit,
 ) = StageScaffold {
     Column(Modifier.fillMaxSize().imePadding()) {
-        HomeTopBar(shelfCount = uiState.shelfCount, onOpenShelf = { onAction(HomeAction.OpenHistory) })
+        HomeTopBar(historyCount = uiState.historyCount, onOpenHistory = { onAction(HomeAction.OpenHistory) })
         HomeHero(Modifier.weight(1f))
         uiState.error?.let { error ->
             ErrorBanner(error, Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp))
@@ -77,8 +79,8 @@ internal fun HomeScreen(
 
 @Composable
 private fun HomeTopBar(
-    shelfCount: Int,
-    onOpenShelf: () -> Unit,
+    historyCount: Int,
+    onOpenHistory: () -> Unit,
 ) {
     val colors = StoryRoundTheme.colors
     Row(
@@ -89,20 +91,27 @@ private fun HomeTopBar(
                 .padding(start = 20.dp, top = 12.dp, end = 20.dp),
         horizontalArrangement = Arrangement.End,
     ) {
-        StagePillButton(onClick = onOpenShelf, contentPadding = PaddingValues(start = 14.dp, end = 8.dp)) {
+        StagePillButton(
+            onClick = onOpenHistory,
+            contentPadding = PaddingValues(start = 14.dp, end = 8.dp),
+            modifier =
+                Modifier.semantics {
+                    contentDescription = "Story history, $historyCount saved ${if (historyCount == 1) "story" else "stories"}"
+                },
+        ) {
             SrIcon(SrIcons.Book, tint = colors.onStage, modifier = Modifier.size(18.dp))
-            BasicText("Shelf", style = StoryRoundTheme.typography.pill.copy(color = colors.onStage))
-            ShelfCountBadge(shelfCount)
+            HistoryCountBadge(historyCount)
         }
     }
 }
 
 @Composable
-private fun ShelfCountBadge(count: Int) {
+private fun HistoryCountBadge(count: Int) {
     val colors = StoryRoundTheme.colors
     Box(
         modifier =
             Modifier
+                .clearAndSetSemantics {}
                 .defaultMinSize(minWidth = 26.dp)
                 .height(26.dp)
                 .background(colors.marigold, RoundedCornerShape(13.dp))

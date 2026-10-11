@@ -4,6 +4,7 @@ import com.example.storyround.domain.model.RemoteGameState
 import com.example.storyround.domain.repository.GameRepository
 import com.example.storyround.domain.usecase.CreateRoomUseCaseImpl
 import com.example.storyround.domain.usecase.JoinRoomUseCaseImpl
+import com.example.storyround.protocol.DefaultUserTextSanitizer
 import com.example.storyround.protocol.SavedStory
 import io.mockk.coVerify
 import io.mockk.every
@@ -21,6 +22,8 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModelTest {
@@ -47,6 +50,7 @@ class HomeViewModelTest {
                     repository = repository,
                     createRoomUseCase = CreateRoomUseCaseImpl(repository),
                     joinRoomUseCase = JoinRoomUseCaseImpl(repository),
+                    userTextSanitizer = DefaultUserTextSanitizer(),
                 )
             val collection = backgroundScope.launch { viewModel.uiState.collect() }
             advanceUntilIdle()
@@ -61,6 +65,30 @@ class HomeViewModelTest {
         }
 
     @Test
+    fun `given a name shorter than the minimum after sanitising when entered then create is disabled`() =
+        runTest(dispatcher) {
+            val repository = mockk<GameRepository>(relaxed = true)
+            every { repository.state } returns MutableStateFlow(RemoteGameState())
+            val viewModel =
+                HomeViewModel(
+                    repository = repository,
+                    createRoomUseCase = CreateRoomUseCaseImpl(repository),
+                    joinRoomUseCase = JoinRoomUseCaseImpl(repository),
+                    userTextSanitizer = DefaultUserTextSanitizer(),
+                )
+            val collection = backgroundScope.launch { viewModel.uiState.collect() }
+
+            viewModel.onAction(HomeAction.PlayerNameChanged(" A "))
+            advanceUntilIdle()
+            assertFalse(viewModel.uiState.value.canCreateGame)
+
+            viewModel.onAction(HomeAction.PlayerNameChanged("Al"))
+            advanceUntilIdle()
+            assertTrue(viewModel.uiState.value.canCreateGame)
+            collection.cancel()
+        }
+
+    @Test
     fun `given a join code and repository error when state changes then UI exposes both`() =
         runTest(dispatcher) {
             val remoteState = MutableStateFlow(RemoteGameState())
@@ -71,6 +99,7 @@ class HomeViewModelTest {
                     repository = repository,
                     createRoomUseCase = CreateRoomUseCaseImpl(repository),
                     joinRoomUseCase = JoinRoomUseCaseImpl(repository),
+                    userTextSanitizer = DefaultUserTextSanitizer(),
                 )
             val collection = backgroundScope.launch { viewModel.uiState.collect() }
             advanceUntilIdle()
@@ -86,7 +115,7 @@ class HomeViewModelTest {
         }
 
     @Test
-    fun `given saved stories in repository state when home is observed then the shelf count is exposed`() =
+    fun `given saved stories in repository state when home is observed then the history count is exposed`() =
         runTest(dispatcher) {
             val remoteState = MutableStateFlow(RemoteGameState())
             val repository = mockk<GameRepository>(relaxed = true)
@@ -96,6 +125,7 @@ class HomeViewModelTest {
                     repository = repository,
                     createRoomUseCase = CreateRoomUseCaseImpl(repository),
                     joinRoomUseCase = JoinRoomUseCaseImpl(repository),
+                    userTextSanitizer = DefaultUserTextSanitizer(),
                 )
             val collection = backgroundScope.launch { viewModel.uiState.collect() }
             advanceUntilIdle()
@@ -110,7 +140,7 @@ class HomeViewModelTest {
                 )
             advanceUntilIdle()
 
-            assertEquals(2, viewModel.uiState.value.shelfCount)
+            assertEquals(2, viewModel.uiState.value.historyCount)
             collection.cancel()
         }
 }

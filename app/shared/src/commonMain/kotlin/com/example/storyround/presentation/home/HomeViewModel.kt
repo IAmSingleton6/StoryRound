@@ -6,6 +6,8 @@ import com.example.storyround.domain.repository.GameRepository
 import com.example.storyround.domain.usecase.CreateRoomUseCase
 import com.example.storyround.domain.usecase.JoinRoomUseCase
 import com.example.storyround.protocol.MAX_PLAYER_NAME_LENGTH
+import com.example.storyround.protocol.MIN_PLAYER_NAME_LENGTH
+import com.example.storyround.protocol.UserTextSanitizer
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -17,18 +19,25 @@ internal class HomeViewModel(
     repository: GameRepository,
     private val createRoomUseCase: CreateRoomUseCase,
     private val joinRoomUseCase: JoinRoomUseCase,
+    private val userTextSanitizer: UserTextSanitizer,
 ) : ViewModel() {
     private val formState = MutableStateFlow(HomeUiState())
 
     val uiState: StateFlow<HomeUiState> =
         combine(formState, repository.state) { form, state ->
-            form.copy(isConnecting = state.isConnecting, shelfCount = state.history.size, error = state.error)
+            form.copy(isConnecting = state.isConnecting, historyCount = state.history.size, error = state.error)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
 
     fun onAction(action: HomeAction) {
         when (action) {
-            is HomeAction.PlayerNameChanged ->
-                formState.value = formState.value.copy(playerName = action.value.take(MAX_PLAYER_NAME_LENGTH))
+            is HomeAction.PlayerNameChanged -> {
+                val playerName = action.value.take(MAX_PLAYER_NAME_LENGTH)
+                formState.value =
+                    formState.value.copy(
+                        playerName = playerName,
+                        hasValidPlayerName = userTextSanitizer.sanitize(playerName).length >= MIN_PLAYER_NAME_LENGTH,
+                    )
+            }
             is HomeAction.RoomCodeChanged ->
                 formState.value = formState.value.copy(roomCode = action.value.uppercase())
             HomeAction.CreateGame -> createGame()
