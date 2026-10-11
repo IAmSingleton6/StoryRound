@@ -1,7 +1,7 @@
 package com.example.storyround.room
 
 import com.example.storyround.identity.IdentifierGenerator
-import com.example.storyround.identity.RandomNumberGenerator
+import com.example.storyround.random.RandomNumberGenerator
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify

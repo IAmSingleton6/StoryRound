@@ -1,7 +1,7 @@
 package com.example.storyround.room
 
 import com.example.storyround.identity.IdentifierGenerator
-import com.example.storyround.identity.RandomNumberGenerator
+import com.example.storyround.random.RandomNumberGenerator
 
 internal class SecureRoomIdentityGenerator(
     private val randomNumberGenerator: RandomNumberGenerator,
@@ -15,7 +15,6 @@ internal class SecureRoomIdentityGenerator(
     override fun generatePlayerId(): String = identifierGenerator.generate()
 
     override fun generateSessionToken(): String = identifierGenerator.generate()
-
 }
 
 private const val ROOM_CODE_LENGTH = 4

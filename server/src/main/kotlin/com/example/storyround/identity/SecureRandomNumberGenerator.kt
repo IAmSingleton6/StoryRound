@@ -1,5 +1,6 @@
 package com.example.storyround.identity
 
+import com.example.storyround.random.RandomNumberGenerator
 import java.security.SecureRandom
 
 internal class SecureRandomNumberGenerator : RandomNumberGenerator {
