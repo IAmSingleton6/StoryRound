@@ -23,9 +23,9 @@ import com.example.storyround.presentation.home.HomeUiState
 import com.example.storyround.presentation.lobby.LobbyAction
 import com.example.storyround.presentation.lobby.LobbyScreen
 import com.example.storyround.presentation.lobby.LobbyUiState
+import com.example.storyround.presentation.model.HistoryStoryUi
 import com.example.storyround.presentation.model.PlayerUi
 import com.example.storyround.presentation.model.RoomUi
-import com.example.storyround.presentation.model.ShelfStoryUi
 import com.example.storyround.presentation.model.StoryUi
 import com.example.storyround.presentation.model.TurnUi
 import com.example.storyround.presentation.story.StoryAction
@@ -44,7 +44,7 @@ class ScreenSemanticsTest {
             var action: HomeAction? = null
             setContent {
                 StoryRoundTheme {
-                    HomeScreen(HomeUiState(playerName = "Alex")) { action = it }
+                    HomeScreen(HomeUiState(playerName = "Alex", hasValidPlayerName = true)) { action = it }
                 }
             }
 
@@ -185,7 +185,7 @@ class ScreenSemanticsTest {
         }
 
     @Test
-    fun `given finished content when view story is selected then action is exposed`() =
+    fun `given finished content when home is selected then action is exposed`() =
         runComposeUiTest {
             val alex = PlayerUi("alex", "Alex", PlayerColour.Blue)
             var finishedAction: FinishedAction? = null
@@ -194,16 +194,15 @@ class ScreenSemanticsTest {
                     FinishedScreen(
                         FinishedUiState(
                             story = StoryUi("AB12", "A door opened.", listOf(alex), emptyList()),
-                            canViewStory = true,
                             canPlayAgain = true,
                         ),
                     ) { finishedAction = it }
                 }
             }
 
-            onNodeWithText("View story").performClick()
+            onNodeWithText("Home").performClick()
 
-            assertEquals(FinishedAction.ViewStory, finishedAction)
+            assertEquals(FinishedAction.Home, finishedAction)
         }
 
     @Test
@@ -214,7 +213,7 @@ class ScreenSemanticsTest {
             setContent {
                 StoryRoundTheme {
                     HistoryScreen(
-                        HistoryUiState.Content(listOf(ShelfStoryUi("story-1", "Saved prompt", listOf(alex), 2, emptyList()))),
+                        HistoryUiState.Content(listOf(HistoryStoryUi("story-1", "Saved prompt", listOf(alex), 2, emptyList()))),
                     ) { historyAction = it }
                 }
             }

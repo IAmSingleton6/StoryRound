@@ -36,7 +36,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.storyround.presentation.model.ShelfStoryUi
+import com.example.storyround.presentation.model.HistoryStoryUi
 import com.example.storyround.ui.components.ErrorBanner
 import com.example.storyround.ui.components.PlayerAvatar
 import com.example.storyround.ui.components.SrButton
@@ -50,10 +50,10 @@ import com.example.storyround.ui.components.hardShadow
 import com.example.storyround.ui.components.tilt
 import com.example.storyround.ui.theme.StoryRoundTheme
 
-private const val SHELF_CARD_TILT_DEGREES = 0.6f
-private const val SHELF_CARD_AVATAR_LIMIT = 5
+private const val HISTORY_CARD_TILT_DEGREES = 0.6f
+private const val HISTORY_CARD_AVATAR_LIMIT = 5
 private const val EXCERPT_MAX_LINES = 2
-private val ShelfCardShape = RoundedCornerShape(18.dp)
+private val HistoryCardShape = RoundedCornerShape(18.dp)
 private val IllustrationCardShape = RoundedCornerShape(14.dp)
 private val IllustrationLineShape = RoundedCornerShape(3.dp)
 
@@ -63,22 +63,22 @@ internal fun HistoryScreen(
     onAction: (HistoryAction) -> Unit,
 ) = StageScaffold {
     Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).padding(top = 8.dp)) {
-        ShelfHeader(onBack = { onAction(HistoryAction.Back) })
+        HistoryHeader(onBack = { onAction(HistoryAction.Back) })
         when (uiState) {
             HistoryUiState.Loading -> Unit
             is HistoryUiState.Error -> ErrorBanner(uiState.message, Modifier.padding(horizontal = 20.dp, vertical = 10.dp))
             is HistoryUiState.Content ->
                 if (uiState.stories.isEmpty()) {
-                    EmptyShelf(onBack = { onAction(HistoryAction.Back) })
+                    EmptyHistory(onBack = { onAction(HistoryAction.Back) })
                 } else {
-                    ShelfList(uiState.stories, onOpen = { onAction(HistoryAction.OpenStory(it)) })
+                    HistoryList(uiState.stories, onOpen = { onAction(HistoryAction.OpenStory(it)) })
                 }
         }
     }
 }
 
 @Composable
-private fun ShelfHeader(onBack: () -> Unit) {
+private fun HistoryHeader(onBack: () -> Unit) {
     val colors = StoryRoundTheme.colors
     val typography = StoryRoundTheme.typography
     Row(
@@ -100,7 +100,7 @@ private fun ShelfHeader(onBack: () -> Unit) {
         }
         Column {
             BasicText(
-                text = "Your shelf",
+                text = "Story history",
                 modifier = Modifier.semantics { heading() },
                 style = typography.screenTitle.copy(color = colors.onStage),
             )
@@ -110,8 +110,8 @@ private fun ShelfHeader(onBack: () -> Unit) {
 }
 
 @Composable
-private fun ShelfList(
-    stories: List<ShelfStoryUi>,
+private fun HistoryList(
+    stories: List<HistoryStoryUi>,
     onOpen: (String) -> Unit,
 ) {
     LazyColumn(
@@ -119,15 +119,15 @@ private fun ShelfList(
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
         itemsIndexed(stories, key = { _, story -> story.id }) { index, story ->
-            val tilt = if (index % 2 == 0) -SHELF_CARD_TILT_DEGREES else SHELF_CARD_TILT_DEGREES
-            ShelfCard(story, tilt, onOpen = { onOpen(story.id) })
+            val tilt = if (index % 2 == 0) -HISTORY_CARD_TILT_DEGREES else HISTORY_CARD_TILT_DEGREES
+            HistoryCard(story, tilt, onOpen = { onOpen(story.id) })
         }
     }
 }
 
 @Composable
-private fun ShelfCard(
-    story: ShelfStoryUi,
+private fun HistoryCard(
+    story: HistoryStoryUi,
     tiltDegrees: Float,
     onOpen: () -> Unit,
 ) {
@@ -138,10 +138,10 @@ private fun ShelfCard(
             Modifier
                 .fillMaxWidth()
                 .tilt(degrees = tiltDegrees, dx = 0.dp, dy = 0.dp)
-                .hardShadow(offsetY = 5.dp, color = colors.inkShadow, shape = ShelfCardShape)
-                .background(colors.paper, ShelfCardShape)
-                .border(2.5.dp, colors.ink, ShelfCardShape)
-                .clip(ShelfCardShape)
+                .hardShadow(offsetY = 5.dp, color = colors.inkShadow, shape = HistoryCardShape)
+                .background(colors.paper, HistoryCardShape)
+                .border(2.5.dp, colors.ink, HistoryCardShape)
+                .clip(HistoryCardShape)
                 .clickable(role = Role.Button, onClick = onOpen),
     ) {
         WriterShareStrip(story.writers)
@@ -167,17 +167,17 @@ private fun ShelfCard(
 }
 
 @Composable
-private fun OverlappingAvatars(story: ShelfStoryUi) {
+private fun OverlappingAvatars(story: HistoryStoryUi) {
     val paper = StoryRoundTheme.colors.paper
     Row(Modifier.padding(end = 6.dp), horizontalArrangement = Arrangement.spacedBy((-6).dp)) {
-        story.players.take(SHELF_CARD_AVATAR_LIMIT).forEach { player ->
+        story.players.take(HISTORY_CARD_AVATAR_LIMIT).forEach { player ->
             PlayerAvatar(player = player, size = 24.dp, borderColor = paper, initialSize = 10.sp)
         }
     }
 }
 
 @Composable
-private fun ColumnScope.EmptyShelf(onBack: () -> Unit) {
+private fun ColumnScope.EmptyHistory(onBack: () -> Unit) {
     val colors = StoryRoundTheme.colors
     val typography = StoryRoundTheme.typography
     Column(
@@ -185,7 +185,7 @@ private fun ColumnScope.EmptyShelf(onBack: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterVertically),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        EmptyShelfIllustration(Modifier.padding(bottom = 18.dp))
+        EmptyHistoryIllustration(Modifier.padding(bottom = 18.dp))
         BasicText("No completed stories yet.", style = typography.emptyTitle.copy(color = colors.onStage, textAlign = TextAlign.Center))
         BasicText(
             "Finish a game and the story is saved here, on this device.",
@@ -204,7 +204,7 @@ private fun ColumnScope.EmptyShelf(onBack: () -> Unit) {
 }
 
 @Composable
-private fun EmptyShelfIllustration(modifier: Modifier = Modifier) {
+private fun EmptyHistoryIllustration(modifier: Modifier = Modifier) {
     val colors = StoryRoundTheme.colors
     Box(modifier.size(width = 180.dp, height = 130.dp)) {
         val card = Modifier.offset(x = 20.dp, y = 10.dp).size(width = 140.dp, height = 104.dp)

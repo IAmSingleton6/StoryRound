@@ -35,13 +35,13 @@ class SavedStoryScreenTest {
         }
 
     @Test
-    fun `given a saved story when either back control is pressed then the shelf is reopened`() =
+    fun `given a saved story when either back control is pressed then story history is reopened`() =
         runComposeUiTest {
             var backPresses = 0
             setContent { StoryRoundTheme { SavedStoryScreen(saved) { backPresses++ } } }
 
-            onNodeWithText("Shelf").performClick()
-            onNodeWithText("Back to shelf").performClick()
+            onNodeWithContentDescription("Back").performClick()
+            onNodeWithText("Back to history").performClick()
 
             assertEquals(2, backPresses)
         }

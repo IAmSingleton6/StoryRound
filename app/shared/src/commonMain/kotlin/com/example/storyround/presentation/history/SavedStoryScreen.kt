@@ -15,6 +15,8 @@ import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.example.storyround.ui.components.SrIcon
 import com.example.storyround.ui.components.SrIcons
@@ -49,9 +51,12 @@ internal fun SavedStoryScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            StagePillButton(onClick = onBack, contentPadding = PaddingValues(start = 10.dp, end = 16.dp), spacing = 6.dp) {
+            StagePillButton(
+                onClick = onBack,
+                contentPadding = PaddingValues(horizontal = 13.dp),
+                modifier = Modifier.semantics { contentDescription = "Back" },
+            ) {
                 SrIcon(SrIcons.Back, tint = colors.onStage, modifier = Modifier.size(18.dp))
-                BasicText("Shelf", style = typography.pill.copy(color = colors.onStage))
             }
             BasicText("SAVED STORY", style = typography.eyebrow.copy(color = colors.onStageMuted))
         }
@@ -67,6 +72,6 @@ internal fun SavedStoryScreen(
             }
         }
         WriterLegend(uiState.writers)
-        StageButton("Back to shelf", onClick = onBack, modifier = Modifier.fillMaxWidth())
+        StageButton("Back to history", onClick = onBack, modifier = Modifier.fillMaxWidth())
     }
 }

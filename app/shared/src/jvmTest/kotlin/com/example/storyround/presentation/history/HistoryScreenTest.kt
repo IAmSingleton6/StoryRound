@@ -6,8 +6,8 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
+import com.example.storyround.presentation.model.HistoryStoryUi
 import com.example.storyround.presentation.model.PlayerUi
-import com.example.storyround.presentation.model.ShelfStoryUi
 import com.example.storyround.presentation.model.StoryWriterUi
 import com.example.storyround.protocol.PlayerColour
 import com.example.storyround.ui.theme.StoryRoundTheme
@@ -20,14 +20,14 @@ class HistoryScreenTest {
     private val sam = PlayerUi("sam", "Sam", PlayerColour.Yellow)
 
     @Test
-    fun `given saved stories when a card and back are pressed then the story opens and the shelf closes`() =
+    fun `given saved stories when a card and back are pressed then the story opens and history closes`() =
         runComposeUiTest {
             val actions = mutableListOf<HistoryAction>()
             val writers = listOf(StoryWriterUi(alex, 2), StoryWriterUi(sam, 2))
-            val story = ShelfStoryUi("story-1", "A door opened.", listOf(alex, sam), 3, writers)
+            val story = HistoryStoryUi("story-1", "A door opened.", listOf(alex, sam), 3, writers)
             setContent { StoryRoundTheme { HistoryScreen(HistoryUiState.Content(listOf(story))) { actions += it } } }
 
-            onNodeWithText("Your shelf").assertIsDisplayed()
+            onNodeWithText("Story history").assertIsDisplayed()
             onNodeWithText("2 players · 3 contributions").assertIsDisplayed()
             onNodeWithText("A door opened.").performClick()
             onNodeWithContentDescription("Back").performClick()
@@ -36,7 +36,7 @@ class HistoryScreenTest {
         }
 
     @Test
-    fun `given no saved stories when back is pressed then the empty shelf closes`() =
+    fun `given no saved stories when back is pressed then the empty history closes`() =
         runComposeUiTest {
             var action: HistoryAction? = null
             setContent { StoryRoundTheme { HistoryScreen(HistoryUiState.Content(emptyList())) { action = it } } }

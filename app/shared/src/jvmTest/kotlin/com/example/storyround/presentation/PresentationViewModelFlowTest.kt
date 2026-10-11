@@ -1,9 +1,9 @@
 package com.example.storyround.presentation
 
 import com.example.storyround.configuration.GameConfiguration
+import com.example.storyround.domain.idea.StoryIdeaProvider
 import com.example.storyround.domain.model.RemoteGameState
 import com.example.storyround.domain.repository.GameRepository
-import com.example.storyround.domain.time.TimeProvider
 import com.example.storyround.domain.usecase.LoadStoryHistoryUseCaseImpl
 import com.example.storyround.domain.usecase.OpenSavedStoryUseCaseImpl
 import com.example.storyround.domain.usecase.PlayAgainUseCaseImpl
@@ -29,6 +29,7 @@ import com.example.storyround.protocol.Player
 import com.example.storyround.protocol.PlayerColour
 import com.example.storyround.protocol.RoomState
 import com.example.storyround.protocol.SavedStory
+import com.example.storyround.time.TimeProvider
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
@@ -54,6 +55,7 @@ import kotlin.test.assertTrue
 class PresentationViewModelFlowTest {
     private val dispatcher = StandardTestDispatcher()
     private val roomUiMapper = RoomUiMapperImpl(PlayerUiMapperImpl(), ContributionUiMapperImpl())
+    private val storyIdeaProvider = mockk<StoryIdeaProvider>()
 
     @BeforeTest
     fun setUp() {
@@ -109,6 +111,7 @@ class PresentationViewModelFlowTest {
                     FakeTimeProvider(),
                     roomUiMapper,
                     GameConfiguration(),
+                    storyIdeaProvider,
                 )
             val collection = backgroundScope.launch { viewModel.uiState.collect() }
             runCurrent()
@@ -130,27 +133,22 @@ class PresentationViewModelFlowTest {
                     RemoteGameState(
                         room = room(GameStatus.Finished),
                         playerId = HOST.id,
-                        finishedStoryId = "story-1",
                     ),
                 )
             val repository = repository(state)
             val viewModel =
                 FinishedViewModel(
                     repository,
-                    OpenSavedStoryUseCaseImpl(repository),
                     PlayAgainUseCaseImpl(repository),
                     roomUiMapper,
                 )
             val collection = backgroundScope.launch { viewModel.uiState.collect() }
             advanceUntilIdle()
 
-            viewModel.onAction(FinishedAction.ViewStory)
             viewModel.onAction(FinishedAction.PlayAgain)
             advanceUntilIdle()
 
-            assertTrue(viewModel.uiState.value.canViewStory)
             assertTrue(viewModel.uiState.value.canPlayAgain)
-            coVerify(exactly = 1) { repository.openStory("story-1") }
             coVerify(exactly = 1) { repository.playAgain() }
             collection.cancel()
         }

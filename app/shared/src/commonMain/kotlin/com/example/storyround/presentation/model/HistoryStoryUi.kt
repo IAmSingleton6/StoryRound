@@ -1,6 +1,6 @@
 package com.example.storyround.presentation.model
 
-internal data class ShelfStoryUi(
+internal data class HistoryStoryUi(
     val id: String,
     val opening: String,
     val players: List<PlayerUi>,
@@ -8,9 +8,9 @@ internal data class ShelfStoryUi(
     val writers: List<StoryWriterUi>,
 )
 
-internal fun StoryUi.toShelfStory(): ShelfStoryUi {
+internal fun StoryUi.toHistoryStory(): HistoryStoryUi {
     val segments = storySegments(prompt, promptAuthor, contributions)
-    return ShelfStoryUi(
+    return HistoryStoryUi(
         id = id,
         opening = prompt,
         players = players,
