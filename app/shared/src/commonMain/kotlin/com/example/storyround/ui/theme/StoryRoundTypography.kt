@@ -118,30 +118,26 @@ private fun literata(
         ),
 )
 
+private fun displayStyle(fontFamily: FontFamily) =
+    TextStyle(
+        fontFamily = fontFamily,
+        fontWeight = FontWeight.ExtraBold,
+        fontSize = 50.sp,
+        letterSpacing = (-0.03).em,
+        lineHeight = 0.92.em,
+        lineHeightStyle = LineHeightStyle(LineHeightStyle.Alignment.Center, LineHeightStyle.Trim.Both),
+    )
+
 internal fun storyRoundTypography(fonts: StoryRoundFonts): StoryRoundTypography {
     val ui = TextStyle(fontFamily = fonts.ui)
     val mono = TextStyle(fontFamily = fonts.mono, fontWeight = FontWeight.Bold)
     val serif = TextStyle(fontFamily = fonts.serif, fontWeight = FontWeight.Normal)
     return StoryRoundTypography(
-        display =
-            TextStyle(
-                fontFamily = fonts.display,
-                fontWeight = FontWeight.ExtraBold,
-                fontSize = 50.sp,
-                letterSpacing = (-0.03).em,
-                lineHeight = 0.92.em,
-                lineHeightStyle = LineHeightStyle(LineHeightStyle.Alignment.Center, LineHeightStyle.Trim.Both),
-            ),
+        display = displayStyle(fonts.display),
         lead = ui.copy(fontWeight = FontWeight.Medium, fontSize = 17.sp, lineHeight = 1.45.em),
         label = ui.copy(fontWeight = FontWeight.ExtraBold, fontSize = 13.sp, letterSpacing = 0.1.em),
         input = ui.copy(fontWeight = FontWeight.SemiBold, fontSize = 18.sp),
-        codeInput =
-            TextStyle(
-                fontFamily = fonts.mono,
-                fontWeight = FontWeight.Bold,
-                fontSize = 28.sp,
-                letterSpacing = 0.35.em,
-            ),
+        codeInput = mono.copy(fontSize = 28.sp, letterSpacing = 0.35.em),
         button = ui.copy(fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, letterSpacing = 0.06.em),
         pill = ui.copy(fontWeight = FontWeight.Bold, fontSize = 15.sp),
         badge = ui.copy(fontWeight = FontWeight.ExtraBold, fontSize = 13.sp),

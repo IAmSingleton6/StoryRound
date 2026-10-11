@@ -57,6 +57,8 @@ private const val FADE_IN_MILLIS = 600
 private const val SCROLL_DELAY_MILLIS = 250L
 private const val NEWEST_TAG_ID = "newestTag"
 
+private val PieceGap = 14.sp
+
 private const val HIGHLIGHT_ASCENT_EM = 0.92f
 private const val HIGHLIGHT_DESCENT_EM = 0.28f
 private val HighlightPaddingX = 3.dp
@@ -138,7 +140,7 @@ private fun annotate(
     val text =
         buildAnnotatedString {
             segments.forEachIndexed { index, segment ->
-                if (index > 0) withStyle(SpanStyle(letterSpacing = 5.sp)) { append(' ') }
+                if (index > 0) withStyle(SpanStyle(letterSpacing = PieceGap)) { append(' ') }
                 val start = length
                 if (index == newestIndex) {
                     withStyle(SpanStyle(color = newestInk)) {
@@ -209,13 +211,18 @@ private fun DrawScope.drawHighlight(
         val left = if (line == firstLine) layout.getHorizontalPosition(range.start, true) else layout.getLineLeft(line)
         val right = if (line == lastLine) layout.getHorizontalPosition(range.end, true) else layout.getLineRight(line)
         val baseline = layout.getLineBaseline(line)
+        val startRadius = if (line == firstLine) radius else CornerRadius.Zero
+        val endRadius = if (line == lastLine) radius else CornerRadius.Zero
         val box =
             RoundRect(
                 left = left - padX,
                 top = baseline - fontSizePx * HIGHLIGHT_ASCENT_EM - padY,
                 right = right + padX,
                 bottom = baseline + fontSizePx * HIGHLIGHT_DESCENT_EM + padY,
-                cornerRadius = radius,
+                topLeftCornerRadius = startRadius,
+                topRightCornerRadius = endRadius,
+                bottomRightCornerRadius = endRadius,
+                bottomLeftCornerRadius = startRadius,
             )
         val clip = Path().apply { addRoundRect(box) }
         clipPath(clip) {
