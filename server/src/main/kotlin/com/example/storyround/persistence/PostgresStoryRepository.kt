@@ -1,11 +1,8 @@
 package com.example.storyround.persistence
 
-import com.example.storyround.identity.IdentifierGenerator
 import com.example.storyround.protocol.Contribution
-import com.example.storyround.protocol.GameStatus
 import com.example.storyround.protocol.Player
 import com.example.storyround.protocol.PlayerColour
-import com.example.storyround.protocol.RoomState
 import com.example.storyround.protocol.SavedStory
 import com.example.storyround.protocol.StorySummary
 import org.jetbrains.exposed.v1.core.SortOrder
@@ -16,23 +13,8 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 
 internal class PostgresStoryRepository(
     private val schema: StorySchema,
-    private val identifierGenerator: IdentifierGenerator,
 ) : StoryRepository {
-    override fun save(
-        room: RoomState,
-        createdAtEpochMillis: Long,
-    ): SavedStory {
-        require(room.status == GameStatus.Finished)
-        val prompt = requireNotNull(room.prompt)
-        val story =
-            SavedStory(
-                id = identifierGenerator.generate(),
-                prompt = prompt,
-                promptPlayerId = requireNotNull(room.openingPlayerId),
-                createdAtEpochMillis = createdAtEpochMillis,
-                players = room.players,
-                contributions = room.contributions,
-            )
+    override fun save(story: SavedStory) {
         transaction {
             schema.stories.insert { row ->
                 row[id] = story.id
@@ -57,7 +39,6 @@ internal class PostgresStoryRepository(
                 }
             }
         }
-        return story
     }
 
     override fun find(id: String): SavedStory? =

@@ -1,6 +1,6 @@
 package com.example.storyround.history
 
-import com.example.storyround.di.StoryRepositoryAvailability
+import com.example.storyround.persistence.StoryRepositoryAvailability
 import com.example.storyround.protocol.SavedStory
 import com.example.storyround.protocol.StorySummary
 import io.ktor.http.ContentType
