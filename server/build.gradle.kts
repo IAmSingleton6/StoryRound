@@ -25,4 +25,5 @@ dependencies {
     testImplementation(libs.ktor.clientWebSockets)
     testImplementation(libs.kotlin.testJunit)
     testImplementation(libs.mockk.jvm)
+    testImplementation(libs.kotlinx.coroutines.test)
 }
