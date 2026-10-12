@@ -2,7 +2,7 @@ package com.example.storyround.protocol
 
 private const val ZERO_WIDTH_JOINER = '‍'
 
-class DefaultUserTextSanitizer : UserTextSanitizer {
+class UserTextSanitizerImpl : UserTextSanitizer {
     override fun sanitize(raw: String): String =
         buildString(raw.length) {
             var pendingSpace = false

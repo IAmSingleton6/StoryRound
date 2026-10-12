@@ -3,8 +3,8 @@ package com.example.storyround.protocol
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-class DefaultUserTextSanitizerTest {
-    private val sanitizer = DefaultUserTextSanitizer()
+class UserTextSanitizerImplTest {
+    private val sanitizer = UserTextSanitizerImpl()
 
     @Test
     fun `given surrounding and repeated whitespace when sanitised then it is trimmed and collapsed to single spaces`() {

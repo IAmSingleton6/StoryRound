@@ -1,12 +1,12 @@
 package com.example.storyround.protocol
 
-import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertTrue
 
 class GameProtocolTest {
-    private val json = Json { classDiscriminator = "type" }
+    private val json = protocolJson()
 
     @Test
     fun `given create room message when encoded then it round trips`() {
@@ -16,6 +16,13 @@ class GameProtocolTest {
 
         assertIs<ClientMessage.CreateRoom>(decoded)
         assertEquals("Alex", decoded.playerName)
+    }
+
+    @Test
+    fun `given a client message when encoded then its type is named by the shared discriminator`() {
+        val encoded = json.encodeToString(ClientMessage.serializer(), ClientMessage.CreateRoom("Alex"))
+
+        assertTrue(encoded.contains("\"type\":\"CREATE_ROOM\""), encoded)
     }
 
     @Test
