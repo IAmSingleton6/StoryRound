@@ -1,79 +1,27 @@
 package com.example.storyround.logging
 
-expect open class Logger {
-    open fun v(
-        throwable: Throwable?,
+interface Logger {
+    fun debug(
         tag: String,
-        message: () -> String,
-    )
-
-    open fun d(
-        throwable: Throwable?,
-        tag: String,
-        message: () -> String,
-    )
-
-    open fun i(
-        throwable: Throwable?,
-        tag: String,
-        message: () -> String,
-    )
-
-    open fun w(
-        throwable: Throwable?,
-        tag: String,
-        message: () -> String,
-    )
-
-    open fun e(
-        throwable: Throwable?,
-        tag: String,
-        message: () -> String,
-    )
-
-    open fun a(
-        throwable: Throwable?,
-        tag: String,
-        message: () -> String,
-    )
-
-    open fun v(
         message: String,
-        throwable: Throwable?,
-        tag: String,
+        throwable: Throwable? = null,
     )
 
-    open fun d(
+    fun info(
+        tag: String,
         message: String,
-        throwable: Throwable?,
-        tag: String,
+        throwable: Throwable? = null,
     )
 
-    open fun i(
+    fun warn(
+        tag: String,
         message: String,
-        throwable: Throwable?,
-        tag: String,
+        throwable: Throwable? = null,
     )
 
-    open fun w(
+    fun error(
+        tag: String,
         message: String,
-        throwable: Throwable?,
-        tag: String,
+        throwable: Throwable? = null,
     )
-
-    open fun e(
-        message: String,
-        throwable: Throwable?,
-        tag: String,
-    )
-
-    open fun a(
-        message: String,
-        throwable: Throwable?,
-        tag: String,
-    )
-
-    open fun withTag(tag: String): Logger
 }
-
-expect fun logger(): Logger
