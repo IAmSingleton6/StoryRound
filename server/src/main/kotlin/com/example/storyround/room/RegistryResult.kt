@@ -4,7 +4,7 @@ import com.example.storyround.protocol.Player
 import com.example.storyround.protocol.RoomState
 import com.example.storyround.protocol.ServerMessage
 
-sealed interface RegistryResult {
+internal sealed interface RegistryResult {
     data class Success(
         val room: RoomState,
         val affectedPlayer: Player?,

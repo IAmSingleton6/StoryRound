@@ -1,13 +1,15 @@
 package com.example.storyround.room
 
 import com.example.storyround.configuration.GameConfiguration
-import com.example.storyround.protocol.DefaultUserTextSanitizer
 import com.example.storyround.protocol.GameStatus
 import com.example.storyround.protocol.MAX_PLAYER_NAME_LENGTH
 import com.example.storyround.protocol.MAX_STORY_TEXT_LENGTH
 import com.example.storyround.protocol.PlayerColour
 import com.example.storyround.protocol.ServerMessage
+import com.example.storyround.protocol.UserTextSanitizerImpl
+import com.example.storyround.protocol.UserTextValidatorImpl
 import com.example.storyround.random.RandomNumberGenerator
+import com.example.storyround.rules.TurnRulesImpl
 import com.example.storyround.time.TimeProvider
 import io.mockk.every
 import io.mockk.mockk
@@ -16,7 +18,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 
-class InMemoryRoomRegistryTest {
+class RoomRegistryImplTest {
     private var nextPlayerId = 0
     private val registry = newRegistry()
 
@@ -91,6 +93,47 @@ class InMemoryRoomRegistryTest {
         val success = assertIs<RegistryResult.Success>(registry.joinRoom("ab12", "Sam"))
         assertEquals(2, success.room.players.size)
         assertEquals(PlayerColour.Green, success.affectedPlayer?.colour)
+    }
+
+    @Test
+    fun `given a player left the lobby when someone else joins then they get the free colour instead of a duplicate`() {
+        val created = assertIs<RegistryResult.Success>(registry.createRoom("Alex"))
+        val sam = assertIs<RegistryResult.Success>(registry.joinRoom(created.room.roomCode, "Sam"))
+        registry.joinRoom(created.room.roomCode, "Jo")
+        registry.leaveRoom(created.room.roomCode, requireNotNull(sam.affectedPlayer).id)
+
+        val kim = assertIs<RegistryResult.Success>(registry.joinRoom(created.room.roomCode, "Kim"))
+
+        assertEquals(PlayerColour.Green, kim.affectedPlayer?.colour)
+        assertEquals(
+            kim.room.players.size,
+            kim.room.players
+                .map { it.colour }
+                .toSet()
+                .size,
+        )
+    }
+
+    @Test
+    fun `given the host leaves a lobby with other players when they leave then the next player becomes host`() {
+        val created = assertIs<RegistryResult.Success>(registry.createRoom("Alex"))
+        val sam = assertIs<RegistryResult.Success>(registry.joinRoom(created.room.roomCode, "Sam"))
+
+        val left = assertIs<RegistryResult.Success>(registry.leaveRoom(created.room.roomCode, requireNotNull(created.affectedPlayer).id))
+
+        assertEquals(sam.affectedPlayer?.id, left.room.hostId)
+        assertIs<ServerMessage.PlayerLeft>(left.events.single())
+    }
+
+    @Test
+    fun `given a full room when another player joins then the join is refused`() {
+        val fullRegistry = newRegistry(maxPlayers = 1)
+        val created = assertIs<RegistryResult.Success>(fullRegistry.createRoom("Alex"))
+
+        assertEquals(
+            RegistryResult.Error("ROOM_FULL", "This room already has 1 players."),
+            fullRegistry.joinRoom(created.room.roomCode, "Sam"),
+        )
     }
 
     @Test
@@ -213,19 +256,20 @@ class InMemoryRoomRegistryTest {
 
     @Test
     fun `given an expired turn when registry advances then contribution is omitted`() {
-        val timeProvider = MutableTimeProvider()
+        var now = 0L
+        val timeProvider = mockk<TimeProvider> { every { nowEpochMillis() } answers { now } }
         val timedRegistry = newRegistry("TIME", { "host" }, timeProvider, rounds = 1, firstTurnMillis = 10L)
         val created = assertIs<RegistryResult.Success>(timedRegistry.createRoom("Alex"))
         timedRegistry.startGame("TIME", "host", "host", 1)
         val prompt = assertIs<RegistryResult.Success>(timedRegistry.submitPrompt("TIME", "host", "Start."))
-        timeProvider.nowEpochMillis = requireNotNull(prompt.room.turnDeadlineEpochMillis)
+        now = requireNotNull(prompt.room.turnDeadlineEpochMillis)
 
         assertEquals(
             RegistryResult.Error("TURN_EXPIRED", "That turn has already ended."),
             timedRegistry.submitContribution("TIME", "host", "Too late."),
         )
 
-        val expired = assertIs<RegistryResult.Success>(timedRegistry.expireTurn("TIME", timeProvider.nowEpochMillis))
+        val expired = assertIs<RegistryResult.Success>(timedRegistry.expireTurn("TIME", now))
 
         assertEquals(GameStatus.Finished, expired.room.status)
         assertEquals(emptyList(), expired.room.contributions)
@@ -266,21 +310,16 @@ class InMemoryRoomRegistryTest {
         assertNull(replay.room.currentPlayerId)
     }
 
-    private class MutableTimeProvider : TimeProvider {
-        var nowEpochMillis: Long = 0L
-
-        override fun nowEpochMillis(): Long = nowEpochMillis
-    }
-
     private fun newRegistry(
         roomCode: String = "AB12",
         playerIdGenerator: () -> String = { "player-${++nextPlayerId}" },
-        timeProvider: TimeProvider = MutableTimeProvider(),
+        timeProvider: TimeProvider = mockk { every { nowEpochMillis() } returns 0L },
         rounds: Int = 3,
         firstTurnMillis: Long = GameConfiguration().firstTurnMillis,
         randomPlayerIndex: Int = 0,
         roomCodes: List<String> = listOf(roomCode),
-    ): InMemoryRoomRegistry {
+        maxPlayers: Int = GameConfiguration().maxPlayers,
+    ): RoomRegistryImpl {
         val identityGenerator = mockk<RoomIdentityGenerator>()
         every { identityGenerator.generateRoomCode() } returnsMany roomCodes
         every { identityGenerator.generatePlayerId() } answers { playerIdGenerator() }
@@ -290,18 +329,19 @@ class InMemoryRoomRegistryTest {
         val gameConfiguration =
             GameConfiguration(
                 defaultRounds = rounds,
+                maxPlayers = maxPlayers,
                 firstTurnMillis = firstTurnMillis,
                 minimumTurnMillis = firstTurnMillis,
             )
-        return InMemoryRoomRegistry(
+        return RoomRegistryImpl(
             roomStore = InMemoryRoomStore(),
-            roomIdentityGenerator = identityGenerator,
+            identityGenerator = identityGenerator,
             timeProvider = timeProvider,
-            turnRules = TurnRules(gameConfiguration),
+            turnRules = TurnRulesImpl(gameConfiguration),
             roomStateMapper = RoomStateMapperImpl(),
             gameConfiguration = gameConfiguration,
             randomNumberGenerator = randomNumberGenerator,
-            userTextSanitizer = DefaultUserTextSanitizer(),
+            userTextValidator = UserTextValidatorImpl(UserTextSanitizerImpl()),
         )
     }
 }

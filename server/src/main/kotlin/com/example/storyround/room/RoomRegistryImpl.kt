@@ -9,32 +9,31 @@ import com.example.storyround.protocol.MIN_PLAYER_NAME_LENGTH
 import com.example.storyround.protocol.Player
 import com.example.storyround.protocol.PlayerColour
 import com.example.storyround.protocol.ServerMessage
-import com.example.storyround.protocol.UserTextSanitizer
+import com.example.storyround.protocol.UserTextValidator
 import com.example.storyround.random.RandomNumberGenerator
+import com.example.storyround.rules.TurnRules
 import com.example.storyround.time.TimeProvider
 
-internal class DefaultGameRoomEngine(
+internal class RoomRegistryImpl(
     private val roomStore: RoomStore,
-    private val roomCodeGenerator: () -> String,
-    private val playerIdGenerator: () -> String,
+    private val identityGenerator: RoomIdentityGenerator,
     private val timeProvider: TimeProvider,
     private val turnRules: TurnRules,
-    private val sessionTokenGenerator: () -> String,
     private val roomStateMapper: RoomStateMapper,
     private val gameConfiguration: GameConfiguration,
     private val randomNumberGenerator: RandomNumberGenerator,
-    private val userTextSanitizer: UserTextSanitizer,
-) : GameRoomEngine {
+    private val userTextValidator: UserTextValidator,
+) : RoomRegistry {
     override fun createRoom(playerName: String): RegistryResult {
         val validatedName =
-            validatePlayerName(playerName)
+            userTextValidator.validPlayerName(playerName)
                 ?: return RegistryResult.Error("INVALID_NAME", INVALID_NAME_MESSAGE)
         repeat(MAX_CODE_GENERATION_ATTEMPTS) {
-            val host = Player(playerIdGenerator(), validatedName, PlayerColour.Blue)
-            val sessionToken = sessionTokenGenerator()
+            val host = Player(identityGenerator.generatePlayerId(), validatedName, PlayerColour.entries.first())
+            val sessionToken = identityGenerator.generateSessionToken()
             val room =
                 MutableGameRoom(
-                    code = roomCodeGenerator().uppercase(),
+                    code = identityGenerator.generateRoomCode().uppercase(),
                     hostId = host.id,
                     players = mutableListOf(host),
                     maxPlayers = gameConfiguration.maxPlayers,
@@ -54,19 +53,17 @@ internal class DefaultGameRoomEngine(
     ): RegistryResult =
         roomStore.withRoom(roomCode) { room ->
             room ?: return@withRoom RegistryResult.Error("ROOM_NOT_FOUND", "No game found with that code. Check it and try again.")
-            if (room.status !=
-                GameStatus.Lobby
-            ) {
+            if (room.status != GameStatus.Lobby) {
                 return@withRoom RegistryResult.Error("GAME_ALREADY_STARTED", "This game has already started.")
             }
             if (room.players.size >= room.maxPlayers) {
                 return@withRoom RegistryResult.Error("ROOM_FULL", "This room already has ${room.maxPlayers} players.")
             }
             val validatedName =
-                validatePlayerName(playerName)
+                userTextValidator.validPlayerName(playerName)
                     ?: return@withRoom RegistryResult.Error("INVALID_NAME", INVALID_NAME_MESSAGE)
-            val player = Player(playerIdGenerator(), validatedName, colours[room.players.size])
-            val sessionToken = sessionTokenGenerator()
+            val player = Player(identityGenerator.generatePlayerId(), validatedName, room.firstFreeColour())
+            val sessionToken = identityGenerator.generateSessionToken()
             room.players += player
             room.sessionTokens[player.id] = sessionToken
             RegistryResult.Success(roomStateMapper.map(room), player, sessionToken = sessionToken)
@@ -129,11 +126,11 @@ internal class DefaultGameRoomEngine(
                 return@withRoom RegistryResult.Error("NOT_PROMPT_OWNER", "Only the selected player can start the story.")
             }
             val prompt =
-                validateText(text)
+                userTextValidator.validStoryText(text)
                     ?: return@withRoom RegistryResult.Error("INVALID_TEXT", INVALID_TEXT_MESSAGE)
             room.prompt = prompt
             room.status = GameStatus.Playing
-            startTurn(room, 0, timeProvider.nowEpochMillis())
+            startTurn(room, 0)
             RegistryResult.Success(roomStateMapper.map(room), null, listOf(turnStarted(room)))
         }
 
@@ -144,19 +141,15 @@ internal class DefaultGameRoomEngine(
     ): RegistryResult =
         roomStore.withRoom(roomCode) { room ->
             room ?: return@withRoom RegistryResult.Error("ROOM_NOT_FOUND", "That room does not exist.")
-            if (room.status !=
-                GameStatus.Playing
-            ) {
+            if (room.status != GameStatus.Playing) {
                 return@withRoom RegistryResult.Error("INVALID_GAME_STATE", "The game is not accepting contributions.")
             }
-            if (room.turnDeadlineEpochMillis!! <=
-                timeProvider.nowEpochMillis()
-            ) {
+            if (requireNotNull(room.turnDeadlineEpochMillis) <= timeProvider.nowEpochMillis()) {
                 return@withRoom RegistryResult.Error("TURN_EXPIRED", "That turn has already ended.")
             }
             if (room.currentPlayerId != playerId) return@withRoom RegistryResult.Error("NOT_CURRENT_PLAYER", "It is not your turn.")
             val contributionText =
-                validateText(text)
+                userTextValidator.validStoryText(text)
                     ?: return@withRoom RegistryResult.Error("INVALID_TEXT", INVALID_TEXT_MESSAGE)
             val contribution = Contribution(playerId, contributionText, room.turnNumber)
             room.contributions += contribution
@@ -200,27 +193,6 @@ internal class DefaultGameRoomEngine(
             advance(room, null, listOf(ServerMessage.TurnExpired(expiredPlayerId)))
         }
 
-    private fun advance(
-        room: MutableGameRoom,
-        contribution: Contribution?,
-        initialEvents: List<ServerMessage> = emptyList(),
-    ): RegistryResult.Success {
-        val events = initialEvents.toMutableList()
-        contribution?.let { events += ServerMessage.ContributionAdded(it) }
-        val nextTurnNumber = room.turnNumber + 1
-        if (turnRules.isComplete(nextTurnNumber, room.players.size, room.maxRounds)) {
-            room.status = GameStatus.Finished
-            room.currentPlayerId = null
-            room.turnDeadlineEpochMillis = null
-            val state = roomStateMapper.map(room)
-            events += ServerMessage.GameFinished(state)
-            return RegistryResult.Success(state, null, events)
-        }
-        startTurn(room, nextTurnNumber, timeProvider.nowEpochMillis())
-        events += turnStarted(room)
-        return RegistryResult.Success(roomStateMapper.map(room), null, events)
-    }
-
     override fun leaveRoom(
         roomCode: String,
         playerId: String,
@@ -240,14 +212,34 @@ internal class DefaultGameRoomEngine(
             RegistryResult.Success(roomStateMapper.map(room), null, listOf(ServerMessage.PlayerLeft(playerId)), isNewPlayer = false)
         }
 
+    private fun advance(
+        room: MutableGameRoom,
+        contribution: Contribution?,
+        initialEvents: List<ServerMessage> = emptyList(),
+    ): RegistryResult.Success {
+        val events = initialEvents.toMutableList()
+        contribution?.let { events += ServerMessage.ContributionAdded(it) }
+        val nextTurnNumber = room.turnNumber + 1
+        if (turnRules.isComplete(nextTurnNumber, room.players.size, room.maxRounds)) {
+            room.status = GameStatus.Finished
+            room.currentPlayerId = null
+            room.turnDeadlineEpochMillis = null
+            val state = roomStateMapper.map(room)
+            events += ServerMessage.GameFinished(state)
+            return RegistryResult.Success(state, null, events)
+        }
+        startTurn(room, nextTurnNumber)
+        events += turnStarted(room)
+        return RegistryResult.Success(roomStateMapper.map(room), null, events)
+    }
+
     private fun startTurn(
         room: MutableGameRoom,
         turnNumber: Int,
-        nowMillis: Long,
     ) {
         room.turnNumber = turnNumber
-        room.currentPlayerId = room.players[turnRules.currentPlayerIndex(turnNumber, room.players.size)].id
-        room.turnDeadlineEpochMillis = nowMillis + turnRules.durationMillis(turnNumber)
+        room.currentPlayerId = room.players[turnRules.playerIndex(turnNumber, room.players.size)].id
+        room.turnDeadlineEpochMillis = timeProvider.nowEpochMillis() + turnRules.durationMillis(turnNumber)
     }
 
     private fun turnStarted(room: MutableGameRoom) =
@@ -256,13 +248,12 @@ internal class DefaultGameRoomEngine(
             requireNotNull(room.turnDeadlineEpochMillis),
         )
 
-    private fun validatePlayerName(name: String): String? =
-        userTextSanitizer.sanitize(name).takeIf { it.length in MIN_PLAYER_NAME_LENGTH..MAX_PLAYER_NAME_LENGTH }
-
-    private fun validateText(text: String): String? = userTextSanitizer.sanitize(text).takeIf { it.length in 1..MAX_STORY_TEXT_LENGTH }
+    private fun MutableGameRoom.firstFreeColour(): PlayerColour =
+        PlayerColour.entries.first { colour ->
+            players.none { it.colour == colour }
+        }
 }
 
 private const val MAX_CODE_GENERATION_ATTEMPTS = 100
 private const val INVALID_NAME_MESSAGE = "Enter a player name of $MIN_PLAYER_NAME_LENGTH to $MAX_PLAYER_NAME_LENGTH characters."
 private const val INVALID_TEXT_MESSAGE = "Enter up to $MAX_STORY_TEXT_LENGTH characters."
-private val colours = PlayerColour.entries

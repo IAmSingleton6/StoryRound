@@ -1,6 +1,6 @@
 package com.example.storyround.room
 
-interface RoomRegistry {
+internal interface RoomRegistry {
     fun createRoom(playerName: String): RegistryResult
 
     fun joinRoom(
