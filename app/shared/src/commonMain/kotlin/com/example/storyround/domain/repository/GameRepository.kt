@@ -1,10 +1,10 @@
 package com.example.storyround.domain.repository
 
-import com.example.storyround.domain.model.RemoteGameState
+import com.example.storyround.domain.model.GameState
 import kotlinx.coroutines.flow.StateFlow
 
 internal interface GameRepository {
-    val state: StateFlow<RemoteGameState>
+    val state: StateFlow<GameState>
 
     suspend fun connect()
 
@@ -35,6 +35,4 @@ internal interface GameRepository {
     suspend fun leaveRoom()
 
     fun disconnect()
-
-    fun close()
 }
