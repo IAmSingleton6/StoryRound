@@ -6,4 +6,7 @@ internal data class PlayerUi(
     val id: String,
     val name: String,
     val colour: PlayerColour,
-)
+) {
+    val initial: String
+        get() = name.trim().firstOrNull()?.uppercase() ?: "?"
+}

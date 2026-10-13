@@ -6,4 +6,6 @@ internal data class StoryUi(
     val players: List<PlayerUi>,
     val contributions: List<ContributionUi>,
     val promptAuthor: PlayerUi? = null,
+    val segments: List<StorySegmentUi> = emptyList(),
+    val writers: List<StoryWriterUi> = emptyList(),
 )
