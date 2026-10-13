@@ -3,17 +3,17 @@ package com.example.storyround
 import com.example.storyround.configuration.GameConfiguration
 import com.example.storyround.persistence.StoryRepository
 import com.example.storyround.protocol.ClientMessage
-import com.example.storyround.protocol.DefaultUserTextSanitizer
-import com.example.storyround.protocol.RoomState
 import com.example.storyround.protocol.SavedStory
 import com.example.storyround.protocol.ServerMessage
-import com.example.storyround.protocol.StorySummary
+import com.example.storyround.protocol.UserTextSanitizerImpl
+import com.example.storyround.protocol.UserTextValidatorImpl
+import com.example.storyround.protocol.protocolJson
 import com.example.storyround.random.RandomNumberGenerator
-import com.example.storyround.room.InMemoryRoomRegistry
 import com.example.storyround.room.InMemoryRoomStore
 import com.example.storyround.room.RoomIdentityGenerator
+import com.example.storyround.room.RoomRegistryImpl
 import com.example.storyround.room.RoomStateMapperImpl
-import com.example.storyround.room.TurnRules
+import com.example.storyround.rules.TurnRulesImpl
 import com.example.storyround.time.SystemTimeProvider
 import com.example.storyround.time.TimeProvider
 import io.ktor.client.plugins.websocket.WebSockets
@@ -25,15 +25,14 @@ import io.ktor.websocket.readText
 import io.ktor.websocket.send
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
 import kotlinx.coroutines.withTimeout
-import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
-import kotlin.test.assertNotNull
 
 class GameWebSocketTest {
-    private val json = Json { classDiscriminator = "type" }
+    private val json = protocolJson()
 
     @Test
     fun `given two clients when joining a room then both receive synchronized lobby state`() =
@@ -123,8 +122,9 @@ class GameWebSocketTest {
     @Test
     fun `given a final contribution when the game finishes then the completed story is persisted`() =
         testApplication {
-            val repository = RecordingStoryRepository()
-            val timeProvider = FixedTimeProvider(42L)
+            val savedStory = slot<SavedStory>()
+            val repository = mockk<StoryRepository> { every { save(capture(savedStory)) } returns Unit }
+            val timeProvider = mockk<TimeProvider> { every { nowEpochMillis() } returns 42L }
             application {
                 module(
                     timeProvider = timeProvider,
@@ -149,18 +149,17 @@ class GameWebSocketTest {
             host.receiveMessage()
             val finished = assertIs<ServerMessage.GameFinished>(host.receiveMessage())
 
-            val savedRoom = assertNotNull(repository.savedRoom)
-            assertEquals("story-1", finished.storyId)
-            assertEquals("A door opened.", savedRoom.prompt)
-            assertEquals(listOf("The story ended."), savedRoom.contributions.map { it.text })
-            assertEquals(42L, repository.createdAtEpochMillis)
+            assertEquals(savedStory.captured.id, finished.storyId)
+            assertEquals("A door opened.", savedStory.captured.prompt)
+            assertEquals(listOf("The story ended."), savedStory.captured.contributions.map { it.text })
+            assertEquals(42L, savedStory.captured.createdAtEpochMillis)
 
             val reopened = client.webSocketSession("/game")
             reopened.sendMessage(ClientMessage.Reconnect("AB12", session.playerId, session.sessionToken))
             assertIs<ServerMessage.SessionEstablished>(reopened.receiveMessage())
             assertIs<ServerMessage.RoomStateChanged>(reopened.receiveMessage())
             val reconnectedFinished = assertIs<ServerMessage.GameFinished>(reopened.receiveMessage())
-            assertEquals("story-1", reconnectedFinished.storyId)
+            assertEquals(savedStory.captured.id, reconnectedFinished.storyId)
         }
 
     @Test
@@ -201,7 +200,10 @@ class GameWebSocketTest {
     fun `given story persistence fails after game completion when final contribution is submitted then clients are notified`() =
         testApplication {
             application {
-                module(newRegistry(rounds = 1), FailingStoryRepository())
+                module(
+                    newRegistry(rounds = 1),
+                    mockk<StoryRepository> { every { save(any()) } throws IllegalStateException("Database connection lost") },
+                )
             }
             val client = createClient { install(WebSockets) }
             val host = client.webSocketSession("/game")
@@ -253,7 +255,7 @@ class GameWebSocketTest {
         rounds: Int = 3,
         firstTurnMillis: Long = 15_000L,
         timeProvider: TimeProvider = SystemTimeProvider(),
-    ): InMemoryRoomRegistry {
+    ): RoomRegistryImpl {
         var nextPlayerId = 1
         val identityGenerator = mockk<RoomIdentityGenerator>()
         every { identityGenerator.generateRoomCode() } returns "AB12"
@@ -267,57 +269,15 @@ class GameWebSocketTest {
                 firstTurnMillis = firstTurnMillis,
                 minimumTurnMillis = firstTurnMillis,
             )
-        return InMemoryRoomRegistry(
+        return RoomRegistryImpl(
             roomStore = InMemoryRoomStore(),
-            roomIdentityGenerator = identityGenerator,
+            identityGenerator = identityGenerator,
             timeProvider = timeProvider,
-            turnRules = TurnRules(gameConfiguration),
+            turnRules = TurnRulesImpl(gameConfiguration),
             roomStateMapper = RoomStateMapperImpl(),
             gameConfiguration = gameConfiguration,
             randomNumberGenerator = randomNumberGenerator,
-            userTextSanitizer = DefaultUserTextSanitizer(),
+            userTextValidator = UserTextValidatorImpl(UserTextSanitizerImpl()),
         )
-    }
-
-    private class RecordingStoryRepository : StoryRepository {
-        var savedRoom: RoomState? = null
-        var createdAtEpochMillis: Long? = null
-
-        override fun save(
-            room: RoomState,
-            createdAtEpochMillis: Long,
-        ): SavedStory {
-            savedRoom = room
-            this.createdAtEpochMillis = createdAtEpochMillis
-            return SavedStory(
-                id = "story-1",
-                prompt = requireNotNull(room.prompt),
-                promptPlayerId = requireNotNull(room.openingPlayerId),
-                createdAtEpochMillis = createdAtEpochMillis,
-                players = room.players,
-                contributions = room.contributions,
-            )
-        }
-
-        override fun find(id: String): SavedStory? = null
-
-        override fun list(): List<StorySummary> = emptyList()
-    }
-
-    private class FailingStoryRepository : StoryRepository {
-        override fun save(
-            room: RoomState,
-            createdAtEpochMillis: Long,
-        ): SavedStory = error("Database connection lost")
-
-        override fun find(id: String): SavedStory? = null
-
-        override fun list(): List<StorySummary> = emptyList()
-    }
-
-    private class FixedTimeProvider(
-        private val nowEpochMillis: Long,
-    ) : TimeProvider {
-        override fun nowEpochMillis(): Long = nowEpochMillis
     }
 }

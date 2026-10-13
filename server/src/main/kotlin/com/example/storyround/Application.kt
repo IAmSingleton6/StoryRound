@@ -20,6 +20,9 @@ import io.ktor.server.websocket.webSocket
 import org.koin.ktor.ext.inject
 import org.koin.ktor.plugin.Koin
 
+private const val MAX_WEBSOCKET_FRAME_BYTES = 16L * 1024
+private const val MAX_HEADER_BYTES = 65_536
+
 fun main() {
     val config = EnvironmentServerConfigProvider().load()
     embeddedServer(Netty, configure = {
@@ -29,13 +32,13 @@ fun main() {
                 port = config.port
             },
         )
-        maxHeaderSize = 65536
+        maxHeaderSize = MAX_HEADER_BYTES
     }) {
         module()
     }.start(wait = true)
 }
 
-fun Application.module(
+internal fun Application.module(
     registry: RoomRegistry? = null,
     storyRepository: StoryRepository? = null,
     timeProvider: TimeProvider? = null,
@@ -51,5 +54,3 @@ fun Application.module(
         webSocket("/game") { gameWebSocketHandler.handle(this) }
     }
 }
-
-private const val MAX_WEBSOCKET_FRAME_BYTES = 16L * 1024
