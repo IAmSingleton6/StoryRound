@@ -18,7 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.storyround.presentation.model.PlayerUi
 import com.example.storyround.ui.theme.StoryRoundTheme
-import com.example.storyround.ui.theme.toUiColor
+import com.example.storyround.ui.theme.toColor
 
 private const val STRIP_ANIMATION_MILLIS = 300
 private const val WAITING_ALPHA = 0.55f
@@ -50,7 +50,7 @@ private fun StripAvatar(
         modifier =
             Modifier
                 .semantics { contentDescription = if (isActive) "${player.name}, writing now" else player.name }
-                .then(if (isActive) Modifier.activeRing(player.colour.toUiColor(), stage) else Modifier)
+                .then(if (isActive) Modifier.activeRing(player.colour.toColor(), stage) else Modifier)
                 .alpha(alpha),
     )
 }

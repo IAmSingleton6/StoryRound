@@ -17,7 +17,7 @@ import androidx.compose.ui.unit.dp
 private const val CROWN_PATH = "M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z"
 private const val CROWN_STROKE_WIDTH = 1.6f
 
-internal object SrIcons {
+internal object StoryRoundIcons {
     val Book: ImageVector by lazy {
         strokeIcon(
             name = "Book",
@@ -141,7 +141,7 @@ internal object SrIcons {
 }
 
 @Composable
-internal fun SrIcon(
+internal fun TintedIcon(
     icon: ImageVector,
     tint: Color,
     modifier: Modifier = Modifier,
@@ -160,6 +160,6 @@ internal fun HostCrown(
     outline: Color,
     modifier: Modifier = Modifier,
 ) {
-    val crown = remember(fill, outline) { SrIcons.crown(fill, outline) }
+    val crown = remember(fill, outline) { StoryRoundIcons.crown(fill, outline) }
     Image(painter = rememberVectorPainter(crown), contentDescription = "Host", modifier = modifier)
 }

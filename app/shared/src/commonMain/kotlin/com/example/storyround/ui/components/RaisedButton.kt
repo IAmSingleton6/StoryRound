@@ -30,12 +30,12 @@ import com.example.storyround.ui.theme.StoryRoundTheme
 private val NoPadding = PaddingValues(0.dp)
 
 @Composable
-internal fun SrButton(
+internal fun RaisedButton(
     label: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    variant: SrButtonVariant = SrButtonVariant.Cue,
-    size: SrButtonSize = SrButtonSize.Large,
+    color: RaisedButtonColor = RaisedButtonColor.Cue,
+    size: RaisedButtonSize = RaisedButtonSize.Large,
     enabled: Boolean = true,
     shadowColor: Color = StoryRoundTheme.colors.inkShadow,
     leadingIcon: ImageVector? = null,
@@ -55,7 +55,7 @@ internal fun SrButton(
                 .height(size.height)
                 .offset(y = if (pressed) size.shadow - 1.dp else 0.dp)
                 .hardShadow(offsetY = if (pressed) 1.dp else size.shadow, color = shadowColor, shape = shape)
-                .background(if (enabled) variant.containerColor(colors) else colors.disabledFill, shape)
+                .background(if (enabled) color.containerColor(colors) else colors.disabledFill, shape)
                 .border(2.5.dp, colors.ink, shape)
                 .clickable(
                     interactionSource = interactionSource,
@@ -67,15 +67,15 @@ internal fun SrButton(
         horizontalArrangement = Arrangement.spacedBy(if (leadingIcon != null) 10.dp else 8.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        leadingIcon?.let { SrIcon(it, tint = content, modifier = Modifier.size(20.dp)) }
+        leadingIcon?.let { TintedIcon(it, tint = content, modifier = Modifier.size(20.dp)) }
         BasicText(text = label, style = textStyle.copy(color = content))
-        trailingIcon?.let { SrIcon(it, tint = content, modifier = Modifier.size(18.dp)) }
+        trailingIcon?.let { TintedIcon(it, tint = content, modifier = Modifier.size(18.dp)) }
     }
 }
 
-private fun SrButtonVariant.containerColor(colors: StoryRoundColors): Color =
+private fun RaisedButtonColor.containerColor(colors: StoryRoundColors): Color =
     when (this) {
-        SrButtonVariant.Cue -> colors.cue
-        SrButtonVariant.Paper -> colors.paper
-        SrButtonVariant.White -> colors.paperWhite
+        RaisedButtonColor.Cue -> colors.cue
+        RaisedButtonColor.Paper -> colors.paper
+        RaisedButtonColor.White -> colors.paperWhite
     }

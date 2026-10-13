@@ -17,8 +17,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
 import com.example.storyround.presentation.model.PlayerUi
 import com.example.storyround.ui.theme.StoryRoundTheme
-import com.example.storyround.ui.theme.toOnUiColor
-import com.example.storyround.ui.theme.toUiColor
+import com.example.storyround.ui.theme.toColor
+import com.example.storyround.ui.theme.toContentColor
 
 private const val INITIAL_TO_SIZE_RATIO = 0.46f
 
@@ -37,16 +37,13 @@ internal fun PlayerAvatar(
         modifier =
             modifier
                 .size(size)
-                .background(player.colour.toUiColor(), CircleShape)
+                .background(player.colour.toColor(), CircleShape)
                 .border(borderWidth, borderColor, CircleShape),
         contentAlignment = Alignment.Center,
     ) {
         BasicText(
             text = player.initial,
-            style = StoryRoundTheme.typography.avatarInitial.copy(color = player.colour.toOnUiColor(), fontSize = fontSize),
+            style = StoryRoundTheme.typography.avatarInitial.copy(color = player.colour.toContentColor(), fontSize = fontSize),
         )
     }
 }
-
-internal val PlayerUi.initial: String
-    get() = name.trim().firstOrNull()?.uppercase() ?: "?"

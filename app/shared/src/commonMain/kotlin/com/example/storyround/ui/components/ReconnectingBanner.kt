@@ -34,7 +34,7 @@ internal fun ReconnectingBanner(modifier: Modifier = Modifier) {
         horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        SrIcon(SrIcons.WifiOff, tint = colors.ink, modifier = Modifier.size(16.dp))
+        TintedIcon(StoryRoundIcons.WifiOff, tint = colors.ink, modifier = Modifier.size(16.dp))
         BasicText(
             "Reconnecting… your seat is saved",
             style = StoryRoundTheme.typography.callout.copy(color = colors.ink),

@@ -47,8 +47,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.storyround.presentation.model.StorySegmentUi
 import com.example.storyround.ui.theme.StoryRoundTheme
-import com.example.storyround.ui.theme.toOnUiColor
-import com.example.storyround.ui.theme.toUiColor
+import com.example.storyround.ui.theme.toColor
+import com.example.storyround.ui.theme.toContentColor
 import kotlinx.coroutines.delay
 
 private const val HIGHLIGHT_ALPHA = 0.17f
@@ -116,7 +116,7 @@ internal fun StoryText(
                         val author = segments[index].author ?: return@forEachIndexed
                         val appear = if (index == newestIndex) newestAlpha.value else 1f
                         val wash = if (index == newestIndex) NEWEST_HIGHLIGHT_ALPHA else HIGHLIGHT_ALPHA
-                        val colour = author.colour.toUiColor()
+                        val colour = author.colour.toColor()
                         drawHighlight(result, range, fontSizePx, colour.copy(alpha = wash * appear), colour.copy(alpha = appear))
                     }
                 },
@@ -184,10 +184,10 @@ private fun rememberNewestTag(
                     Modifier
                         .padding(start = TagGap)
                         .wrapContentSize()
-                        .background(author?.colour?.toUiColor() ?: colors.ink, TagShape)
+                        .background(author?.colour?.toColor() ?: colors.ink, TagShape)
                         .border(1.5.dp, colors.ink, TagShape)
                         .padding(horizontal = 6.dp, vertical = 1.5.dp),
-                style = tagStyle.copy(color = author?.colour?.toOnUiColor() ?: colors.paper),
+                style = tagStyle.copy(color = author?.colour?.toContentColor() ?: colors.paper),
             )
         }
     }

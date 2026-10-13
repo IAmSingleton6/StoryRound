@@ -3,7 +3,7 @@ package com.example.storyround.ui.components
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-internal enum class SrButtonSize(
+internal enum class RaisedButtonSize(
     val height: Dp,
     val cornerRadius: Dp,
     val shadow: Dp,

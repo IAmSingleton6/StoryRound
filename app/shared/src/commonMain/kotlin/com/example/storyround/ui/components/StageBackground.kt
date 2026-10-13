@@ -25,7 +25,7 @@ private const val NANOS_PER_MILLI = 1_000_000L
 private const val RAY_PERIOD_MILLIS = 6_000L
 
 @Composable
-internal fun StageScaffold(
+internal fun StageBackground(
     modifier: Modifier = Modifier,
     content: @Composable BoxScope.() -> Unit,
 ) {

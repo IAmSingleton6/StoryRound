@@ -12,7 +12,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.dp
 import com.example.storyround.presentation.model.StoryWriterUi
 import com.example.storyround.ui.theme.StoryRoundTheme
-import com.example.storyround.ui.theme.toUiColor
+import com.example.storyround.ui.theme.toColor
 
 @Composable
 internal fun WriterShareStrip(
@@ -31,7 +31,7 @@ internal fun WriterShareStrip(
                 Modifier
                     .weight(writer.pieces.toFloat())
                     .height(12.dp)
-                    .background(writer.player.colour.toUiColor()),
+                    .background(writer.player.colour.toColor()),
             )
         }
     }

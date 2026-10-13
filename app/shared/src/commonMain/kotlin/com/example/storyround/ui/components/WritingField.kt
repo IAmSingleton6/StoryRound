@@ -38,11 +38,11 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import com.example.storyround.ui.theme.StoryRoundTheme
 
-private val ComposerShape = RoundedCornerShape(20.dp)
+private val WritingFieldShape = RoundedCornerShape(20.dp)
 private val IdeaButtonShape = RoundedCornerShape(19.dp)
 
 @Composable
-internal fun StoryComposer(
+internal fun WritingField(
     value: String,
     onValueChange: (String) -> Unit,
     placeholder: String,
@@ -68,8 +68,8 @@ internal fun StoryComposer(
         modifier =
             modifier
                 .fillMaxWidth()
-                .background(colors.paper, ComposerShape)
-                .border(2.5.dp, colors.ink, ComposerShape)
+                .background(colors.paper, WritingFieldShape)
+                .border(2.5.dp, colors.ink, WritingFieldShape)
                 .padding(start = 16.dp, top = 12.dp, end = 12.dp, bottom = 12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -97,7 +97,7 @@ internal fun StoryComposer(
                 }
             },
         )
-        ComposerFooter(
+        WritingFieldFooter(
             length = value.length,
             maxLength = maxLength,
             isNearLimit = isNearLimit,
@@ -110,7 +110,7 @@ internal fun StoryComposer(
 }
 
 @Composable
-private fun ComposerFooter(
+private fun WritingFieldFooter(
     length: Int,
     maxLength: Int,
     isNearLimit: Boolean,
@@ -132,14 +132,14 @@ private fun ComposerFooter(
             style = typography.counter.copy(color = if (isNearLimit) colors.coralInk else colors.onPaperMuted),
         )
         IdeaButton(onRandomIdea)
-        SrButton(
+        RaisedButton(
             label = sendLabel,
             onClick = onSend,
-            size = SrButtonSize.Compact,
+            size = RaisedButtonSize.Compact,
             enabled = canSend,
             shadowColor = colors.ink,
             modifier = Modifier.padding(start = 10.dp),
-            trailingIcon = SrIcons.Send,
+            trailingIcon = StoryRoundIcons.Send,
             contentPadding = PaddingValues(start = 20.dp, end = 16.dp),
             textStyle = typography.sendButton,
         )
@@ -159,7 +159,7 @@ private fun IdeaButton(onClick: () -> Unit) {
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        SrIcon(SrIcons.Dice, tint = colors.ink, modifier = Modifier.size(16.dp))
+        TintedIcon(StoryRoundIcons.Dice, tint = colors.ink, modifier = Modifier.size(16.dp))
         BasicText("Idea", style = StoryRoundTheme.typography.pill.copy(color = colors.ink))
     }
 }

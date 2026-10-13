@@ -37,7 +37,7 @@ internal fun ErrorBanner(
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.Top,
     ) {
-        SrIcon(SrIcons.Alert, tint = colors.ink, modifier = Modifier.padding(top = 1.dp).size(18.dp))
+        TintedIcon(StoryRoundIcons.Alert, tint = colors.ink, modifier = Modifier.padding(top = 1.dp).size(18.dp))
         BasicText(message, style = StoryRoundTheme.typography.callout.copy(color = colors.ink))
     }
 }

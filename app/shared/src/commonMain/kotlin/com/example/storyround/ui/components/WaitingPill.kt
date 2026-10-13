@@ -29,7 +29,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.example.storyround.presentation.model.PlayerUi
 import com.example.storyround.ui.theme.StoryRoundTheme
-import com.example.storyround.ui.theme.toUiColor
+import com.example.storyround.ui.theme.toColor
 
 private val WaitingPillShape = RoundedCornerShape(30.dp)
 private const val DOT_COUNT = 3
@@ -37,7 +37,7 @@ private const val DOT_STEP_MILLIS = 330
 private const val DOT_IDLE_ALPHA = 0.35f
 
 @Composable
-internal fun TurnWaitingPill(
+internal fun WaitingPill(
     writer: PlayerUi,
     text: String,
     modifier: Modifier = Modifier,
@@ -77,7 +77,7 @@ private fun WritingDots(writer: PlayerUi) {
                 Modifier
                     .size(7.dp)
                     .alpha(if (index == active) 1f else DOT_IDLE_ALPHA)
-                    .background(writer.colour.toUiColor(), CircleShape),
+                    .background(writer.colour.toColor(), CircleShape),
             )
         }
     }

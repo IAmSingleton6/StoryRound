@@ -14,10 +14,10 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.example.storyround.ui.theme.StoryRoundTheme
 
-private val StageButtonShape = RoundedCornerShape(14.dp)
+private val FlatButtonShape = RoundedCornerShape(14.dp)
 
 @Composable
-internal fun StageButton(
+internal fun FlatButton(
     label: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -28,8 +28,8 @@ internal fun StageButton(
         modifier =
             modifier
                 .height(52.dp)
-                .background(colors.stageRaised, StageButtonShape)
-                .border(2.dp, if (enabled) colors.stageOutline else colors.stageDisabledOutline, StageButtonShape)
+                .background(colors.stageRaised, FlatButtonShape)
+                .border(2.dp, if (enabled) colors.stageOutline else colors.stageDisabledOutline, FlatButtonShape)
                 .clickable(enabled = enabled, role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {

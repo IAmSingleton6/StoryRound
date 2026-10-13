@@ -18,10 +18,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.example.storyround.ui.theme.StoryRoundTheme
 
-private val StagePillShape = RoundedCornerShape(22.dp)
+private val PillShape = RoundedCornerShape(22.dp)
 
 @Composable
-internal fun StagePillButton(
+internal fun PillButton(
     onClick: () -> Unit,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
@@ -33,8 +33,8 @@ internal fun StagePillButton(
         modifier =
             modifier
                 .height(44.dp)
-                .background(colors.stageScrim, StagePillShape)
-                .border(2.dp, colors.stageOutline, StagePillShape)
+                .background(colors.stageScrim, PillShape)
+                .border(2.dp, colors.stageOutline, PillShape)
                 .clickable(role = Role.Button, onClick = onClick)
                 .padding(contentPadding),
         horizontalArrangement = Arrangement.spacedBy(spacing),

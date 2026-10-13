@@ -23,10 +23,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.example.storyround.ui.theme.StoryRoundTheme
 
-private val SrTextFieldShape = RoundedCornerShape(14.dp)
+private val LabeledTextFieldShape = RoundedCornerShape(14.dp)
 
 @Composable
-internal fun SrTextField(
+internal fun LabeledTextField(
     value: String,
     onValueChange: (String) -> Unit,
     label: String,
@@ -57,8 +57,8 @@ internal fun SrTextField(
                         Modifier
                             .fillMaxWidth()
                             .height(height)
-                            .background(colors.paperWhite, SrTextFieldShape)
-                            .border(2.5.dp, colors.ink, SrTextFieldShape)
+                            .background(colors.paperWhite, LabeledTextFieldShape)
+                            .border(2.5.dp, colors.ink, LabeledTextFieldShape)
                             .padding(horizontal = 16.dp),
                     contentAlignment = Alignment.CenterStart,
                 ) {
