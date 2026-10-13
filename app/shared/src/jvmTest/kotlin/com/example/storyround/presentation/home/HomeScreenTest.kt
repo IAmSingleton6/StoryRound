@@ -30,6 +30,17 @@ class HomeScreenTest {
         }
 
     @Test
+    fun `given a valid name when create is pressed then the create action is emitted`() =
+        runComposeUiTest {
+            var action: HomeAction? = null
+            setContent { StoryRoundTheme { HomeScreen(HomeUiState(playerName = "Alex", hasValidPlayerName = true)) { action = it } } }
+
+            onNodeWithText("CREATE GAME").assertIsEnabled().performClick()
+
+            assertEquals(HomeAction.CreateGame, action)
+        }
+
+    @Test
     fun `given no name when home is shown then create is disabled and join mode can still be opened`() =
         runComposeUiTest {
             var action: HomeAction? = null

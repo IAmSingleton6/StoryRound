@@ -44,14 +44,15 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import com.example.storyround.presentation.model.countOf
 import com.example.storyround.ui.components.ErrorBanner
-import com.example.storyround.ui.components.SrButton
-import com.example.storyround.ui.components.SrButtonVariant
-import com.example.storyround.ui.components.SrIcon
-import com.example.storyround.ui.components.SrIcons
-import com.example.storyround.ui.components.SrTextField
-import com.example.storyround.ui.components.StagePillButton
-import com.example.storyround.ui.components.StageScaffold
+import com.example.storyround.ui.components.LabeledTextField
+import com.example.storyround.ui.components.PillButton
+import com.example.storyround.ui.components.RaisedButton
+import com.example.storyround.ui.components.RaisedButtonColor
+import com.example.storyround.ui.components.StageBackground
+import com.example.storyround.ui.components.StoryRoundIcons
+import com.example.storyround.ui.components.TintedIcon
 import com.example.storyround.ui.components.hardShadow
 import com.example.storyround.ui.components.paperSheet
 import com.example.storyround.ui.components.tilt
@@ -66,7 +67,7 @@ private val TopBarInsets
 internal fun HomeScreen(
     uiState: HomeUiState,
     onAction: (HomeAction) -> Unit,
-) = StageScaffold {
+) = StageBackground {
     Column(Modifier.fillMaxSize().imePadding()) {
         HomeTopBar(historyCount = uiState.historyCount, onOpenHistory = { onAction(HomeAction.OpenHistory) })
         HomeHero(Modifier.weight(1f))
@@ -91,15 +92,15 @@ private fun HomeTopBar(
                 .padding(start = 20.dp, top = 12.dp, end = 20.dp),
         horizontalArrangement = Arrangement.End,
     ) {
-        StagePillButton(
+        PillButton(
             onClick = onOpenHistory,
             contentPadding = PaddingValues(start = 14.dp, end = 8.dp),
             modifier =
                 Modifier.semantics {
-                    contentDescription = "Story history, $historyCount saved ${if (historyCount == 1) "story" else "stories"}"
+                    contentDescription = "Story history, ${countOf(historyCount, "saved story", "saved stories")}"
                 },
         ) {
-            SrIcon(SrIcons.Book, tint = colors.onStage, modifier = Modifier.size(18.dp))
+            TintedIcon(StoryRoundIcons.Book, tint = colors.onStage, modifier = Modifier.size(18.dp))
             HistoryCountBadge(historyCount)
         }
     }
@@ -200,7 +201,7 @@ private fun HomeSheet(
                 .padding(start = 20.dp, top = 22.dp, end = 20.dp, bottom = 30.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        SrTextField(
+        LabeledTextField(
             value = uiState.playerName,
             onValueChange = { onAction(HomeAction.PlayerNameChanged(it)) },
             label = "Your name",
@@ -223,18 +224,18 @@ private fun StartActions(
 ) {
     val ink = StoryRoundTheme.colors.ink
     Column(Modifier.padding(bottom = 6.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        SrButton(
+        RaisedButton(
             label = if (uiState.isConnecting) CONNECTING_LABEL else "CREATE GAME",
             onClick = { onAction(HomeAction.CreateGame) },
             modifier = Modifier.fillMaxWidth(),
             enabled = uiState.canCreateGame,
             shadowColor = ink,
         )
-        SrButton(
+        RaisedButton(
             label = "JOIN GAME",
             onClick = { onAction(HomeAction.ShowJoinGame) },
             modifier = Modifier.fillMaxWidth(),
-            variant = SrButtonVariant.White,
+            color = RaisedButtonColor.White,
             shadowColor = ink,
         )
     }
@@ -246,7 +247,7 @@ private fun JoinActions(
     onAction: (HomeAction) -> Unit,
 ) {
     val typography = StoryRoundTheme.typography
-    SrTextField(
+    LabeledTextField(
         value = uiState.roomCode,
         onValueChange = { onAction(HomeAction.RoomCodeChanged(it)) },
         label = "Room code",
@@ -260,7 +261,7 @@ private fun JoinActions(
                 imeAction = ImeAction.Done,
             ),
     )
-    SrButton(
+    RaisedButton(
         label = if (uiState.isConnecting) CONNECTING_LABEL else "JOIN GAME",
         onClick = { onAction(HomeAction.JoinGame) },
         modifier = Modifier.fillMaxWidth(),

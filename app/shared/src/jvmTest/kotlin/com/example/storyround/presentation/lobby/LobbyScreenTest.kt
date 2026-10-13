@@ -30,6 +30,7 @@ class LobbyScreenTest {
             maxRounds = 1,
             canDecreaseRounds = false,
             canIncreaseRounds = true,
+            totalTurns = 2,
         )
 
     @Test

@@ -5,54 +5,69 @@ import androidx.lifecycle.viewModelScope
 import com.example.storyround.configuration.GameConfiguration
 import com.example.storyround.domain.repository.GameRepository
 import com.example.storyround.domain.usecase.StartGameUseCase
+import com.example.storyround.presentation.WhileUiSubscribed
 import com.example.storyround.presentation.mapper.RoomUiMapper
+import com.example.storyround.protocol.RoomState
+import com.example.storyround.rules.TurnRules
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 internal class LobbyViewModel(
-    repository: GameRepository,
-    private val startGame: StartGameUseCase,
+    private val repository: GameRepository,
+    private val startGameUseCase: StartGameUseCase,
     private val roomUiMapper: RoomUiMapper,
     private val gameConfiguration: GameConfiguration,
+    private val turnRules: TurnRules,
 ) : ViewModel() {
     private val settings = MutableStateFlow(LobbySettings(maxRounds = gameConfiguration.defaultRounds))
 
     val uiState: StateFlow<LobbyUiState> =
-        combine(repository.state, settings) { state, selectedSettings ->
-            state.room?.let(roomUiMapper::map)?.let {
-                LobbyUiState(
-                    roomCode = it.roomCode,
-                    players = it.players,
-                    maxPlayers = state.room.maxPlayers,
-                    hostId = it.hostId,
-                    currentPlayerId = state.playerId,
-                    openingPlayerId = selectedSettings.openingPlayerId?.takeIf { id -> it.players.any { player -> player.id == id } },
-                    maxRounds = selectedSettings.maxRounds,
-                    canDecreaseRounds = selectedSettings.maxRounds > gameConfiguration.minRounds,
-                    canIncreaseRounds = selectedSettings.maxRounds < gameConfiguration.maxRounds,
-                    isReconnecting = !state.isConnected,
-                )
-            } ?: LobbyUiState()
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LobbyUiState())
+        combine(repository.state, settings) { state, selected ->
+            val room = state.room ?: return@combine LobbyUiState()
+            val roomUi = roomUiMapper.map(room)
+            LobbyUiState(
+                roomCode = roomUi.roomCode,
+                players = roomUi.players,
+                maxPlayers = roomUi.maxPlayers,
+                hostId = roomUi.hostId,
+                currentPlayerId = state.playerId,
+                openingPlayerId = selected.openingPlayerIdIn(room),
+                maxRounds = selected.maxRounds,
+                canDecreaseRounds = selected.maxRounds > gameConfiguration.minRounds,
+                canIncreaseRounds = selected.maxRounds < gameConfiguration.maxRounds,
+                totalTurns = turnRules.totalTurns(roomUi.players.size, selected.maxRounds),
+                isReconnecting = !state.isConnected,
+            )
+        }.stateIn(viewModelScope, WhileUiSubscribed, LobbyUiState())
 
     fun onAction(action: LobbyAction) {
         when (action) {
-            LobbyAction.StartGame -> viewModelScope.launch { startGame(settings.value.openingPlayerId, settings.value.maxRounds) }
-            is LobbyAction.OpeningPlayerSelected -> settings.value = settings.value.copy(openingPlayerId = action.playerId)
+            LobbyAction.StartGame -> startGame()
+            is LobbyAction.OpeningPlayerSelected -> settings.update { it.copy(openingPlayerId = action.playerId) }
             is LobbyAction.RoundsChanged -> {
                 val rounds = action.value.coerceIn(gameConfiguration.minRounds, gameConfiguration.maxRounds)
-                settings.value = settings.value.copy(maxRounds = rounds)
+                settings.update { it.copy(maxRounds = rounds) }
             }
             LobbyAction.Leave -> Unit
         }
     }
 
+    private fun startGame() {
+        val selected = settings.value
+        val openingPlayerId =
+            repository.state.value.room
+                ?.let(selected::openingPlayerIdIn)
+        viewModelScope.launch { startGameUseCase(openingPlayerId, selected.maxRounds) }
+    }
+
     private data class LobbySettings(
         val openingPlayerId: String? = null,
         val maxRounds: Int,
-    )
+    ) {
+        fun openingPlayerIdIn(room: RoomState): String? = openingPlayerId?.takeIf { id -> room.players.any { it.id == id } }
+    }
 }

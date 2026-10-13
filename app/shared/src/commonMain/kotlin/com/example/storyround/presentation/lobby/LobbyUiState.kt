@@ -12,6 +12,7 @@ internal data class LobbyUiState(
     val maxRounds: Int = 0,
     val canDecreaseRounds: Boolean = false,
     val canIncreaseRounds: Boolean = false,
+    val totalTurns: Int = 0,
     val isReconnecting: Boolean = false,
 ) {
     val isHost: Boolean
@@ -26,6 +27,5 @@ internal data class LobbyUiState(
     val openSeats: Int
         get() = (maxPlayers - players.size).coerceAtLeast(0)
 
-    val totalTurns: Int
-        get() = maxRounds * players.size
+    fun displayName(player: PlayerUi): String = if (player.id == currentPlayerId) "You" else player.name
 }

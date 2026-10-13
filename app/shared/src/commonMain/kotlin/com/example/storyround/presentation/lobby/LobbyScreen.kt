@@ -41,14 +41,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.storyround.presentation.model.PlayerUi
+import com.example.storyround.presentation.model.countOf
 import com.example.storyround.ui.components.HostCrown
+import com.example.storyround.ui.components.PillButton
 import com.example.storyround.ui.components.PlayerAvatar
+import com.example.storyround.ui.components.RaisedButton
 import com.example.storyround.ui.components.ReconnectingBanner
-import com.example.storyround.ui.components.SrButton
-import com.example.storyround.ui.components.SrIcon
-import com.example.storyround.ui.components.SrIcons
-import com.example.storyround.ui.components.StagePillButton
-import com.example.storyround.ui.components.StageScaffold
+import com.example.storyround.ui.components.StageBackground
+import com.example.storyround.ui.components.StoryRoundIcons
+import com.example.storyround.ui.components.TintedIcon
 import com.example.storyround.ui.components.dashedBorder
 import com.example.storyround.ui.components.hardShadow
 import com.example.storyround.ui.components.tilt
@@ -65,7 +66,7 @@ private val YouTagShape = RoundedCornerShape(6.dp)
 internal fun LobbyScreen(
     uiState: LobbyUiState,
     onAction: (LobbyAction) -> Unit,
-) = StageScaffold {
+) = StageBackground {
     Column(
         modifier =
             Modifier
@@ -108,8 +109,8 @@ private fun LobbyTopBar(onLeave: () -> Unit) {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        StagePillButton(onClick = onLeave, contentPadding = PaddingValues(start = 10.dp, end = 16.dp), spacing = 6.dp) {
-            SrIcon(SrIcons.Back, tint = colors.onStage, modifier = Modifier.size(18.dp))
+        PillButton(onClick = onLeave, contentPadding = PaddingValues(start = 10.dp, end = 16.dp), spacing = 6.dp) {
+            TintedIcon(StoryRoundIcons.Back, tint = colors.onStage, modifier = Modifier.size(18.dp))
             BasicText("Leave lobby", style = typography.pill.copy(color = colors.onStage))
         }
         BasicText("LOBBY", style = typography.eyebrow.copy(color = colors.onStageMuted))
@@ -273,7 +274,7 @@ private fun HostSettings(
                 onSelect = { onAction(LobbyAction.OpeningPlayerSelected(null)) },
             ) {
                 Box(Modifier.size(26.dp), contentAlignment = Alignment.Center) {
-                    SrIcon(SrIcons.Dice, tint = it, modifier = Modifier.size(18.dp))
+                    TintedIcon(StoryRoundIcons.Dice, tint = it, modifier = Modifier.size(18.dp))
                 }
             }
             uiState.players.forEach { player ->
@@ -323,7 +324,6 @@ private fun RoundsStepper(
 ) {
     val colors = StoryRoundTheme.colors
     val typography = StoryRoundTheme.typography
-    val times = if (uiState.maxRounds == 1) "time" else "times"
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -332,13 +332,13 @@ private fun RoundsStepper(
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             BasicText("Rounds", style = typography.title.copy(color = colors.onStage))
             BasicText(
-                "Everyone writes ${uiState.maxRounds} $times · ${uiState.totalTurns} turns",
+                "Everyone writes ${countOf(uiState.maxRounds, "time")} · ${uiState.totalTurns} turns",
                 style = typography.meta.copy(color = colors.onStageMuted),
             )
         }
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
             StepperButton(
-                icon = SrIcons.Minus,
+                icon = StoryRoundIcons.Minus,
                 label = "Fewer rounds",
                 enabled = uiState.canDecreaseRounds,
                 onClick = { onAction(LobbyAction.RoundsChanged(uiState.maxRounds - 1)) },
@@ -349,7 +349,7 @@ private fun RoundsStepper(
                 style = typography.numberLarge.copy(color = colors.onStage, textAlign = TextAlign.Center),
             )
             StepperButton(
-                icon = SrIcons.Plus,
+                icon = StoryRoundIcons.Plus,
                 label = "More rounds",
                 enabled = uiState.canIncreaseRounds,
                 onClick = { onAction(LobbyAction.RoundsChanged(uiState.maxRounds + 1)) },
@@ -376,7 +376,7 @@ private fun StepperButton(
                 .semantics { contentDescription = label },
         contentAlignment = Alignment.Center,
     ) {
-        SrIcon(icon, tint = if (enabled) colors.ink else colors.onStageDisabled, modifier = Modifier.size(18.dp))
+        TintedIcon(icon, tint = if (enabled) colors.ink else colors.onStageDisabled, modifier = Modifier.size(18.dp))
     }
 }
 
@@ -415,8 +415,6 @@ private fun HostFooter(onStart: () -> Unit) {
             modifier = Modifier.fillMaxWidth(),
             style = StoryRoundTheme.typography.caption.copy(color = colors.onStageMuted, textAlign = TextAlign.Center),
         )
-        SrButton(label = "START GAME", onClick = onStart, modifier = Modifier.fillMaxWidth())
+        RaisedButton(label = "START GAME", onClick = onStart, modifier = Modifier.fillMaxWidth())
     }
 }
-
-private fun LobbyUiState.displayName(player: PlayerUi): String = if (player.id == currentPlayerId) "You" else player.name
