@@ -5,8 +5,9 @@ import kotlinx.serialization.json.Json
 
 internal class SettingsRemoteSessionStore(
     private val settings: Settings,
-    private val json: Json = Json { ignoreUnknownKeys = true },
 ) : RemoteSessionStore {
+    private val json = Json { ignoreUnknownKeys = true }
+
     override fun load(): RemoteSession? =
         settings
             .getStringOrNull(REMOTE_SESSION_KEY)

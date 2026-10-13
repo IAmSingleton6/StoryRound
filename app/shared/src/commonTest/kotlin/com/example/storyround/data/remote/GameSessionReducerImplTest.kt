@@ -1,7 +1,7 @@
 package com.example.storyround.data.remote
 
 import com.example.storyround.data.local.RemoteSession
-import com.example.storyround.domain.model.RemoteGameState
+import com.example.storyround.domain.model.GameState
 import com.example.storyround.protocol.GameStatus
 import com.example.storyround.protocol.Player
 import com.example.storyround.protocol.PlayerColour
@@ -13,8 +13,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 
-class GameSessionReducerTest {
-    private val reducer = GameSessionReducer()
+class GameSessionReducerImplTest {
+    private val reducer = GameSessionReducerImpl()
     private val player = Player(id = "player-1", name = "Alex", colour = PlayerColour.Blue)
     private val room =
         RoomState(
@@ -30,7 +30,7 @@ class GameSessionReducerTest {
     fun `given an established session when room state arrives then state is updated and the session is persisted`() {
         val context =
             GameSessionContext(
-                state = RemoteGameState(playerId = player.id),
+                state = GameState(playerId = player.id),
                 sessionToken = "token-1",
                 pendingPlayerName = null,
                 isConnected = true,
@@ -50,7 +50,7 @@ class GameSessionReducerTest {
     fun `given a pending player when joined event arrives then player identity is captured`() {
         val context =
             GameSessionContext(
-                state = RemoteGameState(),
+                state = GameState(),
                 sessionToken = null,
                 pendingPlayerName = player.name,
                 isConnected = true,
@@ -67,7 +67,7 @@ class GameSessionReducerTest {
     fun `given an invalid session error when reduced then session data is cleared`() {
         val context =
             GameSessionContext(
-                state = RemoteGameState(room = room, playerId = player.id, history = emptyList()),
+                state = GameState(room = room, playerId = player.id, history = emptyList()),
                 sessionToken = "token-1",
                 pendingPlayerName = player.name,
                 isConnected = true,
@@ -88,7 +88,7 @@ class GameSessionReducerTest {
         val history = listOf(SavedStory("story-1", "A door opened.", player.id, 1, listOf(player), emptyList()))
         val context =
             GameSessionContext(
-                state = RemoteGameState(room = room, playerId = player.id, history = history),
+                state = GameState(room = room, playerId = player.id, history = history),
                 sessionToken = "token-1",
                 pendingPlayerName = null,
                 isConnected = true,
@@ -104,7 +104,7 @@ class GameSessionReducerTest {
     fun `given a saved session resumed on launch when the room no longer exists then no error is shown`() {
         val context =
             GameSessionContext(
-                state = RemoteGameState(playerId = player.id, history = emptyList()),
+                state = GameState(playerId = player.id, history = emptyList()),
                 sessionToken = "token-1",
                 pendingPlayerName = null,
                 isConnected = true,

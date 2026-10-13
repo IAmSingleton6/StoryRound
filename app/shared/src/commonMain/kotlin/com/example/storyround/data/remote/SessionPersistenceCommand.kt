@@ -7,5 +7,5 @@ internal sealed interface SessionPersistenceCommand {
         val session: RemoteSession,
     ) : SessionPersistenceCommand
 
-    class Clear : SessionPersistenceCommand
+    data object Clear : SessionPersistenceCommand
 }

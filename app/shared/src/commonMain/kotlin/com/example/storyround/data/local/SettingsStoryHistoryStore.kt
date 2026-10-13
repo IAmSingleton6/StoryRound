@@ -7,18 +7,20 @@ import kotlinx.serialization.json.Json
 
 internal class SettingsStoryHistoryStore(
     private val settings: Settings,
-    private val json: Json = Json { ignoreUnknownKeys = true },
 ) : StoryHistoryStore {
+    private val json = Json { ignoreUnknownKeys = true }
+    private val serializer = ListSerializer(SavedStory.serializer())
+
     override fun load(): List<SavedStory> =
         settings
             .getStringOrNull(STORY_HISTORY_KEY)
-            ?.let { serialized -> runCatching { json.decodeFromString(ListSerializer(SavedStory.serializer()), serialized) }.getOrNull() }
+            ?.let { serialized -> runCatching { json.decodeFromString(serializer, serialized) }.getOrNull() }
             .orEmpty()
             .sortedByDescending(SavedStory::createdAtEpochMillis)
 
     override fun save(story: SavedStory) {
         val stories = load().filterNot { it.id == story.id }
-        settings.putString(STORY_HISTORY_KEY, json.encodeToString(ListSerializer(SavedStory.serializer()), listOf(story) + stories))
+        settings.putString(STORY_HISTORY_KEY, json.encodeToString(serializer, listOf(story) + stories))
     }
 
     private companion object {

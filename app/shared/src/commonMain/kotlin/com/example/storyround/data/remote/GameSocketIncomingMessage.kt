@@ -7,5 +7,5 @@ internal sealed interface GameSocketIncomingMessage {
         val message: ServerMessage,
     ) : GameSocketIncomingMessage
 
-    class Unreadable : GameSocketIncomingMessage
+    data object Unreadable : GameSocketIncomingMessage
 }

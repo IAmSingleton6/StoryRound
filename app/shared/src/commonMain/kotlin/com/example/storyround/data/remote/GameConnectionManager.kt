@@ -15,6 +15,4 @@ internal interface GameConnectionManager {
     suspend fun send(message: ClientMessage): Boolean
 
     fun disconnect()
-
-    fun close()
 }
