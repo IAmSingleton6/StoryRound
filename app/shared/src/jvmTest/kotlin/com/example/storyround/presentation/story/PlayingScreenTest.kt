@@ -1,12 +1,18 @@
 package com.example.storyround.presentation.story
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.example.storyround.presentation.model.PlayerUi
 import com.example.storyround.presentation.model.RoomUi
@@ -34,6 +40,7 @@ class PlayingScreenTest {
                 roomCode = "AB12",
                 hostId = alex.id,
                 players = listOf(alex, sam),
+                maxPlayers = 10,
                 prompt = "A door opened.",
                 contributions = emptyList(),
                 turn = TurnUi(alex, number = 2, deadlineEpochMillis = 20_000L),
@@ -68,6 +75,26 @@ class PlayingScreenTest {
             onNodeWithText("SUBMIT").assertIsEnabled().performClick()
 
             assertEquals(StoryAction.SubmitContribution, action)
+        }
+
+    @Test
+    fun `given your turn when text is typed then the change is emitted`() =
+        runComposeUiTest {
+            val actions = mutableListOf<StoryAction>()
+            setContent {
+                var uiState by remember { mutableStateOf(playing(alex.id, 7_300L)) }
+                StoryRoundTheme {
+                    StoryScreen(uiState) { action ->
+                        actions += action
+                        if (action is StoryAction.ContributionChanged) uiState = uiState.copy(contributionDraft = action.value)
+                    }
+                }
+            }
+
+            onNode(hasSetTextAction()).performTextInput("A horse arrived.")
+            onNodeWithText("SUBMIT").assertIsEnabled().performClick()
+
+            assertEquals(listOf(StoryAction.ContributionChanged("A horse arrived."), StoryAction.SubmitContribution), actions)
         }
 
     @Test

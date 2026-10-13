@@ -1,10 +1,14 @@
 package com.example.storyround.presentation.story
 
-import com.example.storyround.presentation.model.CONTRIBUTION_WARNING_LENGTH
 import com.example.storyround.presentation.model.PlayerUi
 import com.example.storyround.presentation.model.RoomUi
+import com.example.storyround.presentation.model.STORY_TEXT_WARNING_LENGTH
 import com.example.storyround.presentation.model.StorySegmentUi
 import com.example.storyround.presentation.model.URGENT_TURN_MILLIS
+
+private const val MILLIS_PER_SECOND = 1_000L
+private const val MILLIS_PER_TENTH = 100L
+private const val TENTHS_PER_SECOND = 10L
 
 internal sealed interface StoryUiState {
     data object Loading : StoryUiState
@@ -20,7 +24,7 @@ internal sealed interface StoryUiState {
             get() = isOpeningWriter && openingPromptDraft.isNotBlank()
 
         val isDraftNearLimit: Boolean
-            get() = openingPromptDraft.length >= CONTRIBUTION_WARNING_LENGTH
+            get() = openingPromptDraft.length >= STORY_TEXT_WARNING_LENGTH
     }
 
     data class Playing(
@@ -57,6 +61,32 @@ internal sealed interface StoryUiState {
             get() = isYourTurn && contributionDraft.isNotBlank()
 
         val isDraftNearLimit: Boolean
-            get() = contributionDraft.length >= CONTRIBUTION_WARNING_LENGTH
+            get() = contributionDraft.length >= STORY_TEXT_WARNING_LENGTH
+
+        val timeLeftText: String
+            get() {
+                val tenths = (timeLeftMillis + MILLIS_PER_TENTH - 1) / MILLIS_PER_TENTH
+                return "${tenths / TENTHS_PER_SECOND}.${tenths % TENTHS_PER_SECOND}"
+            }
+
+        val nextTurnLabel: String
+            get() {
+                val current = "${turnDurationMillis / MILLIS_PER_SECOND}s turn"
+                val next = nextPlayer ?: return "$current · final turn"
+                return "$current · next: ${displayName(next, lowercaseYou = true)}, ${nextTurnDurationMillis / MILLIS_PER_SECOND}s"
+            }
+
+        val newestTag: String?
+            get() = segments.lastOrNull()?.author?.let { displayName(it).uppercase() }
+
+        fun displayName(
+            player: PlayerUi,
+            lowercaseYou: Boolean = false,
+        ): String =
+            when {
+                player.id != playerId -> player.name
+                lowercaseYou -> "you"
+                else -> "You"
+            }
     }
 }

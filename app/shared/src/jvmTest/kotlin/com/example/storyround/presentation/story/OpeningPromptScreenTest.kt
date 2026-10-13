@@ -1,5 +1,9 @@
 package com.example.storyround.presentation.story
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
@@ -7,6 +11,7 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.example.storyround.presentation.model.PlayerUi
 import com.example.storyround.presentation.model.RoomUi
@@ -19,7 +24,17 @@ import kotlin.test.assertEquals
 class OpeningPromptScreenTest {
     private val alex = PlayerUi("alex", "Alex", PlayerColour.Blue)
     private val sam = PlayerUi("sam", "Sam", PlayerColour.Yellow)
-    private val room = RoomUi("AB12", alex.id, listOf(alex, sam), "", emptyList(), null, maxRounds = 2)
+    private val room =
+        RoomUi(
+            roomCode = "AB12",
+            hostId = alex.id,
+            players = listOf(alex, sam),
+            maxPlayers = 10,
+            prompt = "",
+            contributions = emptyList(),
+            turn = null,
+            maxRounds = 2,
+        )
 
     @Test
     fun `given the opening writer with a blank draft when shown then there is no timer and start is disabled`() =
@@ -46,6 +61,26 @@ class OpeningPromptScreenTest {
             onNodeWithText("START STORY").assertIsEnabled().performClick()
 
             assertEquals(StoryAction.SubmitOpeningPrompt, action)
+        }
+
+    @Test
+    fun `given the opening writer when they type then each change is emitted`() =
+        runComposeUiTest {
+            val actions = mutableListOf<StoryAction>()
+            setContent {
+                var uiState by remember { mutableStateOf(StoryUiState.OpeningPrompt(room, "", alex, isOpeningWriter = true)) }
+                StoryRoundTheme {
+                    StoryScreen(uiState) { action ->
+                        actions += action
+                        if (action is StoryAction.OpeningPromptChanged) uiState = uiState.copy(openingPromptDraft = action.value)
+                    }
+                }
+            }
+
+            onNode(hasSetTextAction()).performTextInput("A door opened.")
+            onNodeWithText("START STORY").performClick()
+
+            assertEquals(listOf(StoryAction.OpeningPromptChanged("A door opened."), StoryAction.SubmitOpeningPrompt), actions)
         }
 
     @Test

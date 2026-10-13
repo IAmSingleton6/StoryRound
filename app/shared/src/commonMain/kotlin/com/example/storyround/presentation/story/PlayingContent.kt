@@ -31,22 +31,21 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import com.example.storyround.presentation.model.MAX_CONTRIBUTION_LENGTH
 import com.example.storyround.presentation.model.PlayerUi
+import com.example.storyround.protocol.MAX_STORY_TEXT_LENGTH
 import com.example.storyround.ui.components.PlayerAvatar
 import com.example.storyround.ui.components.ReconnectingBanner
-import com.example.storyround.ui.components.StageScaffold
-import com.example.storyround.ui.components.StoryComposer
+import com.example.storyround.ui.components.StageBackground
 import com.example.storyround.ui.components.StoryPaper
 import com.example.storyround.ui.components.StoryText
-import com.example.storyround.ui.components.TurnWaitingPill
+import com.example.storyround.ui.components.WaitingPill
+import com.example.storyround.ui.components.WritingField
 import com.example.storyround.ui.components.hardShadow
 import com.example.storyround.ui.components.tilt
 import com.example.storyround.ui.theme.StoryRoundTheme
-import com.example.storyround.ui.theme.toOnUiColor
-import com.example.storyround.ui.theme.toUiColor
+import com.example.storyround.ui.theme.toColor
+import com.example.storyround.ui.theme.toContentColor
 
-private const val MILLIS_PER_SECOND = 1_000L
 private const val COLOUR_ANIMATION_MILLIS = 300
 private val CardShape = RoundedCornerShape(20.dp)
 private val TurnTagShape = RoundedCornerShape(8.dp)
@@ -57,8 +56,8 @@ private val ToastShape = RoundedCornerShape(14.dp)
 internal fun PlayingContent(
     uiState: StoryUiState.Playing,
     onAction: (StoryAction) -> Unit,
-) = StageScaffold {
-    val activePlayer = uiState.activePlayer ?: return@StageScaffold
+) = StageBackground {
+    val activePlayer = uiState.activePlayer ?: return@StageBackground
     Column(
         modifier =
             Modifier
@@ -77,15 +76,15 @@ internal fun PlayingContent(
         StoryPaper(Modifier.weight(1f).fillMaxWidth()) {
             StoryText(
                 segments = uiState.segments,
-                newestTag = uiState.newestTag(),
+                newestTag = uiState.newestTag,
             )
         }
         if (uiState.isYourTurn) {
-            StoryComposer(
+            WritingField(
                 value = uiState.contributionDraft,
                 onValueChange = { onAction(StoryAction.ContributionChanged(it)) },
                 placeholder = "Continue the story…",
-                maxLength = MAX_CONTRIBUTION_LENGTH,
+                maxLength = MAX_STORY_TEXT_LENGTH,
                 isNearLimit = uiState.isDraftNearLimit,
                 sendLabel = "SUBMIT",
                 canSend = uiState.canSubmitContribution,
@@ -93,7 +92,7 @@ internal fun PlayingContent(
                 onRandomIdea = { onAction(StoryAction.RandomContribution) },
             )
         } else {
-            TurnWaitingPill(activePlayer, "${activePlayer.name} is writing…")
+            WaitingPill(activePlayer, "${activePlayer.name} is writing…")
         }
     }
     uiState.timeUpHandOver?.let { next -> TimeUpToast("Time’s up! Over to ${uiState.displayName(next, lowercaseYou = true)}.") }
@@ -113,7 +112,7 @@ private fun TurnCard(
 ) {
     val colors = StoryRoundTheme.colors
     val typography = StoryRoundTheme.typography
-    val playerColour = activePlayer.colour.toUiColor()
+    val playerColour = activePlayer.colour.toColor()
     val timerColour by animateColorAsState(
         if (uiState.isUrgent) colors.coral else colors.onStage,
         tween(COLOUR_ANIMATION_MILLIS),
@@ -144,13 +143,13 @@ private fun TurnCard(
                             .background(playerColour, TurnTagShape)
                             .border(2.dp, colors.ink, TurnTagShape)
                             .padding(horizontal = 8.dp, vertical = 2.dp),
-                    style = typography.turnTag.copy(color = activePlayer.colour.toOnUiColor()),
+                    style = typography.turnTag.copy(color = activePlayer.colour.toContentColor()),
                 )
-                BasicText(uiState.nextTurnLabel(), style = typography.meta.copy(color = colors.onStageMuted))
+                BasicText(uiState.nextTurnLabel, style = typography.meta.copy(color = colors.onStageMuted))
             }
             Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                 BasicText(
-                    uiState.timeLeftText(),
+                    uiState.timeLeftText,
                     modifier = Modifier.alignByBaseline(),
                     style = typography.countdown.copy(color = timerColour),
                 )
@@ -201,29 +200,3 @@ private fun BoxScope.TimeUpToast(message: String) {
         maxLines = 1,
     )
 }
-
-private fun StoryUiState.Playing.timeLeftText(): String {
-    val tenths = (timeLeftMillis + 99) / 100
-    return "${tenths / 10}.${tenths % 10}"
-}
-
-private fun StoryUiState.Playing.nextTurnLabel(): String {
-    val current = "${turnDurationMillis / MILLIS_PER_SECOND}s turn"
-    val next = nextPlayer ?: return "$current · final turn"
-    return "$current · next: ${displayName(next, lowercaseYou = true)}, ${nextTurnDurationMillis / MILLIS_PER_SECOND}s"
-}
-
-private fun StoryUiState.Playing.newestTag(): String? {
-    val author = segments.lastOrNull()?.author ?: return null
-    return displayName(author).uppercase()
-}
-
-private fun StoryUiState.Playing.displayName(
-    player: PlayerUi,
-    lowercaseYou: Boolean = false,
-): String =
-    when {
-        player.id != playerId -> player.name
-        lowercaseYou -> "you"
-        else -> "You"
-    }

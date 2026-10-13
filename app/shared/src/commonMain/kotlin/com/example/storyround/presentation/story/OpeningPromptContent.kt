@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
@@ -25,16 +24,14 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.example.storyround.presentation.model.MAX_CONTRIBUTION_LENGTH
-import com.example.storyround.presentation.model.PlayerUi
-import com.example.storyround.ui.components.PlayerStrip
+import com.example.storyround.protocol.MAX_STORY_TEXT_LENGTH
 import com.example.storyround.ui.components.ReconnectingBanner
-import com.example.storyround.ui.components.SrIcon
-import com.example.storyround.ui.components.SrIcons
-import com.example.storyround.ui.components.StageScaffold
-import com.example.storyround.ui.components.StoryComposer
+import com.example.storyround.ui.components.StageBackground
 import com.example.storyround.ui.components.StoryPaper
-import com.example.storyround.ui.components.TurnWaitingPill
+import com.example.storyround.ui.components.StoryRoundIcons
+import com.example.storyround.ui.components.TintedIcon
+import com.example.storyround.ui.components.WaitingPill
+import com.example.storyround.ui.components.WritingField
 import com.example.storyround.ui.components.dashedBorder
 import com.example.storyround.ui.theme.StoryRoundTheme
 
@@ -45,7 +42,7 @@ private val NoTimerShape = RoundedCornerShape(8.dp)
 internal fun OpeningPromptContent(
     uiState: StoryUiState.OpeningPrompt,
     onAction: (StoryAction) -> Unit,
-) = StageScaffold {
+) = StageBackground {
     val openerName = uiState.openingPlayer?.name.orEmpty()
     Column(
         modifier =
@@ -71,11 +68,11 @@ internal fun OpeningPromptContent(
         )
         StoryPaper(Modifier.weight(1f).fillMaxWidth()) { EmptyStory() }
         if (uiState.isOpeningWriter) {
-            StoryComposer(
+            WritingField(
                 value = uiState.openingPromptDraft,
                 onValueChange = { onAction(StoryAction.OpeningPromptChanged(it)) },
                 placeholder = "Start the story…",
-                maxLength = MAX_CONTRIBUTION_LENGTH,
+                maxLength = MAX_STORY_TEXT_LENGTH,
                 isNearLimit = uiState.isDraftNearLimit,
                 sendLabel = "START STORY",
                 canSend = uiState.canSubmitOpeningPrompt,
@@ -83,7 +80,7 @@ internal fun OpeningPromptContent(
                 onRandomIdea = { onAction(StoryAction.RandomOpeningPrompt) },
             )
         } else {
-            uiState.openingPlayer?.let { opener -> TurnWaitingPill(opener, "Waiting for $openerName…") }
+            uiState.openingPlayer?.let { opener -> WaitingPill(opener, "Waiting for $openerName…") }
         }
     }
     if (uiState.isReconnecting) {
@@ -92,28 +89,6 @@ internal fun OpeningPromptContent(
                 .windowInsetsPadding(WindowInsets.safeDrawing)
                 .padding(horizontal = 16.dp, vertical = 8.dp),
         )
-    }
-}
-
-@Composable
-internal fun StoryTopBar(
-    label: String,
-    detail: String,
-    players: List<PlayerUi>,
-    activePlayerId: String?,
-) {
-    val colors = StoryRoundTheme.colors
-    val typography = StoryRoundTheme.typography
-    Row(
-        modifier = Modifier.fillMaxWidth().height(40.dp).padding(horizontal = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column {
-            BasicText(label, style = typography.eyebrowSmall.copy(color = colors.onStageMuted))
-            BasicText(detail, style = typography.pill.copy(color = colors.onStage))
-        }
-        PlayerStrip(players, activePlayerId)
     }
 }
 
@@ -139,7 +114,7 @@ private fun OpeningPromptCard(subtitle: String) {
                     .border(2.5.dp, colors.ink, CircleShape),
             contentAlignment = Alignment.Center,
         ) {
-            SrIcon(SrIcons.Feather, tint = colors.ink, modifier = Modifier.size(22.dp))
+            TintedIcon(StoryRoundIcons.Feather, tint = colors.ink, modifier = Modifier.size(22.dp))
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             BasicText(
@@ -173,7 +148,7 @@ private fun EmptyStory() {
             modifier = Modifier.size(64.dp).dashedBorder(2.5.dp, colors.onPaperMuted, CircleShape),
             contentAlignment = Alignment.Center,
         ) {
-            SrIcon(SrIcons.Feather, tint = colors.onPaperMuted, modifier = Modifier.size(28.dp))
+            TintedIcon(StoryRoundIcons.Feather, tint = colors.onPaperMuted, modifier = Modifier.size(28.dp))
         }
         BasicText("Start the story…", style = typography.storyPlaceholder.copy(color = colors.onPaperMuted))
         BasicText(

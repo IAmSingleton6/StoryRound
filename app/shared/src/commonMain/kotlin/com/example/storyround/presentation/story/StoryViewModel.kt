@@ -2,23 +2,23 @@ package com.example.storyround.presentation.story
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.storyround.configuration.GameConfiguration
 import com.example.storyround.domain.idea.StoryIdeaProvider
-import com.example.storyround.domain.model.RemoteGameState
+import com.example.storyround.domain.model.GameState
 import com.example.storyround.domain.repository.GameRepository
 import com.example.storyround.domain.usecase.SubmitContributionUseCase
 import com.example.storyround.domain.usecase.SubmitPromptUseCase
+import com.example.storyround.presentation.WhileUiSubscribed
 import com.example.storyround.presentation.mapper.RoomUiMapper
-import com.example.storyround.presentation.model.MAX_CONTRIBUTION_LENGTH
 import com.example.storyround.presentation.model.RoomUi
 import com.example.storyround.presentation.model.TIME_UP_TOAST_MILLIS
-import com.example.storyround.presentation.model.storySegments
 import com.example.storyround.protocol.GameStatus
+import com.example.storyround.protocol.MAX_STORY_TEXT_LENGTH
 import com.example.storyround.protocol.RoomState
+import com.example.storyround.rules.TurnRules
 import com.example.storyround.time.TimeProvider
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
@@ -30,13 +30,15 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+private const val COUNTDOWN_TICK_MILLIS = 100L
+
 internal class StoryViewModel(
     private val repository: GameRepository,
     private val submitPromptUseCase: SubmitPromptUseCase,
     private val submitContributionUseCase: SubmitContributionUseCase,
     private val timeProvider: TimeProvider,
     private val roomUiMapper: RoomUiMapper,
-    private val gameConfiguration: GameConfiguration,
+    private val turnRules: TurnRules,
     private val storyIdeaProvider: StoryIdeaProvider,
 ) : ViewModel() {
     private val openingPromptDraft = MutableStateFlow("")
@@ -55,20 +57,11 @@ internal class StoryViewModel(
             val room = state.room ?: return@combine StoryUiState.Loading
             val roomUi = roomUiMapper.map(room)
             when (room.status) {
-                GameStatus.Prompt -> {
-                    val openingPlayerId = room.openingPlayerId ?: room.hostId
-                    StoryUiState.OpeningPrompt(
-                        room = roomUi,
-                        openingPromptDraft = prompt,
-                        openingPlayer = roomUi.players.firstOrNull { it.id == openingPlayerId },
-                        isOpeningWriter = openingPlayerId == state.playerId,
-                        isReconnecting = !state.isConnected,
-                    )
-                }
+                GameStatus.Prompt -> openingPrompt(state, room, roomUi, prompt)
                 GameStatus.Playing -> playing(state, room, roomUi, time, contribution, handOverPlayerId)
-                else -> StoryUiState.Loading
+                GameStatus.Lobby, GameStatus.Finished -> StoryUiState.Loading
             }
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), StoryUiState.Loading)
+        }.stateIn(viewModelScope, WhileUiSubscribed, StoryUiState.Loading)
 
     init {
         viewModelScope.launch {
@@ -82,24 +75,39 @@ internal class StoryViewModel(
 
     fun onAction(action: StoryAction) {
         when (action) {
-            is StoryAction.OpeningPromptChanged -> openingPromptDraft.value = action.value.take(MAX_CONTRIBUTION_LENGTH)
+            is StoryAction.OpeningPromptChanged -> openingPromptDraft.value = action.value.take(MAX_STORY_TEXT_LENGTH)
             StoryAction.SubmitOpeningPrompt -> submitOpeningPrompt()
             StoryAction.RandomOpeningPrompt -> openingPromptDraft.value = storyIdeaProvider.openingIdea(openingPromptDraft.value)
-            is StoryAction.ContributionChanged -> contributionDraft.value = action.value.take(MAX_CONTRIBUTION_LENGTH)
+            is StoryAction.ContributionChanged -> contributionDraft.value = action.value.take(MAX_STORY_TEXT_LENGTH)
             StoryAction.SubmitContribution -> submitContribution()
             StoryAction.RandomContribution ->
-                contributionDraft.value =
-                    storyIdeaProvider.continuationIdea(storySoFar(), contributionDraft.value)
+                contributionDraft.value = storyIdeaProvider.continuationIdea(latestPiece(), contributionDraft.value)
         }
     }
 
-    private fun storySoFar(): String {
+    private fun latestPiece(): String {
         val room = repository.state.value.room ?: return ""
         return room.contributions.lastOrNull()?.text ?: room.prompt.orEmpty()
     }
 
+    private fun openingPrompt(
+        state: GameState,
+        room: RoomState,
+        roomUi: RoomUi,
+        draft: String,
+    ): StoryUiState.OpeningPrompt {
+        val openingPlayerId = room.openingPlayerId ?: room.hostId
+        return StoryUiState.OpeningPrompt(
+            room = roomUi,
+            openingPromptDraft = draft,
+            openingPlayer = roomUi.players.firstOrNull { it.id == openingPlayerId },
+            isOpeningWriter = openingPlayerId == state.playerId,
+            isReconnecting = !state.isConnected,
+        )
+    }
+
     private fun playing(
-        state: RemoteGameState,
+        state: GameState,
         room: RoomState,
         roomUi: RoomUi,
         time: Long,
@@ -107,20 +115,20 @@ internal class StoryViewModel(
         handOverPlayerId: String?,
     ): StoryUiState.Playing {
         val playerCount = roomUi.players.size.coerceAtLeast(1)
-        val totalTurns = room.maxRounds * playerCount
         val nextTurnNumber = room.turnNumber + 1
+        val isFinalTurn = turnRules.isComplete(nextTurnNumber, playerCount, room.maxRounds)
         return StoryUiState.Playing(
             room = roomUi,
             playerId = state.playerId,
             nowEpochMillis = time,
             contributionDraft = contribution,
-            segments = storySegments(roomUi.prompt, roomUi.promptAuthor, roomUi.contributions),
-            round = room.turnNumber / playerCount + 1,
+            segments = roomUi.segments,
+            round = turnRules.round(room.turnNumber, playerCount),
             turn = room.turnNumber + 1,
-            totalTurns = totalTurns,
-            turnDurationMillis = gameConfiguration.turnDurationMillis(room.turnNumber),
-            nextPlayer = roomUi.players.takeIf { nextTurnNumber < totalTurns }?.getOrNull(nextTurnNumber % playerCount),
-            nextTurnDurationMillis = gameConfiguration.turnDurationMillis(nextTurnNumber),
+            totalTurns = turnRules.totalTurns(playerCount, room.maxRounds),
+            turnDurationMillis = turnRules.durationMillis(room.turnNumber),
+            nextPlayer = if (isFinalTurn) null else roomUi.players.getOrNull(turnRules.playerIndex(nextTurnNumber, playerCount)),
+            nextTurnDurationMillis = turnRules.durationMillis(nextTurnNumber),
             timeUpHandOver = roomUi.players.firstOrNull { it.id == handOverPlayerId },
             isReconnecting = !state.isConnected,
         )
@@ -158,11 +166,11 @@ internal class StoryViewModel(
         }
     }
 
-    private fun ticker(deadline: Long?) =
+    private fun ticker(deadline: Long?): Flow<Long> =
         flow {
             while (deadline != null && timeProvider.nowEpochMillis() <= deadline) {
                 emit(timeProvider.nowEpochMillis())
-                delay(100)
+                delay(COUNTDOWN_TICK_MILLIS)
             }
             emit(timeProvider.nowEpochMillis())
         }
