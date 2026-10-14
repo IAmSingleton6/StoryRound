@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -28,8 +29,10 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
@@ -51,8 +54,10 @@ internal fun WritingField(
     sendLabel: String,
     canSend: Boolean,
     onSend: () -> Unit,
-    onRandomIdea: () -> Unit,
+    onRandomIdea: (() -> Unit)?,
     modifier: Modifier = Modifier,
+    error: String? = null,
+    singleWord: Boolean = false,
 ) {
     val colors = StoryRoundTheme.colors
     val typography = StoryRoundTheme.typography
@@ -82,11 +87,13 @@ internal fun WritingField(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .height(76.dp)
+                    .then(if (singleWord) Modifier else Modifier.height(76.dp))
                     .focusRequester(focusRequester)
                     .semantics { contentDescription = placeholder },
             textStyle = typography.storyInput.copy(color = colors.ink),
-            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Default),
+            keyboardOptions = keyboardOptions(singleWord),
+            keyboardActions = KeyboardActions(onSend = { if (canSend) onSend() }),
+            singleLine = singleWord,
             cursorBrush = SolidColor(colors.ink),
             decorationBox = { innerTextField ->
                 Box {
@@ -101,6 +108,7 @@ internal fun WritingField(
             length = value.length,
             maxLength = maxLength,
             isNearLimit = isNearLimit,
+            error = error,
             sendLabel = sendLabel,
             canSend = canSend,
             onSend = onSend,
@@ -109,15 +117,23 @@ internal fun WritingField(
     }
 }
 
+private fun keyboardOptions(singleWord: Boolean): KeyboardOptions =
+    if (singleWord) {
+        KeyboardOptions(capitalization = KeyboardCapitalization.None, imeAction = ImeAction.Send)
+    } else {
+        KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Default)
+    }
+
 @Composable
 private fun WritingFieldFooter(
     length: Int,
     maxLength: Int,
     isNearLimit: Boolean,
+    error: String?,
     sendLabel: String,
     canSend: Boolean,
     onSend: () -> Unit,
-    onRandomIdea: () -> Unit,
+    onRandomIdea: (() -> Unit)?,
 ) {
     val colors = StoryRoundTheme.colors
     val typography = StoryRoundTheme.typography
@@ -126,12 +142,20 @@ private fun WritingFieldFooter(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        BasicText(
-            text = "$length/$maxLength",
-            modifier = Modifier.weight(1f),
-            style = typography.counter.copy(color = if (isNearLimit) colors.coralInk else colors.onPaperMuted),
-        )
-        IdeaButton(onRandomIdea)
+        if (error != null) {
+            BasicText(
+                text = error,
+                modifier = Modifier.weight(1f).semantics { liveRegion = LiveRegionMode.Polite },
+                style = typography.counter.copy(color = colors.coralInk),
+            )
+        } else {
+            BasicText(
+                text = "$length/$maxLength",
+                modifier = Modifier.weight(1f),
+                style = typography.counter.copy(color = if (isNearLimit) colors.coralInk else colors.onPaperMuted),
+            )
+        }
+        onRandomIdea?.let { IdeaButton(it) }
         RaisedButton(
             label = sendLabel,
             onClick = onSend,

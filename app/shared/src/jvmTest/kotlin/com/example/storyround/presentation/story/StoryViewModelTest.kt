@@ -14,7 +14,10 @@ import com.example.storyround.protocol.Contribution
 import com.example.storyround.protocol.GameStatus
 import com.example.storyround.protocol.Player
 import com.example.storyround.protocol.PlayerColour
+import com.example.storyround.protocol.RoomSettings
 import com.example.storyround.protocol.RoomState
+import com.example.storyround.protocol.UserTextSanitizerImpl
+import com.example.storyround.protocol.UserTextValidatorImpl
 import com.example.storyround.rules.TurnRulesImpl
 import com.example.storyround.time.TimeProvider
 import io.mockk.coVerify
@@ -54,6 +57,7 @@ class StoryViewModelTest {
     private val submitContributionUseCase = mockk<SubmitContributionUseCase>(relaxed = true)
     private val timeProvider = mockk<TimeProvider> { every { nowEpochMillis() } returns 0L }
     private val storyIdeaProvider = mockk<StoryIdeaProvider>()
+    private val oneWordSettings = RoomSettings(rounds = 2, oneWordPerTurn = true)
 
     @BeforeTest
     fun setUp() {
@@ -228,6 +232,52 @@ class StoryViewModelTest {
         }
 
     @Test
+    fun `given a one word game when your draft has a space then it is invalid and the rule is explained`() =
+        runTest(dispatcher) {
+            gameState.value = GameState(room = playingRoom(turnNumber = 0).copy(settings = oneWordSettings), playerId = alex.id)
+            val viewModel = viewModel()
+            runCurrent()
+
+            viewModel.onAction(StoryAction.ContributionChanged("a horse"))
+            runCurrent()
+
+            val uiState = assertIs<StoryUiState.Playing>(viewModel.uiState.value)
+            assertTrue(uiState.oneWordPerTurn)
+            assertFalse(uiState.isDraftValid)
+            assertEquals("One word only, no spaces", uiState.draftError)
+        }
+
+    @Test
+    fun `given a one word game when your draft is a single word with a trailing space then it is valid`() =
+        runTest(dispatcher) {
+            gameState.value = GameState(room = playingRoom(turnNumber = 0).copy(settings = oneWordSettings), playerId = alex.id)
+            val viewModel = viewModel()
+            runCurrent()
+
+            viewModel.onAction(StoryAction.ContributionChanged("horse "))
+            runCurrent()
+
+            val uiState = assertIs<StoryUiState.Playing>(viewModel.uiState.value)
+            assertTrue(uiState.isDraftValid)
+            assertNull(uiState.draftError)
+        }
+
+    @Test
+    fun `given a one word game when a long opening draft is typed then it is cut to the word limit`() =
+        runTest(dispatcher) {
+            gameState.value = GameState(room = promptRoom(openingPlayer = alex).copy(settings = oneWordSettings), playerId = alex.id)
+            val viewModel = viewModel()
+
+            viewModel.onAction(StoryAction.OpeningPromptChanged("a".repeat(40)))
+            advanceUntilIdle()
+
+            val uiState = assertIs<StoryUiState.OpeningPrompt>(viewModel.uiState.value)
+            assertEquals(30, uiState.maxDraftLength)
+            assertEquals(30, uiState.openingPromptDraft.length)
+            assertTrue(uiState.canSubmitOpeningPrompt)
+        }
+
+    @Test
     fun `given no room when observed then the story is loading`() =
         runTest(dispatcher) {
             val viewModel = viewModel()
@@ -246,6 +296,7 @@ class StoryViewModelTest {
                 roomUiMapper = RoomUiMapperImpl(PlayerUiMapperImpl(), ContributionUiMapperImpl(), StorySegmentMapperImpl()),
                 turnRules = TurnRulesImpl(configuration),
                 storyIdeaProvider = storyIdeaProvider,
+                userTextValidator = UserTextValidatorImpl(UserTextSanitizerImpl()),
             )
         backgroundScope.launch { viewModel.uiState.collect() }
         return viewModel
@@ -259,7 +310,7 @@ class StoryViewModelTest {
             status = GameStatus.Prompt,
             openingPlayerId = openingPlayer.id,
             maxPlayers = 10,
-            maxRounds = 2,
+            settings = RoomSettings(rounds = 2),
         )
 
     private fun playingRoom(turnNumber: Int) =
@@ -275,6 +326,6 @@ class StoryViewModelTest {
             turnNumber = turnNumber,
             turnDeadlineEpochMillis = null,
             maxPlayers = 10,
-            maxRounds = 2,
+            settings = RoomSettings(rounds = 2),
         )
 }

@@ -9,6 +9,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
@@ -53,7 +54,9 @@ class OpeningPromptScreenTest {
             var action: StoryAction? = null
             setContent {
                 StoryRoundTheme {
-                    StoryScreen(StoryUiState.OpeningPrompt(room, "A door opened.", alex, isOpeningWriter = true)) { action = it }
+                    StoryScreen(StoryUiState.OpeningPrompt(room, "A door opened.", alex, isOpeningWriter = true, isDraftValid = true)) {
+                        action = it
+                    }
                 }
             }
 
@@ -72,7 +75,9 @@ class OpeningPromptScreenTest {
                 StoryRoundTheme {
                     StoryScreen(uiState) { action ->
                         actions += action
-                        if (action is StoryAction.OpeningPromptChanged) uiState = uiState.copy(openingPromptDraft = action.value)
+                        if (action is StoryAction.OpeningPromptChanged) {
+                            uiState = uiState.copy(openingPromptDraft = action.value, isDraftValid = action.value.isNotBlank())
+                        }
                     }
                 }
             }
@@ -92,6 +97,33 @@ class OpeningPromptScreenTest {
             onNodeWithText("Waiting for Alex…").assertIsDisplayed()
             onNode(hasSetTextAction()).assertDoesNotExist()
             onNodeWithText("START STORY").assertDoesNotExist()
+        }
+
+    @Test
+    fun `given the opening writer in a one word game when shown then the first word is asked for without ideas`() =
+        runComposeUiTest {
+            val uiState = StoryUiState.OpeningPrompt(room, "", alex, isOpeningWriter = true, oneWordPerTurn = true, maxDraftLength = 30)
+            setContent { StoryRoundTheme { StoryScreen(uiState) {} } }
+
+            onNodeWithText("Write the first word. Take your time.").assertIsDisplayed()
+            onNodeWithText("The first word becomes the first coloured piece of the story.").assertIsDisplayed()
+            onNodeWithContentDescription("Start with one word…").assertIsDisplayed()
+            onNodeWithText("0/30").assertIsDisplayed()
+            onNodeWithText("Idea").assertDoesNotExist()
+        }
+
+    @Test
+    fun `given another player opens a one word game when shown then they are choosing the first word`() =
+        runComposeUiTest {
+            setContent {
+                StoryRoundTheme {
+                    StoryScreen(
+                        StoryUiState.OpeningPrompt(room, "", alex, isOpeningWriter = false, oneWordPerTurn = true),
+                    ) {}
+                }
+            }
+
+            onNodeWithText("Alex is choosing the first word…").assertIsDisplayed()
         }
 
     @Test

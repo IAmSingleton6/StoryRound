@@ -14,6 +14,7 @@ import com.example.storyround.presentation.model.TIME_UP_TOAST_MILLIS
 import com.example.storyround.protocol.GameStatus
 import com.example.storyround.protocol.MAX_STORY_TEXT_LENGTH
 import com.example.storyround.protocol.RoomState
+import com.example.storyround.protocol.UserTextValidator
 import com.example.storyround.rules.TurnRules
 import com.example.storyround.time.TimeProvider
 import kotlinx.coroutines.delay
@@ -40,6 +41,7 @@ internal class StoryViewModel(
     private val roomUiMapper: RoomUiMapper,
     private val turnRules: TurnRules,
     private val storyIdeaProvider: StoryIdeaProvider,
+    private val userTextValidator: UserTextValidator,
 ) : ViewModel() {
     private val openingPromptDraft = MutableStateFlow("")
     private val contributionDraft = MutableStateFlow("")
@@ -75,15 +77,20 @@ internal class StoryViewModel(
 
     fun onAction(action: StoryAction) {
         when (action) {
-            is StoryAction.OpeningPromptChanged -> openingPromptDraft.value = action.value.take(MAX_STORY_TEXT_LENGTH)
+            is StoryAction.OpeningPromptChanged -> openingPromptDraft.value = action.value.take(maxDraftLength())
             StoryAction.SubmitOpeningPrompt -> submitOpeningPrompt()
             StoryAction.RandomOpeningPrompt -> openingPromptDraft.value = storyIdeaProvider.openingIdea(openingPromptDraft.value)
-            is StoryAction.ContributionChanged -> contributionDraft.value = action.value.take(MAX_STORY_TEXT_LENGTH)
+            is StoryAction.ContributionChanged -> contributionDraft.value = action.value.take(maxDraftLength())
             StoryAction.SubmitContribution -> submitContribution()
             StoryAction.RandomContribution ->
                 contributionDraft.value = storyIdeaProvider.continuationIdea(latestPiece(), contributionDraft.value)
         }
     }
+
+    private fun maxDraftLength(): Int =
+        repository.state.value.room
+            ?.settings
+            ?.maxStoryTextLength ?: MAX_STORY_TEXT_LENGTH
 
     private fun latestPiece(): String {
         val room = repository.state.value.room ?: return ""
@@ -103,6 +110,9 @@ internal class StoryViewModel(
             openingPlayer = roomUi.players.firstOrNull { it.id == openingPlayerId },
             isOpeningWriter = openingPlayerId == state.playerId,
             isReconnecting = !state.isConnected,
+            oneWordPerTurn = room.settings.oneWordPerTurn,
+            maxDraftLength = room.settings.maxStoryTextLength,
+            isDraftValid = userTextValidator.validStoryText(draft, room.settings) != null,
         )
     }
 
@@ -116,7 +126,7 @@ internal class StoryViewModel(
     ): StoryUiState.Playing {
         val playerCount = roomUi.players.size.coerceAtLeast(1)
         val nextTurnNumber = room.turnNumber + 1
-        val isFinalTurn = turnRules.isComplete(nextTurnNumber, playerCount, room.maxRounds)
+        val isFinalTurn = turnRules.isComplete(nextTurnNumber, playerCount, room.settings.rounds)
         return StoryUiState.Playing(
             room = roomUi,
             playerId = state.playerId,
@@ -125,12 +135,15 @@ internal class StoryViewModel(
             segments = roomUi.segments,
             round = turnRules.round(room.turnNumber, playerCount),
             turn = room.turnNumber + 1,
-            totalTurns = turnRules.totalTurns(playerCount, room.maxRounds),
+            totalTurns = turnRules.totalTurns(playerCount, room.settings.rounds),
             turnDurationMillis = turnRules.durationMillis(room.turnNumber),
             nextPlayer = if (isFinalTurn) null else roomUi.players.getOrNull(turnRules.playerIndex(nextTurnNumber, playerCount)),
             nextTurnDurationMillis = turnRules.durationMillis(nextTurnNumber),
             timeUpHandOver = roomUi.players.firstOrNull { it.id == handOverPlayerId },
             isReconnecting = !state.isConnected,
+            oneWordPerTurn = room.settings.oneWordPerTurn,
+            maxDraftLength = room.settings.maxStoryTextLength,
+            isDraftValid = userTextValidator.validStoryText(contribution, room.settings) != null,
         )
     }
 

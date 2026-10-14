@@ -12,6 +12,7 @@ import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.example.storyround.presentation.model.PlayerUi
@@ -34,6 +35,8 @@ class PlayingScreenTest {
         draft: String = "",
         nextPlayer: PlayerUi? = sam,
         timeUpHandOver: PlayerUi? = null,
+        isDraftValid: Boolean = draft.isNotBlank(),
+        oneWordPerTurn: Boolean = false,
     ) = StoryUiState.Playing(
         room =
             RoomUi(
@@ -58,6 +61,9 @@ class PlayingScreenTest {
         nextPlayer = nextPlayer,
         nextTurnDurationMillis = 12_000L,
         timeUpHandOver = timeUpHandOver,
+        oneWordPerTurn = oneWordPerTurn,
+        maxDraftLength = if (oneWordPerTurn) 30 else 280,
+        isDraftValid = isDraftValid,
     )
 
     @Test
@@ -86,7 +92,9 @@ class PlayingScreenTest {
                 StoryRoundTheme {
                     StoryScreen(uiState) { action ->
                         actions += action
-                        if (action is StoryAction.ContributionChanged) uiState = uiState.copy(contributionDraft = action.value)
+                        if (action is StoryAction.ContributionChanged) {
+                            uiState = uiState.copy(contributionDraft = action.value, isDraftValid = action.value.isNotBlank())
+                        }
                     }
                 }
             }
@@ -116,6 +124,48 @@ class PlayingScreenTest {
             onNodeWithText("Alex is writing…").assertIsDisplayed()
             onNodeWithContentDescription("A door opened.").assertIsDisplayed()
             onNodeWithText("SUBMIT").assertDoesNotExist()
+        }
+
+    @Test
+    fun `given your turn in a one word game when shown then the field asks for one word without ideas`() =
+        runComposeUiTest {
+            setContent { StoryRoundTheme { StoryScreen(playing(alex.id, 7_300L, oneWordPerTurn = true)) {} } }
+
+            onNodeWithText("ONE WORD").assertIsDisplayed()
+            onNodeWithContentDescription("Add one word…").assertIsDisplayed()
+            onNodeWithText("0/30").assertIsDisplayed()
+            onNodeWithText("Idea").assertDoesNotExist()
+        }
+
+    @Test
+    fun `given your turn in a one word game with two words when shown then the rule is explained and submit is disabled`() =
+        runComposeUiTest {
+            setContent {
+                StoryRoundTheme { StoryScreen(playing(alex.id, 7_300L, draft = "a horse", isDraftValid = false, oneWordPerTurn = true)) {} }
+            }
+
+            onNodeWithText("One word only, no spaces").assertIsDisplayed()
+            onNodeWithText("SUBMIT").assertIsNotEnabled()
+        }
+
+    @Test
+    fun `given your turn in a one word game with a word when the keyboard send key is pressed then it is submitted`() =
+        runComposeUiTest {
+            var action: StoryAction? = null
+            setContent { StoryRoundTheme { StoryScreen(playing(alex.id, 7_300L, draft = "horse", oneWordPerTurn = true)) { action = it } } }
+
+            onNode(hasSetTextAction()).performImeAction()
+
+            assertEquals(StoryAction.SubmitContribution, action)
+        }
+
+    @Test
+    fun `given someone else's turn in a one word game when shown then they are picking a word`() =
+        runComposeUiTest {
+            setContent { StoryRoundTheme { StoryScreen(playing(sam.id, 4_200L, oneWordPerTurn = true)) {} } }
+
+            onNodeWithText("Alex is picking a word…").assertIsDisplayed()
+            onNodeWithText("ONE WORD").assertIsDisplayed()
         }
 
     @Test

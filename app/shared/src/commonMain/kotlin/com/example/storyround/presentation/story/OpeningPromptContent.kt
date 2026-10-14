@@ -24,7 +24,6 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.example.storyround.protocol.MAX_STORY_TEXT_LENGTH
 import com.example.storyround.ui.components.ReconnectingBanner
 import com.example.storyround.ui.components.StageBackground
 import com.example.storyround.ui.components.StoryPaper
@@ -60,24 +59,27 @@ internal fun OpeningPromptContent(
         )
         OpeningPromptCard(
             subtitle =
-                if (uiState.isOpeningWriter) {
-                    "Write the opening line or premise. Take your time."
-                } else {
-                    "$openerName is starting the story…"
+                when {
+                    uiState.isOpeningWriter && uiState.oneWordPerTurn -> "Write the first word. Take your time."
+                    uiState.isOpeningWriter -> "Write the opening line or premise. Take your time."
+                    uiState.oneWordPerTurn -> "$openerName is choosing the first word…"
+                    else -> "$openerName is starting the story…"
                 },
         )
-        StoryPaper(Modifier.weight(1f).fillMaxWidth()) { EmptyStory() }
+        StoryPaper(Modifier.weight(1f).fillMaxWidth()) { EmptyStory(uiState.oneWordPerTurn) }
         if (uiState.isOpeningWriter) {
             WritingField(
                 value = uiState.openingPromptDraft,
                 onValueChange = { onAction(StoryAction.OpeningPromptChanged(it)) },
-                placeholder = "Start the story…",
-                maxLength = MAX_STORY_TEXT_LENGTH,
+                placeholder = if (uiState.oneWordPerTurn) "Start with one word…" else "Start the story…",
+                maxLength = uiState.maxDraftLength,
                 isNearLimit = uiState.isDraftNearLimit,
                 sendLabel = "START STORY",
                 canSend = uiState.canSubmitOpeningPrompt,
                 onSend = { onAction(StoryAction.SubmitOpeningPrompt) },
-                onRandomIdea = { onAction(StoryAction.RandomOpeningPrompt) },
+                onRandomIdea = if (uiState.oneWordPerTurn) null else ({ onAction(StoryAction.RandomOpeningPrompt) }),
+                error = uiState.draftError,
+                singleWord = uiState.oneWordPerTurn,
             )
         } else {
             uiState.openingPlayer?.let { opener -> WaitingPill(opener, "Waiting for $openerName…") }
@@ -136,7 +138,7 @@ private fun OpeningPromptCard(subtitle: String) {
 }
 
 @Composable
-private fun EmptyStory() {
+private fun EmptyStory(oneWordPerTurn: Boolean) {
     val colors = StoryRoundTheme.colors
     val typography = StoryRoundTheme.typography
     Column(
@@ -152,7 +154,12 @@ private fun EmptyStory() {
         }
         BasicText("Start the story…", style = typography.storyPlaceholder.copy(color = colors.onPaperMuted))
         BasicText(
-            text = "The opening line becomes the first coloured piece of the story.",
+            text =
+                if (oneWordPerTurn) {
+                    "The first word becomes the first coloured piece of the story."
+                } else {
+                    "The opening line becomes the first coloured piece of the story."
+                },
             modifier = Modifier.widthIn(max = 250.dp),
             style = typography.caption.copy(color = colors.onPaperMuted, textAlign = TextAlign.Center),
         )

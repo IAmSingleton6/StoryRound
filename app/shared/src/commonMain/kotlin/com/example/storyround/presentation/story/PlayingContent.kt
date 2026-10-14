@@ -32,7 +32,6 @@ import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.example.storyround.presentation.model.PlayerUi
-import com.example.storyround.protocol.MAX_STORY_TEXT_LENGTH
 import com.example.storyround.ui.components.PlayerAvatar
 import com.example.storyround.ui.components.ReconnectingBanner
 import com.example.storyround.ui.components.StageBackground
@@ -83,16 +82,21 @@ internal fun PlayingContent(
             WritingField(
                 value = uiState.contributionDraft,
                 onValueChange = { onAction(StoryAction.ContributionChanged(it)) },
-                placeholder = "Continue the story…",
-                maxLength = MAX_STORY_TEXT_LENGTH,
+                placeholder = if (uiState.oneWordPerTurn) "Add one word…" else "Continue the story…",
+                maxLength = uiState.maxDraftLength,
                 isNearLimit = uiState.isDraftNearLimit,
                 sendLabel = "SUBMIT",
                 canSend = uiState.canSubmitContribution,
                 onSend = { onAction(StoryAction.SubmitContribution) },
-                onRandomIdea = { onAction(StoryAction.RandomContribution) },
+                onRandomIdea = if (uiState.oneWordPerTurn) null else ({ onAction(StoryAction.RandomContribution) }),
+                error = uiState.draftError,
+                singleWord = uiState.oneWordPerTurn,
             )
         } else {
-            WaitingPill(activePlayer, "${activePlayer.name} is writing…")
+            WaitingPill(
+                activePlayer,
+                if (uiState.oneWordPerTurn) "${activePlayer.name} is picking a word…" else "${activePlayer.name} is writing…",
+            )
         }
     }
     uiState.timeUpHandOver?.let { next -> TimeUpToast("Time’s up! Over to ${uiState.displayName(next, lowercaseYou = true)}.") }
@@ -135,16 +139,19 @@ private fun TurnCard(
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
             PlayerAvatar(activePlayer, size = 44.dp, borderWidth = 2.5.dp)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                BasicText(
-                    text = if (uiState.isYourTurn) "YOUR TURN" else "${activePlayer.name.uppercase()}’S TURN",
-                    modifier =
-                        Modifier
-                            .semantics { liveRegion = LiveRegionMode.Polite }
-                            .background(playerColour, TurnTagShape)
-                            .border(2.dp, colors.ink, TurnTagShape)
-                            .padding(horizontal = 8.dp, vertical = 2.dp),
-                    style = typography.turnTag.copy(color = activePlayer.colour.toContentColor()),
-                )
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    BasicText(
+                        text = if (uiState.isYourTurn) "YOUR TURN" else "${activePlayer.name.uppercase()}’S TURN",
+                        modifier =
+                            Modifier
+                                .semantics { liveRegion = LiveRegionMode.Polite }
+                                .background(playerColour, TurnTagShape)
+                                .border(2.dp, colors.ink, TurnTagShape)
+                                .padding(horizontal = 8.dp, vertical = 2.dp),
+                        style = typography.turnTag.copy(color = activePlayer.colour.toContentColor()),
+                    )
+                    if (uiState.oneWordPerTurn) OneWordTag()
+                }
                 BasicText(uiState.nextTurnLabel, style = typography.meta.copy(color = colors.onStageMuted))
             }
             Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -158,6 +165,19 @@ private fun TurnCard(
         }
         TimeLeftBar(uiState.timeLeftFraction, barColour)
     }
+}
+
+@Composable
+private fun OneWordTag() {
+    val colors = StoryRoundTheme.colors
+    BasicText(
+        "ONE WORD",
+        modifier =
+            Modifier
+                .border(2.dp, colors.marigoldOutline, TurnTagShape)
+                .padding(horizontal = 7.dp, vertical = 3.dp),
+        style = StoryRoundTheme.typography.tag.copy(color = colors.marigold),
+    )
 }
 
 @Composable

@@ -5,10 +5,13 @@ import com.example.storyround.presentation.model.RoomUi
 import com.example.storyround.presentation.model.STORY_TEXT_WARNING_LENGTH
 import com.example.storyround.presentation.model.StorySegmentUi
 import com.example.storyround.presentation.model.URGENT_TURN_MILLIS
+import com.example.storyround.presentation.model.WORD_WARNING_LENGTH
+import com.example.storyround.protocol.MAX_STORY_TEXT_LENGTH
 
 private const val MILLIS_PER_SECOND = 1_000L
 private const val MILLIS_PER_TENTH = 100L
 private const val TENTHS_PER_SECOND = 10L
+private const val ONE_WORD_ERROR = "One word only, no spaces"
 
 internal sealed interface StoryUiState {
     data object Loading : StoryUiState
@@ -19,12 +22,18 @@ internal sealed interface StoryUiState {
         val openingPlayer: PlayerUi?,
         val isOpeningWriter: Boolean,
         val isReconnecting: Boolean = false,
+        val oneWordPerTurn: Boolean = false,
+        val maxDraftLength: Int = MAX_STORY_TEXT_LENGTH,
+        val isDraftValid: Boolean = false,
     ) : StoryUiState {
         val canSubmitOpeningPrompt: Boolean
-            get() = isOpeningWriter && openingPromptDraft.isNotBlank()
+            get() = isOpeningWriter && isDraftValid
 
         val isDraftNearLimit: Boolean
-            get() = openingPromptDraft.length >= STORY_TEXT_WARNING_LENGTH
+            get() = isNearLimit(openingPromptDraft, oneWordPerTurn)
+
+        val draftError: String?
+            get() = oneWordError(openingPromptDraft, oneWordPerTurn, isDraftValid)
     }
 
     data class Playing(
@@ -41,6 +50,9 @@ internal sealed interface StoryUiState {
         val nextTurnDurationMillis: Long = 0,
         val timeUpHandOver: PlayerUi? = null,
         val isReconnecting: Boolean = false,
+        val oneWordPerTurn: Boolean = false,
+        val maxDraftLength: Int = MAX_STORY_TEXT_LENGTH,
+        val isDraftValid: Boolean = false,
     ) : StoryUiState {
         val activePlayer: PlayerUi?
             get() = room.turn?.player
@@ -58,10 +70,13 @@ internal sealed interface StoryUiState {
             get() = timeLeftMillis <= URGENT_TURN_MILLIS
 
         val canSubmitContribution: Boolean
-            get() = isYourTurn && contributionDraft.isNotBlank()
+            get() = isYourTurn && isDraftValid
 
         val isDraftNearLimit: Boolean
-            get() = contributionDraft.length >= STORY_TEXT_WARNING_LENGTH
+            get() = isNearLimit(contributionDraft, oneWordPerTurn)
+
+        val draftError: String?
+            get() = oneWordError(contributionDraft, oneWordPerTurn, isDraftValid)
 
         val timeLeftText: String
             get() {
@@ -90,3 +105,14 @@ internal sealed interface StoryUiState {
             }
     }
 }
+
+private fun isNearLimit(
+    draft: String,
+    oneWordPerTurn: Boolean,
+): Boolean = draft.length >= if (oneWordPerTurn) WORD_WARNING_LENGTH else STORY_TEXT_WARNING_LENGTH
+
+private fun oneWordError(
+    draft: String,
+    oneWordPerTurn: Boolean,
+    isDraftValid: Boolean,
+): String? = ONE_WORD_ERROR.takeIf { oneWordPerTurn && draft.isNotBlank() && !isDraftValid }

@@ -50,12 +50,24 @@ class PlayingUiStateTest {
         assertTrue(playing(draft = "a".repeat(260)).isDraftNearLimit)
     }
 
+    @Test
+    fun `given one word turns when the draft is read then a broken word is explained and the warning comes near the word limit`() {
+        assertEquals("One word only, no spaces", playing(draft = "a horse", isDraftValid = false, oneWordPerTurn = true).draftError)
+        assertNull(playing(draft = "horse", isDraftValid = true, oneWordPerTurn = true).draftError)
+        assertNull(playing(draft = "", oneWordPerTurn = true).draftError)
+        assertNull(playing(draft = "a horse", isDraftValid = false).draftError)
+        assertTrue(playing(draft = "a".repeat(25), oneWordPerTurn = true).isDraftNearLimit)
+        assertFalse(playing(draft = "a".repeat(24), oneWordPerTurn = true).isDraftNearLimit)
+    }
+
     private fun playing(
         playerId: String = alex.id,
         timeLeftMillis: Long = 10_000L,
         nextPlayer: PlayerUi? = sam,
         segments: List<StorySegmentUi> = listOf(StorySegmentUi("A door opened.", alex)),
         draft: String = "",
+        isDraftValid: Boolean = draft.isNotBlank(),
+        oneWordPerTurn: Boolean = false,
     ) = StoryUiState.Playing(
         room =
             RoomUi(
@@ -75,5 +87,7 @@ class PlayingUiStateTest {
         turnDurationMillis = 13_000L,
         nextPlayer = nextPlayer,
         nextTurnDurationMillis = 12_000L,
+        oneWordPerTurn = oneWordPerTurn,
+        isDraftValid = isDraftValid,
     )
 }
