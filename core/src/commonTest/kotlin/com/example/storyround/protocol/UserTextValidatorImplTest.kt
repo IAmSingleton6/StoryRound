@@ -6,6 +6,8 @@ import kotlin.test.assertNull
 
 class UserTextValidatorImplTest {
     private val validator = UserTextValidatorImpl(UserTextSanitizerImpl())
+    private val freeWriting = RoomSettings(rounds = 3)
+    private val oneWord = RoomSettings(rounds = 3, oneWordPerTurn = true)
 
     @Test
     fun `given a padded name when validated then the sanitised name is returned`() {
@@ -20,13 +22,28 @@ class UserTextValidatorImplTest {
 
     @Test
     fun `given story text within the limit when validated then the sanitised text is returned`() {
-        assertEquals("A door opened.", validator.validStoryText(" A door\nopened. "))
-        assertEquals(MAX_STORY_TEXT_LENGTH, validator.validStoryText("a".repeat(MAX_STORY_TEXT_LENGTH))?.length)
+        assertEquals("A door opened.", validator.validStoryText(" A door\nopened. ", freeWriting))
+        assertEquals(MAX_STORY_TEXT_LENGTH, validator.validStoryText("a".repeat(MAX_STORY_TEXT_LENGTH), freeWriting)?.length)
     }
 
     @Test
     fun `given blank or over-long story text when validated then it is rejected`() {
-        assertNull(validator.validStoryText(" ​\n "))
-        assertNull(validator.validStoryText("a".repeat(MAX_STORY_TEXT_LENGTH + 1)))
+        assertNull(validator.validStoryText(" ​\n ", freeWriting))
+        assertNull(validator.validStoryText("a".repeat(MAX_STORY_TEXT_LENGTH + 1), freeWriting))
+    }
+
+    @Test
+    fun `given one word turns and a padded word with punctuation when validated then the sanitised word is returned`() {
+        assertEquals("\"Hello,", validator.validStoryText("  \"Hello, \n", oneWord))
+        assertEquals("mother-in-law's", validator.validStoryText("mother-in-law's", oneWord))
+        assertEquals(MAX_WORD_LENGTH, validator.validStoryText("a".repeat(MAX_WORD_LENGTH), oneWord)?.length)
+    }
+
+    @Test
+    fun `given one word turns and several words, a blank or an over-long word when validated then it is rejected`() {
+        assertNull(validator.validStoryText("a horse", oneWord))
+        assertNull(validator.validStoryText("a\nhorse", oneWord))
+        assertNull(validator.validStoryText(" ​ ", oneWord))
+        assertNull(validator.validStoryText("a".repeat(MAX_WORD_LENGTH + 1), oneWord))
     }
 }
