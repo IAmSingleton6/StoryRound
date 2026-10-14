@@ -1,6 +1,7 @@
 package com.example.storyround.game
 
 import com.example.storyround.protocol.GameStatus
+import com.example.storyround.protocol.RoomSettings
 import com.example.storyround.protocol.RoomState
 import com.example.storyround.room.RegistryResult
 import com.example.storyround.room.RoomRegistry
@@ -21,7 +22,15 @@ class TurnExpirySchedulerImplTest {
     private val registry = mockk<RoomRegistry>()
     private val timeProvider = mockk<TimeProvider> { every { nowEpochMillis() } returns 1_000L }
     private val room =
-        RoomState("AB12", "host", emptyList(), GameStatus.Playing, turnDeadlineEpochMillis = 16_000L, maxPlayers = 10, maxRounds = 1)
+        RoomState(
+            "AB12",
+            "host",
+            emptyList(),
+            GameStatus.Playing,
+            turnDeadlineEpochMillis = 16_000L,
+            maxPlayers = 10,
+            settings = RoomSettings(rounds = 1),
+        )
 
     @Test
     fun `given a turn with a deadline when the deadline passes then the turn is expired and the result handed on`() =

@@ -2,6 +2,7 @@ package com.example.storyround
 
 import com.example.storyround.configuration.GameConfiguration
 import com.example.storyround.protocol.ClientMessage
+import com.example.storyround.protocol.RoomSettings
 import com.example.storyround.protocol.ServerMessage
 import com.example.storyround.protocol.UserTextSanitizerImpl
 import com.example.storyround.protocol.UserTextValidatorImpl
@@ -78,7 +79,7 @@ class GameWebSocketTest {
             host.receiveMessage()
             host.receiveMessage()
 
-            host.sendMessage(ClientMessage.StartGame("AB12", hostPlayer.id, hostPlayer.id, maxRounds = 3))
+            host.sendMessage(ClientMessage.StartGame("AB12", hostPlayer.id, hostPlayer.id, settings = RoomSettings(rounds = 3)))
             host.receiveMessage()
             guest.receiveMessage()
             host.sendMessage(ClientMessage.SubmitPrompt("AB12", hostPlayer.id, "A door opened."))
@@ -91,6 +92,29 @@ class GameWebSocketTest {
 
             val error = assertIs<ServerMessage.Error>(guest.receiveMessage())
             assertEquals("NOT_CURRENT_PLAYER", error.code)
+        }
+
+    @Test
+    fun `given a one word game when the opening writer sends several words then the server sends an error`() =
+        testApplication {
+            application {
+                module(newRegistry())
+            }
+            val client = createClient { install(WebSockets) }
+            val host = client.webSocketSession("/game")
+            host.sendMessage(ClientMessage.CreateRoom("Alex"))
+            val session = assertIs<ServerMessage.SessionEstablished>(host.receiveMessage())
+            host.receiveMessage()
+            host.receiveMessage()
+            val settings = RoomSettings(rounds = 1, oneWordPerTurn = true)
+            host.sendMessage(ClientMessage.StartGame("AB12", session.playerId, session.playerId, settings))
+            val started = assertIs<ServerMessage.RoomStateChanged>(host.receiveMessage())
+
+            host.sendMessage(ClientMessage.SubmitPrompt("AB12", session.playerId, "A door opened."))
+
+            val error = assertIs<ServerMessage.Error>(host.receiveMessage())
+            assertEquals(settings, started.room.settings)
+            assertEquals("INVALID_WORD", error.code)
         }
 
     @Test
@@ -128,7 +152,7 @@ class GameWebSocketTest {
             val session = assertIs<ServerMessage.SessionEstablished>(host.receiveMessage())
             host.receiveMessage()
             host.receiveMessage()
-            host.sendMessage(ClientMessage.StartGame("AB12", session.playerId, session.playerId, maxRounds = 1))
+            host.sendMessage(ClientMessage.StartGame("AB12", session.playerId, session.playerId, settings = RoomSettings(rounds = 1)))
             host.receiveMessage()
             host.sendMessage(ClientMessage.SubmitPrompt("AB12", session.playerId, "A door opened."))
             host.receiveMessage()
@@ -169,7 +193,9 @@ class GameWebSocketTest {
             host.receiveMessage()
             host.receiveMessage()
 
-            host.sendMessage(ClientMessage.StartGame("AB12", hostSession.playerId, hostSession.playerId, maxRounds = 3))
+            host.sendMessage(
+                ClientMessage.StartGame("AB12", hostSession.playerId, hostSession.playerId, settings = RoomSettings(rounds = 3)),
+            )
             host.receiveMessage()
             guest.receiveMessage()
             host.sendMessage(ClientMessage.SubmitPrompt("AB12", hostSession.playerId, "A door opened."))

@@ -3,6 +3,7 @@ package com.example.storyround.room
 import com.example.storyround.protocol.Contribution
 import com.example.storyround.protocol.GameStatus
 import com.example.storyround.protocol.Player
+import com.example.storyround.protocol.RoomSettings
 
 internal class MutableGameRoom(
     val code: String,
@@ -17,5 +18,5 @@ internal class MutableGameRoom(
     var currentPlayerId: String? = null,
     var turnNumber: Int = 0,
     var turnDeadlineEpochMillis: Long? = null,
-    var maxRounds: Int,
+    var settings: RoomSettings,
 )

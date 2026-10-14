@@ -1,5 +1,6 @@
 package com.example.storyround.room
 
+import com.example.storyround.protocol.RoomSettings
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
@@ -8,12 +9,13 @@ import kotlin.test.assertTrue
 
 class InMemoryRoomStoreTest {
     private val store = InMemoryRoomStore()
-    private val room = MutableGameRoom(code = "AB12", hostId = "host", players = mutableListOf(), maxPlayers = 10, maxRounds = 3)
+    private val room =
+        MutableGameRoom(code = "AB12", hostId = "host", players = mutableListOf(), maxPlayers = 10, settings = RoomSettings(rounds = 3))
 
     @Test
     fun `given a room code already in use when another room is created with it then creation is refused`() {
         assertTrue(store.create(room))
-        assertFalse(store.create(MutableGameRoom("AB12", "other", mutableListOf(), maxPlayers = 10, maxRounds = 3)))
+        assertFalse(store.create(MutableGameRoom("AB12", "other", mutableListOf(), maxPlayers = 10, settings = RoomSettings(rounds = 3))))
     }
 
     @Test

@@ -5,9 +5,11 @@ import com.example.storyround.protocol.Contribution
 import com.example.storyround.protocol.GameStatus
 import com.example.storyround.protocol.MAX_PLAYER_NAME_LENGTH
 import com.example.storyround.protocol.MAX_STORY_TEXT_LENGTH
+import com.example.storyround.protocol.MAX_WORD_LENGTH
 import com.example.storyround.protocol.MIN_PLAYER_NAME_LENGTH
 import com.example.storyround.protocol.Player
 import com.example.storyround.protocol.PlayerColour
+import com.example.storyround.protocol.RoomSettings
 import com.example.storyround.protocol.ServerMessage
 import com.example.storyround.protocol.UserTextValidator
 import com.example.storyround.random.RandomNumberGenerator
@@ -38,7 +40,7 @@ internal class RoomRegistryImpl(
                     players = mutableListOf(host),
                     maxPlayers = gameConfiguration.maxPlayers,
                     sessionTokens = mutableMapOf(host.id to sessionToken),
-                    maxRounds = gameConfiguration.defaultRounds,
+                    settings = RoomSettings(rounds = gameConfiguration.defaultRounds),
                 )
             if (roomStore.create(room)) {
                 return RegistryResult.Success(roomStateMapper.map(room), host, sessionToken = sessionToken)
@@ -89,13 +91,13 @@ internal class RoomRegistryImpl(
         roomCode: String,
         playerId: String,
         openingPlayerId: String?,
-        maxRounds: Int,
+        settings: RoomSettings,
     ): RegistryResult =
         roomStore.withRoom(roomCode) { room ->
             room ?: return@withRoom RegistryResult.Error("ROOM_NOT_FOUND", "That room does not exist.")
             if (room.hostId != playerId) return@withRoom RegistryResult.Error("NOT_HOST", "Only the host can start the game.")
             if (room.status != GameStatus.Lobby) return@withRoom RegistryResult.Error("INVALID_GAME_STATE", "The game has already started.")
-            if (maxRounds !in gameConfiguration.minRounds..gameConfiguration.maxRounds) {
+            if (settings.rounds !in gameConfiguration.minRounds..gameConfiguration.maxRounds) {
                 return@withRoom RegistryResult.Error(
                     "INVALID_ROUNDS",
                     "Choose between ${gameConfiguration.minRounds} and ${gameConfiguration.maxRounds} rounds.",
@@ -107,7 +109,7 @@ internal class RoomRegistryImpl(
                 return@withRoom RegistryResult.Error("INVALID_PROMPT_OWNER", "Choose a player in this room to start the story.")
             }
             room.openingPlayerId = selectedOpeningPlayerId
-            room.maxRounds = maxRounds
+            room.settings = settings
             room.status = GameStatus.Prompt
             RegistryResult.Success(roomStateMapper.map(room), null)
         }
@@ -126,8 +128,8 @@ internal class RoomRegistryImpl(
                 return@withRoom RegistryResult.Error("NOT_PROMPT_OWNER", "Only the selected player can start the story.")
             }
             val prompt =
-                userTextValidator.validStoryText(text)
-                    ?: return@withRoom RegistryResult.Error("INVALID_TEXT", INVALID_TEXT_MESSAGE)
+                userTextValidator.validStoryText(text, room.settings)
+                    ?: return@withRoom invalidStoryText(room.settings)
             room.prompt = prompt
             room.status = GameStatus.Playing
             startTurn(room, 0)
@@ -149,8 +151,8 @@ internal class RoomRegistryImpl(
             }
             if (room.currentPlayerId != playerId) return@withRoom RegistryResult.Error("NOT_CURRENT_PLAYER", "It is not your turn.")
             val contributionText =
-                userTextValidator.validStoryText(text)
-                    ?: return@withRoom RegistryResult.Error("INVALID_TEXT", INVALID_TEXT_MESSAGE)
+                userTextValidator.validStoryText(text, room.settings)
+                    ?: return@withRoom invalidStoryText(room.settings)
             val contribution = Contribution(playerId, contributionText, room.turnNumber)
             room.contributions += contribution
             advance(room, contribution)
@@ -220,7 +222,7 @@ internal class RoomRegistryImpl(
         val events = initialEvents.toMutableList()
         contribution?.let { events += ServerMessage.ContributionAdded(it) }
         val nextTurnNumber = room.turnNumber + 1
-        if (turnRules.isComplete(nextTurnNumber, room.players.size, room.maxRounds)) {
+        if (turnRules.isComplete(nextTurnNumber, room.players.size, room.settings.rounds)) {
             room.status = GameStatus.Finished
             room.currentPlayerId = null
             room.turnDeadlineEpochMillis = null
@@ -248,6 +250,13 @@ internal class RoomRegistryImpl(
             requireNotNull(room.turnDeadlineEpochMillis),
         )
 
+    private fun invalidStoryText(settings: RoomSettings): RegistryResult.Error =
+        if (settings.oneWordPerTurn) {
+            RegistryResult.Error("INVALID_WORD", INVALID_WORD_MESSAGE)
+        } else {
+            RegistryResult.Error("INVALID_TEXT", INVALID_TEXT_MESSAGE)
+        }
+
     private fun MutableGameRoom.firstFreeColour(): PlayerColour =
         PlayerColour.entries.first { colour ->
             players.none { it.colour == colour }
@@ -257,3 +266,4 @@ internal class RoomRegistryImpl(
 private const val MAX_CODE_GENERATION_ATTEMPTS = 100
 private const val INVALID_NAME_MESSAGE = "Enter a player name of $MIN_PLAYER_NAME_LENGTH to $MAX_PLAYER_NAME_LENGTH characters."
 private const val INVALID_TEXT_MESSAGE = "Enter up to $MAX_STORY_TEXT_LENGTH characters."
+private const val INVALID_WORD_MESSAGE = "Enter one word of up to $MAX_WORD_LENGTH characters, with no spaces."

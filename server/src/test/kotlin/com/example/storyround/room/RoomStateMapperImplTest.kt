@@ -4,6 +4,7 @@ import com.example.storyround.protocol.Contribution
 import com.example.storyround.protocol.GameStatus
 import com.example.storyround.protocol.Player
 import com.example.storyround.protocol.PlayerColour
+import com.example.storyround.protocol.RoomSettings
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -27,7 +28,7 @@ class RoomStateMapperImplTest {
                 currentPlayerId = host.id,
                 turnNumber = 2,
                 turnDeadlineEpochMillis = 1_234L,
-                maxRounds = 4,
+                settings = RoomSettings(rounds = 4),
             )
 
         val state = mapper.map(room)
@@ -43,7 +44,7 @@ class RoomStateMapperImplTest {
         assertEquals(2, state.turnNumber)
         assertEquals(1_234L, state.turnDeadlineEpochMillis)
         assertEquals(6, state.maxPlayers)
-        assertEquals(4, state.maxRounds)
+        assertEquals(RoomSettings(rounds = 4), state.settings)
 
         room.players.clear()
         room.contributions.clear()

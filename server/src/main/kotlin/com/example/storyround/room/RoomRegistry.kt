@@ -1,5 +1,7 @@
 package com.example.storyround.room
 
+import com.example.storyround.protocol.RoomSettings
+
 internal interface RoomRegistry {
     fun createRoom(playerName: String): RegistryResult
 
@@ -18,7 +20,7 @@ internal interface RoomRegistry {
         roomCode: String,
         playerId: String,
         openingPlayerId: String? = playerId,
-        maxRounds: Int,
+        settings: RoomSettings,
     ): RegistryResult
 
     fun leaveRoom(

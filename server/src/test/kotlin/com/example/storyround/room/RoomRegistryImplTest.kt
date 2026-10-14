@@ -4,7 +4,9 @@ import com.example.storyround.configuration.GameConfiguration
 import com.example.storyround.protocol.GameStatus
 import com.example.storyround.protocol.MAX_PLAYER_NAME_LENGTH
 import com.example.storyround.protocol.MAX_STORY_TEXT_LENGTH
+import com.example.storyround.protocol.MAX_WORD_LENGTH
 import com.example.storyround.protocol.PlayerColour
+import com.example.storyround.protocol.RoomSettings
 import com.example.storyround.protocol.ServerMessage
 import com.example.storyround.protocol.UserTextSanitizerImpl
 import com.example.storyround.protocol.UserTextValidatorImpl
@@ -142,14 +144,19 @@ class RoomRegistryImplTest {
         val joined = assertIs<RegistryResult.Success>(registry.joinRoom(created.room.roomCode, "Sam"))
         assertEquals(
             RegistryResult.Error("NOT_HOST", "Only the host can start the game."),
-            registry.startGame(created.room.roomCode, requireNotNull(joined.affectedPlayer).id, null, 3),
+            registry.startGame(created.room.roomCode, requireNotNull(joined.affectedPlayer).id, null, RoomSettings(rounds = 3)),
         )
     }
 
     @Test
     fun `given host prompt when submitted then first timed turn starts for host`() {
         val created = assertIs<RegistryResult.Success>(registry.createRoom("Alex"))
-        registry.startGame(created.room.roomCode, requireNotNull(created.affectedPlayer).id, requireNotNull(created.affectedPlayer).id, 3)
+        registry.startGame(
+            created.room.roomCode,
+            requireNotNull(created.affectedPlayer).id,
+            requireNotNull(created.affectedPlayer).id,
+            RoomSettings(rounds = 3),
+        )
 
         val result =
             assertIs<RegistryResult.Success>(
@@ -169,7 +176,7 @@ class RoomRegistryImplTest {
         val hostId = requireNotNull(created.affectedPlayer).id
         val samId = requireNotNull(joined.affectedPlayer).id
 
-        val started = assertIs<RegistryResult.Success>(registry.startGame(created.room.roomCode, hostId, samId, 2))
+        val started = assertIs<RegistryResult.Success>(registry.startGame(created.room.roomCode, hostId, samId, RoomSettings(rounds = 2)))
 
         assertEquals(samId, started.room.openingPlayerId)
         assertEquals(
@@ -194,7 +201,7 @@ class RoomRegistryImplTest {
                     created.room.roomCode,
                     requireNotNull(created.affectedPlayer).id,
                     openingPlayerId = null,
-                    maxRounds = 2,
+                    settings = RoomSettings(rounds = 2),
                 ),
             )
 
@@ -205,7 +212,7 @@ class RoomRegistryImplTest {
     fun `given two configured rounds for one player when contributions are submitted then game ends after two turns`() {
         val created = assertIs<RegistryResult.Success>(registry.createRoom("Alex"))
         val hostId = requireNotNull(created.affectedPlayer).id
-        registry.startGame(created.room.roomCode, hostId, hostId, 2)
+        registry.startGame(created.room.roomCode, hostId, hostId, RoomSettings(rounds = 2))
         registry.submitPrompt(created.room.roomCode, hostId, "A door opened.")
 
         val afterFirstContribution = assertIs<RegistryResult.Success>(registry.submitContribution(created.room.roomCode, hostId, "First."))
@@ -221,7 +228,7 @@ class RoomRegistryImplTest {
     fun `given a prompt with line breaks and invisible characters when submitted then the sanitised prompt is stored`() {
         val created = assertIs<RegistryResult.Success>(registry.createRoom("Alex"))
         val hostId = requireNotNull(created.affectedPlayer).id
-        registry.startGame(created.room.roomCode, hostId, hostId, 3)
+        registry.startGame(created.room.roomCode, hostId, hostId, RoomSettings(rounds = 3))
 
         val result = assertIs<RegistryResult.Success>(registry.submitPrompt(created.room.roomCode, hostId, "A door\n\n\u202Eopened.  "))
 
@@ -232,7 +239,7 @@ class RoomRegistryImplTest {
     fun `given a contribution that is blank after sanitising or over the limit when submitted then it is rejected`() {
         val created = assertIs<RegistryResult.Success>(registry.createRoom("Alex"))
         val hostId = requireNotNull(created.affectedPlayer).id
-        registry.startGame(created.room.roomCode, hostId, hostId, 3)
+        registry.startGame(created.room.roomCode, hostId, hostId, RoomSettings(rounds = 3))
         registry.submitPrompt(created.room.roomCode, hostId, "A door opened.")
         val expected = RegistryResult.Error("INVALID_TEXT", "Enter up to 280 characters.")
 
@@ -241,10 +248,56 @@ class RoomRegistryImplTest {
     }
 
     @Test
+    fun `given one word turns when the host starts the game then the room keeps the settings`() {
+        val created = assertIs<RegistryResult.Success>(registry.createRoom("Alex"))
+        val hostId = requireNotNull(created.affectedPlayer).id
+
+        val started =
+            assertIs<RegistryResult.Success>(
+                registry.startGame(created.room.roomCode, hostId, hostId, RoomSettings(rounds = 2, oneWordPerTurn = true)),
+            )
+
+        assertEquals(RoomSettings(rounds = 2, oneWordPerTurn = true), started.room.settings)
+    }
+
+    @Test
+    fun `given one word turns when the opening is several words then it is rejected and a single word starts the story`() {
+        val created = assertIs<RegistryResult.Success>(registry.createRoom("Alex"))
+        val hostId = requireNotNull(created.affectedPlayer).id
+        registry.startGame(created.room.roomCode, hostId, hostId, RoomSettings(rounds = 3, oneWordPerTurn = true))
+
+        val rejected = registry.submitPrompt(created.room.roomCode, hostId, "A door opened.")
+        val accepted = assertIs<RegistryResult.Success>(registry.submitPrompt(created.room.roomCode, hostId, " Once "))
+
+        assertEquals(RegistryResult.Error("INVALID_WORD", "Enter one word of up to 30 characters, with no spaces."), rejected)
+        assertEquals("Once", accepted.room.prompt)
+    }
+
+    @Test
+    fun `given one word turns when a contribution is several words or too long then it is rejected and a single word is added`() {
+        val created = assertIs<RegistryResult.Success>(registry.createRoom("Alex"))
+        val hostId = requireNotNull(created.affectedPlayer).id
+        registry.startGame(created.room.roomCode, hostId, hostId, RoomSettings(rounds = 3, oneWordPerTurn = true))
+        registry.submitPrompt(created.room.roomCode, hostId, "Once")
+        val expected = RegistryResult.Error("INVALID_WORD", "Enter one word of up to 30 characters, with no spaces.")
+
+        assertEquals(expected, registry.submitContribution(created.room.roomCode, hostId, "upon a time"))
+        assertEquals(expected, registry.submitContribution(created.room.roomCode, hostId, "a".repeat(MAX_WORD_LENGTH + 1)))
+        val added = assertIs<RegistryResult.Success>(registry.submitContribution(created.room.roomCode, hostId, "upon"))
+
+        assertEquals(listOf("upon"), added.room.contributions.map { it.text })
+    }
+
+    @Test
     fun `given another player turn when host submits then contribution is rejected`() {
         val created = assertIs<RegistryResult.Success>(registry.createRoom("Alex"))
         val joined = assertIs<RegistryResult.Success>(registry.joinRoom(created.room.roomCode, "Sam"))
-        registry.startGame(created.room.roomCode, requireNotNull(created.affectedPlayer).id, requireNotNull(created.affectedPlayer).id, 3)
+        registry.startGame(
+            created.room.roomCode,
+            requireNotNull(created.affectedPlayer).id,
+            requireNotNull(created.affectedPlayer).id,
+            RoomSettings(rounds = 3),
+        )
         registry.submitPrompt(created.room.roomCode, requireNotNull(created.affectedPlayer).id, "A door opened.")
         registry.submitContribution(created.room.roomCode, requireNotNull(created.affectedPlayer).id, "Alex continues.")
 
@@ -260,7 +313,7 @@ class RoomRegistryImplTest {
         val timeProvider = mockk<TimeProvider> { every { nowEpochMillis() } answers { now } }
         val timedRegistry = newRegistry("TIME", { "host" }, timeProvider, rounds = 1, firstTurnMillis = 10L)
         val created = assertIs<RegistryResult.Success>(timedRegistry.createRoom("Alex"))
-        timedRegistry.startGame("TIME", "host", "host", 1)
+        timedRegistry.startGame("TIME", "host", "host", RoomSettings(rounds = 1))
         val prompt = assertIs<RegistryResult.Success>(timedRegistry.submitPrompt("TIME", "host", "Start."))
         now = requireNotNull(prompt.room.turnDeadlineEpochMillis)
 
@@ -282,7 +335,7 @@ class RoomRegistryImplTest {
     fun `given a single player final contribution when submitted then game finishes`() {
         val oneTurnRegistry = newRegistry("DONE", { "host" }, rounds = 1)
         val created = assertIs<RegistryResult.Success>(oneTurnRegistry.createRoom("Alex"))
-        oneTurnRegistry.startGame("DONE", "host", "host", 1)
+        oneTurnRegistry.startGame("DONE", "host", "host", RoomSettings(rounds = 1))
         oneTurnRegistry.submitPrompt("DONE", "host", "Start.")
 
         val finished = assertIs<RegistryResult.Success>(oneTurnRegistry.submitContribution("DONE", "host", "The end."))
@@ -297,7 +350,7 @@ class RoomRegistryImplTest {
     fun `given a finished game when host plays again then the same players return to an empty lobby`() {
         val oneTurnRegistry = newRegistry("AGAIN", { "host" }, rounds = 1)
         oneTurnRegistry.createRoom("Alex")
-        oneTurnRegistry.startGame("AGAIN", "host", "host", 1)
+        oneTurnRegistry.startGame("AGAIN", "host", "host", RoomSettings(rounds = 1))
         oneTurnRegistry.submitPrompt("AGAIN", "host", "Start.")
         oneTurnRegistry.submitContribution("AGAIN", "host", "The end.")
 

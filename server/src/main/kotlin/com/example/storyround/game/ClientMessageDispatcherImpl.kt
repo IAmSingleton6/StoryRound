@@ -12,7 +12,7 @@ internal class ClientMessageDispatcherImpl(
             is ClientMessage.CreateRoom -> registry.createRoom(message.playerName)
             is ClientMessage.JoinRoom -> registry.joinRoom(message.roomCode, message.playerName)
             is ClientMessage.StartGame ->
-                registry.startGame(message.roomCode, message.playerId, message.openingPlayerId, message.maxRounds)
+                registry.startGame(message.roomCode, message.playerId, message.openingPlayerId, message.settings)
             is ClientMessage.LeaveRoom -> registry.leaveRoom(message.roomCode, message.playerId)
             is ClientMessage.SubmitPrompt -> registry.submitPrompt(message.roomCode, message.playerId, message.text)
             is ClientMessage.SubmitContribution -> registry.submitContribution(message.roomCode, message.playerId, message.text)

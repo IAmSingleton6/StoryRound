@@ -16,6 +16,6 @@ internal class RoomStateMapperImpl : RoomStateMapper {
             turnNumber = room.turnNumber,
             turnDeadlineEpochMillis = room.turnDeadlineEpochMillis,
             maxPlayers = room.maxPlayers,
-            maxRounds = room.maxRounds,
+            settings = room.settings,
         )
 }
