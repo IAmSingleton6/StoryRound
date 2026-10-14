@@ -15,5 +15,5 @@ data class RoomState(
     val turnNumber: Int = 0,
     val turnDeadlineEpochMillis: Long? = null,
     val maxPlayers: Int,
-    val maxRounds: Int,
+    val settings: RoomSettings,
 )

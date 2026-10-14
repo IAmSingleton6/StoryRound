@@ -24,7 +24,7 @@ sealed interface ClientMessage {
         val roomCode: String,
         val playerId: String,
         val openingPlayerId: String? = null,
-        val maxRounds: Int,
+        val settings: RoomSettings,
     ) : ClientMessage
 
     @Serializable

@@ -35,9 +35,32 @@ class GameProtocolTest {
     }
 
     @Test
+    fun `given start game with one word turns when encoded then the room settings round trip`() {
+        val message: ClientMessage = ClientMessage.StartGame("AB12", "host", null, RoomSettings(rounds = 4, oneWordPerTurn = true))
+
+        val decoded = json.decodeFromString<ClientMessage>(json.encodeToString(ClientMessage.serializer(), message))
+
+        assertEquals(message, decoded)
+    }
+
+    @Test
+    fun `given room settings without one word turns when decoded then free writing is assumed`() {
+        val settings = json.decodeFromString<RoomSettings>("""{"rounds":2}""")
+
+        assertEquals(RoomSettings(rounds = 2, oneWordPerTurn = false), settings)
+    }
+
+    @Test
     fun `given room state message when encoded then it preserves players`() {
         val room =
-            RoomState("AB12", "host", listOf(Player("host", "Alex", PlayerColour.Blue)), GameStatus.Lobby, maxPlayers = 10, maxRounds = 3)
+            RoomState(
+                "AB12",
+                "host",
+                listOf(Player("host", "Alex", PlayerColour.Blue)),
+                GameStatus.Lobby,
+                maxPlayers = 10,
+                settings = RoomSettings(rounds = 3),
+            )
         val message: ServerMessage = ServerMessage.RoomStateChanged(room)
 
         val decoded = json.decodeFromString<ServerMessage>(json.encodeToString(ServerMessage.serializer(), message))
@@ -54,7 +77,7 @@ class GameProtocolTest {
                 listOf(Player("host", "Alex", PlayerColour.Blue)),
                 GameStatus.Finished,
                 maxPlayers = 10,
-                maxRounds = 3,
+                settings = RoomSettings(rounds = 3),
             )
         val message: ServerMessage = ServerMessage.GameFinished(room)
 

@@ -4,6 +4,7 @@ import com.example.storyround.protocol.Contribution
 import com.example.storyround.protocol.GameStatus
 import com.example.storyround.protocol.Player
 import com.example.storyround.protocol.PlayerColour
+import com.example.storyround.protocol.RoomSettings
 import com.example.storyround.protocol.RoomState
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -23,7 +24,7 @@ class SavedStoryMapperImplTest {
             prompt = "A door opened.",
             contributions = listOf(Contribution(alex.id, "A horse arrived.", 0), Contribution(sam.id, "It wore a hat.", 1)),
             maxPlayers = 10,
-            maxRounds = 1,
+            settings = RoomSettings(rounds = 1),
         )
 
     @Test
