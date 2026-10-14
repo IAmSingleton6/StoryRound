@@ -1,9 +1,7 @@
 package com.example.storyround
 
 import com.example.storyround.configuration.GameConfiguration
-import com.example.storyround.persistence.StoryRepository
 import com.example.storyround.protocol.ClientMessage
-import com.example.storyround.protocol.SavedStory
 import com.example.storyround.protocol.ServerMessage
 import com.example.storyround.protocol.UserTextSanitizerImpl
 import com.example.storyround.protocol.UserTextValidatorImpl
@@ -15,7 +13,6 @@ import com.example.storyround.room.RoomRegistryImpl
 import com.example.storyround.room.RoomStateMapperImpl
 import com.example.storyround.rules.TurnRulesImpl
 import com.example.storyround.time.SystemTimeProvider
-import com.example.storyround.time.TimeProvider
 import io.ktor.client.plugins.websocket.WebSockets
 import io.ktor.client.plugins.websocket.webSocketSession
 import io.ktor.server.testing.testApplication
@@ -25,7 +22,6 @@ import io.ktor.websocket.readText
 import io.ktor.websocket.send
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.slot
 import kotlinx.coroutines.withTimeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -120,17 +116,10 @@ class GameWebSocketTest {
         }
 
     @Test
-    fun `given a final contribution when the game finishes then the completed story is persisted`() =
+    fun `given a finished game when a player reconnects then the completed story is sent again`() =
         testApplication {
-            val savedStory = slot<SavedStory>()
-            val repository = mockk<StoryRepository> { every { save(capture(savedStory)) } returns Unit }
-            val timeProvider = mockk<TimeProvider> { every { nowEpochMillis() } returns 42L }
             application {
-                module(
-                    timeProvider = timeProvider,
-                    registry = newRegistry(rounds = 1, timeProvider = timeProvider),
-                    storyRepository = repository,
-                )
+                module(newRegistry(rounds = 1))
             }
             val client = createClient { install(WebSockets) }
             val host = client.webSocketSession("/game")
@@ -149,17 +138,14 @@ class GameWebSocketTest {
             host.receiveMessage()
             val finished = assertIs<ServerMessage.GameFinished>(host.receiveMessage())
 
-            assertEquals(savedStory.captured.id, finished.storyId)
-            assertEquals("A door opened.", savedStory.captured.prompt)
-            assertEquals(listOf("The story ended."), savedStory.captured.contributions.map { it.text })
-            assertEquals(42L, savedStory.captured.createdAtEpochMillis)
-
             val reopened = client.webSocketSession("/game")
             reopened.sendMessage(ClientMessage.Reconnect("AB12", session.playerId, session.sessionToken))
             assertIs<ServerMessage.SessionEstablished>(reopened.receiveMessage())
             assertIs<ServerMessage.RoomStateChanged>(reopened.receiveMessage())
             val reconnectedFinished = assertIs<ServerMessage.GameFinished>(reopened.receiveMessage())
-            assertEquals(savedStory.captured.id, reconnectedFinished.storyId)
+            assertEquals("A door opened.", finished.room.prompt)
+            assertEquals(listOf("The story ended."), finished.room.contributions.map { it.text })
+            assertEquals(finished.room, reconnectedFinished.room)
         }
 
     @Test
@@ -196,38 +182,6 @@ class GameWebSocketTest {
             assertExpiryBroadcast(guest, expectedExpiredPlayerId = hostSession.playerId)
         }
 
-    @Test
-    fun `given story persistence fails after game completion when final contribution is submitted then clients are notified`() =
-        testApplication {
-            application {
-                module(
-                    newRegistry(rounds = 1),
-                    mockk<StoryRepository> { every { save(any()) } throws IllegalStateException("Database connection lost") },
-                )
-            }
-            val client = createClient { install(WebSockets) }
-            val host = client.webSocketSession("/game")
-
-            host.sendMessage(ClientMessage.CreateRoom("Alex"))
-            val session = assertIs<ServerMessage.SessionEstablished>(host.receiveMessage())
-            host.receiveMessage()
-            host.receiveMessage()
-            host.sendMessage(ClientMessage.StartGame("AB12", session.playerId, session.playerId, maxRounds = 1))
-            host.receiveMessage()
-            host.sendMessage(ClientMessage.SubmitPrompt("AB12", session.playerId, "A door opened."))
-            host.receiveMessage()
-            host.receiveMessage()
-            host.sendMessage(ClientMessage.SubmitContribution("AB12", session.playerId, "The story ended."))
-
-            host.receiveMessage()
-            host.receiveMessage()
-            val finished = assertIs<ServerMessage.GameFinished>(host.receiveMessage())
-            val error = assertIs<ServerMessage.Error>(host.receiveMessage())
-
-            assertEquals(null, finished.storyId)
-            assertEquals("STORY_SAVE_FAILED", error.code)
-        }
-
     private suspend fun DefaultWebSocketSession.sendMessage(message: ClientMessage) {
         send(Frame.Text(json.encodeToString(ClientMessage.serializer(), message)))
     }
@@ -254,7 +208,6 @@ class GameWebSocketTest {
     private fun newRegistry(
         rounds: Int = 3,
         firstTurnMillis: Long = 15_000L,
-        timeProvider: TimeProvider = SystemTimeProvider(),
     ): RoomRegistryImpl {
         var nextPlayerId = 1
         val identityGenerator = mockk<RoomIdentityGenerator>()
@@ -272,7 +225,7 @@ class GameWebSocketTest {
         return RoomRegistryImpl(
             roomStore = InMemoryRoomStore(),
             identityGenerator = identityGenerator,
-            timeProvider = timeProvider,
+            timeProvider = SystemTimeProvider(),
             turnRules = TurnRulesImpl(gameConfiguration),
             roomStateMapper = RoomStateMapperImpl(),
             gameConfiguration = gameConfiguration,

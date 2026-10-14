@@ -3,10 +3,7 @@ package com.example.storyround
 import com.example.storyround.config.EnvironmentServerConfigProvider
 import com.example.storyround.di.serverModule
 import com.example.storyround.game.GameWebSocketHandler
-import com.example.storyround.history.StoryHistoryRouteInstaller
-import com.example.storyround.persistence.StoryRepository
 import com.example.storyround.room.RoomRegistry
-import com.example.storyround.time.TimeProvider
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import io.ktor.server.engine.EngineConnectorBuilder
@@ -38,19 +35,13 @@ fun main() {
     }.start(wait = true)
 }
 
-internal fun Application.module(
-    registry: RoomRegistry? = null,
-    storyRepository: StoryRepository? = null,
-    timeProvider: TimeProvider? = null,
-) {
-    install(Koin) { modules(serverModule(registry, storyRepository, timeProvider)) }
+internal fun Application.module(registry: RoomRegistry? = null) {
+    install(Koin) { modules(serverModule(registry)) }
     val gameWebSocketHandler: GameWebSocketHandler by inject()
-    val storyHistoryRoutes: StoryHistoryRouteInstaller by inject()
     install(WebSockets) { maxFrameSize = MAX_WEBSOCKET_FRAME_BYTES }
 
     routing {
         get("/") { call.respondText("Story Relay server") }
-        storyHistoryRoutes.install(this)
         webSocket("/game") { gameWebSocketHandler.handle(this) }
     }
 }

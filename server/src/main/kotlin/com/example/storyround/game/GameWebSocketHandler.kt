@@ -12,7 +12,6 @@ import kotlinx.serialization.json.Json
 internal class GameWebSocketHandler(
     private val dispatcher: ClientMessageDispatcher,
     private val sockets: RoomSocketHub,
-    private val completedStories: CompletedStoryService,
     private val turnExpiryScheduler: TurnExpiryScheduler,
     private val json: Json,
 ) {
@@ -41,10 +40,11 @@ internal class GameWebSocketHandler(
     ) {
         when (val result = dispatcher.dispatch(message)) {
             is RegistryResult.Success -> handleSuccess(session, message, result)
-            is RegistryResult.Error -> sockets.send(
-                session = session,
-                message = ServerMessage.Error(result.code, result.message)
-            )
+            is RegistryResult.Error ->
+                sockets.send(
+                    session = session,
+                    message = ServerMessage.Error(result.code, result.message),
+                )
         }
     }
 
@@ -60,9 +60,7 @@ internal class GameWebSocketHandler(
 
         subscribe(session, result)
         establishSession(session, result)
-        handlePlayAgain(message, result)
-
-        saveAndPublish(result)
+        publish(result)
 
         if (message is ClientMessage.Reconnect && result.room.status == GameStatus.Finished) {
             sendFinishedGame(session, result)
@@ -71,13 +69,12 @@ internal class GameWebSocketHandler(
         scheduleTurnExpiry(result)
     }
 
-
     private suspend fun leaveRoom(
         session: DefaultWebSocketServerSession,
         result: RegistryResult.Success,
     ) {
         sockets.unsubscribe(session)
-        publish(result, savedStoryId = null)
+        publish(result)
     }
 
     private fun subscribe(
@@ -94,65 +91,33 @@ internal class GameWebSocketHandler(
         val token = result.sessionToken ?: return
         sockets.send(
             session = session,
-            message = ServerMessage.SessionEstablished(
-                playerId = requireNotNull(result.affectedPlayer).id,
-                sessionToken = token,
-            ),
+            message =
+                ServerMessage.SessionEstablished(
+                    playerId = requireNotNull(result.affectedPlayer).id,
+                    sessionToken = token,
+                ),
         )
-    }
-
-    private fun handlePlayAgain(
-        message: ClientMessage,
-        result: RegistryResult.Success,
-    ) {
-        if (message is ClientMessage.PlayAgain) {
-            completedStories.forget(result.room.roomCode)
-        }
     }
 
     private suspend fun sendFinishedGame(
         session: DefaultWebSocketServerSession,
         result: RegistryResult.Success,
     ) {
-        val roomCode = result.room.roomCode
-        sockets.send(
-            session = session,
-            message = ServerMessage.GameFinished(
-                room = result.room,
-                storyId = completedStories.savedStoryId(roomCode),
-            ),
-        )
+        sockets.send(session = session, message = ServerMessage.GameFinished(room = result.room))
     }
 
-    private suspend fun saveAndPublish(result: RegistryResult.Success) {
-        val saveResult = completedStories.saveIfFinished(result)
-        publish(result, savedStoryId = (saveResult as? StorySaveResult.Saved)?.storyId)
-        if (saveResult is StorySaveResult.Failed) {
-            sockets.broadcast(
-                roomCode = result.room.roomCode,
-                message = ServerMessage.Error("STORY_SAVE_FAILED", "The game finished, but its story could not be saved."),
-            )
-        }
-    }
-
-    private suspend fun publish(
-        result: RegistryResult.Success,
-        savedStoryId: String?,
-    ) {
+    private suspend fun publish(result: RegistryResult.Success) {
         val roomCode = result.room.roomCode
         sockets.broadcast(roomCode, ServerMessage.RoomStateChanged(result.room))
         result.affectedPlayer?.takeIf { result.isNewPlayer }?.let { player ->
             sockets.broadcast(roomCode, ServerMessage.PlayerJoined(player))
         }
-        result.events.forEach { event ->
-            val message = if (event is ServerMessage.GameFinished) event.copy(storyId = savedStoryId) else event
-            sockets.broadcast(roomCode, message)
-        }
+        result.events.forEach { event -> sockets.broadcast(roomCode, event) }
     }
 
     private fun scheduleTurnExpiry(result: RegistryResult.Success) {
         turnExpiryScheduler.schedule(result.room) { expiry ->
-            saveAndPublish(expiry)
+            publish(expiry)
             scheduleTurnExpiry(expiry)
         }
     }

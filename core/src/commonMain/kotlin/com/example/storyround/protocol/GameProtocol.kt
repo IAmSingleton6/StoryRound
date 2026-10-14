@@ -116,7 +116,6 @@ sealed interface ServerMessage {
     @SerialName("GAME_FINISHED")
     data class GameFinished(
         val room: RoomState,
-        val storyId: String? = null,
     ) : ServerMessage
 
     @Serializable
