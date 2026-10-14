@@ -13,6 +13,7 @@ internal data class LobbyUiState(
     val canDecreaseRounds: Boolean = false,
     val canIncreaseRounds: Boolean = false,
     val totalTurns: Int = 0,
+    val oneWordPerTurn: Boolean = false,
     val isReconnecting: Boolean = false,
 ) {
     val isHost: Boolean

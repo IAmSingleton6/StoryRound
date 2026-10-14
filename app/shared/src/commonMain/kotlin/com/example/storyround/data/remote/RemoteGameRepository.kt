@@ -6,6 +6,7 @@ import com.example.storyround.domain.model.GameState
 import com.example.storyround.domain.repository.GameRepository
 import com.example.storyround.logging.Logger
 import com.example.storyround.protocol.ClientMessage
+import com.example.storyround.protocol.RoomSettings
 import com.example.storyround.protocol.RoomState
 import com.example.storyround.protocol.ServerMessage
 import com.example.storyround.story.SavedStoryMapper
@@ -66,8 +67,8 @@ internal class RemoteGameRepository(
 
     override suspend fun startGame(
         openingPlayerId: String?,
-        maxRounds: Int,
-    ) = sendForCurrentPlayer { roomCode, playerId -> ClientMessage.StartGame(roomCode, playerId, openingPlayerId, maxRounds) }
+        settings: RoomSettings,
+    ) = sendForCurrentPlayer { roomCode, playerId -> ClientMessage.StartGame(roomCode, playerId, openingPlayerId, settings) }
 
     override suspend fun submitPrompt(text: String) =
         sendForCurrentPlayer { roomCode, playerId -> ClientMessage.SubmitPrompt(roomCode, playerId, text) }

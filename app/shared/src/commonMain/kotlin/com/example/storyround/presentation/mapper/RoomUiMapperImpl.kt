@@ -25,7 +25,7 @@ internal class RoomUiMapperImpl(
             prompt = prompt,
             contributions = contributions,
             turn = turn(room, playersById),
-            maxRounds = room.maxRounds,
+            maxRounds = room.settings.rounds,
             promptAuthor = promptAuthor,
             segments = segments,
             writers = storySegmentMapper.writers(players, segments),

@@ -11,6 +11,7 @@ import com.example.storyround.domain.usecase.ConnectToGameUseCase
 import com.example.storyround.domain.usecase.DisconnectFromGameUseCase
 import com.example.storyround.domain.usecase.LeaveRoomUseCase
 import com.example.storyround.protocol.GameStatus
+import com.example.storyround.protocol.RoomSettings
 import com.example.storyround.protocol.RoomState
 import com.example.storyround.protocol.SavedStory
 import io.mockk.coVerify
@@ -164,5 +165,6 @@ class AppViewModelTest {
         return viewModel
     }
 
-    private fun room(status: GameStatus) = RoomState("AB12", "host", emptyList(), status, maxPlayers = 10, maxRounds = 3)
+    private fun room(status: GameStatus) =
+        RoomState("AB12", "host", emptyList(), status, maxPlayers = 10, settings = RoomSettings(rounds = 3))
 }

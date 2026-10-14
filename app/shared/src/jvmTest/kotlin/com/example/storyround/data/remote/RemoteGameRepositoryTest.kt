@@ -9,6 +9,7 @@ import com.example.storyround.protocol.Contribution
 import com.example.storyround.protocol.GameStatus
 import com.example.storyround.protocol.Player
 import com.example.storyround.protocol.PlayerColour
+import com.example.storyround.protocol.RoomSettings
 import com.example.storyround.protocol.RoomState
 import com.example.storyround.protocol.SavedStory
 import com.example.storyround.protocol.ServerMessage
@@ -232,7 +233,7 @@ class RemoteGameRepositoryTest {
     @Test
     fun `given a player in a lobby when they leave then the server is told and the saved session is cleared`() =
         runTest {
-            val room = RoomState("AB12", player.id, listOf(player), GameStatus.Lobby, maxPlayers = 10, maxRounds = 3)
+            val room = RoomState("AB12", player.id, listOf(player), GameStatus.Lobby, maxPlayers = 10, settings = RoomSettings(rounds = 3))
             val connection = openConnection(GameSocketIncomingMessage.Received(ServerMessage.RoomStateChanged(room)))
             coEvery { socket.connect(SERVER_URL) } returns connection
             savedSession = RemoteSession("AB12", player.id, "token-1")
@@ -317,7 +318,7 @@ class RemoteGameRepositoryTest {
                 prompt = "A door opened.",
                 contributions = listOf(Contribution(player.id, "The end.", 0)),
                 maxPlayers = 10,
-                maxRounds = 3,
+                settings = RoomSettings(rounds = 3),
             )
         return GameSocketIncomingMessage.Received(ServerMessage.GameFinished(room))
     }

@@ -11,6 +11,7 @@ import com.example.storyround.presentation.mapper.StorySegmentMapperImpl
 import com.example.storyround.protocol.GameStatus
 import com.example.storyround.protocol.Player
 import com.example.storyround.protocol.PlayerColour
+import com.example.storyround.protocol.RoomSettings
 import com.example.storyround.protocol.RoomState
 import com.example.storyround.rules.TurnRulesImpl
 import io.mockk.coVerify
@@ -40,7 +41,8 @@ class LobbyViewModelTest {
     private val dispatcher = StandardTestDispatcher()
     private val host = Player("host", "Alex", PlayerColour.Blue)
     private val guest = Player("guest", "Sam", PlayerColour.Yellow)
-    private val room = RoomState("AB12", host.id, listOf(host, guest), GameStatus.Lobby, maxPlayers = 10, maxRounds = 3)
+    private val room =
+        RoomState("AB12", host.id, listOf(host, guest), GameStatus.Lobby, maxPlayers = 10, settings = RoomSettings(rounds = 3))
     private val configuration = GameConfiguration(minRounds = 1, maxRounds = 10, defaultRounds = 3)
     private val gameState = MutableStateFlow(GameState(room = room, playerId = host.id, isConnected = true))
     private val repository = mockk<GameRepository> { every { state } returns gameState }
@@ -108,7 +110,7 @@ class LobbyViewModelTest {
             advanceUntilIdle()
 
             assertTrue(viewModel.uiState.value.isHost)
-            coVerify(exactly = 1) { startGameUseCase(null, 3) }
+            coVerify(exactly = 1) { startGameUseCase(null, RoomSettings(rounds = 3)) }
         }
 
     @Test
@@ -123,7 +125,20 @@ class LobbyViewModelTest {
 
             assertEquals(guest.id, viewModel.uiState.value.openingPlayerId)
             assertFalse(viewModel.uiState.value.canIncreaseRounds)
-            coVerify(exactly = 1) { startGameUseCase(guest.id, 10) }
+            coVerify(exactly = 1) { startGameUseCase(guest.id, RoomSettings(rounds = 10)) }
+        }
+
+    @Test
+    fun `given the host turns on one word each when the game starts then one word turns are sent`() =
+        runTest(dispatcher) {
+            val viewModel = viewModel()
+
+            viewModel.onAction(LobbyAction.OneWordPerTurnChanged(true))
+            viewModel.onAction(LobbyAction.StartGame)
+            advanceUntilIdle()
+
+            assertTrue(viewModel.uiState.value.oneWordPerTurn)
+            coVerify(exactly = 1) { startGameUseCase(null, RoomSettings(rounds = 3, oneWordPerTurn = true)) }
         }
 
     @Test
@@ -137,7 +152,7 @@ class LobbyViewModelTest {
             advanceUntilIdle()
 
             assertNull(viewModel.uiState.value.openingPlayerId)
-            coVerify(exactly = 1) { startGameUseCase(null, 3) }
+            coVerify(exactly = 1) { startGameUseCase(null, RoomSettings(rounds = 3)) }
         }
 
     private fun TestScope.viewModel(): LobbyViewModel {

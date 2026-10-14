@@ -7,6 +7,7 @@ import com.example.storyround.domain.repository.GameRepository
 import com.example.storyround.domain.usecase.StartGameUseCase
 import com.example.storyround.presentation.WhileUiSubscribed
 import com.example.storyround.presentation.mapper.RoomUiMapper
+import com.example.storyround.protocol.RoomSettings
 import com.example.storyround.protocol.RoomState
 import com.example.storyround.rules.TurnRules
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,7 +24,7 @@ internal class LobbyViewModel(
     private val gameConfiguration: GameConfiguration,
     private val turnRules: TurnRules,
 ) : ViewModel() {
-    private val settings = MutableStateFlow(LobbySettings(maxRounds = gameConfiguration.defaultRounds))
+    private val settings = MutableStateFlow(LobbySettings(roomSettings = RoomSettings(rounds = gameConfiguration.defaultRounds)))
 
     val uiState: StateFlow<LobbyUiState> =
         combine(repository.state, settings) { state, selected ->
@@ -36,10 +37,11 @@ internal class LobbyViewModel(
                 hostId = roomUi.hostId,
                 currentPlayerId = state.playerId,
                 openingPlayerId = selected.openingPlayerIdIn(room),
-                maxRounds = selected.maxRounds,
-                canDecreaseRounds = selected.maxRounds > gameConfiguration.minRounds,
-                canIncreaseRounds = selected.maxRounds < gameConfiguration.maxRounds,
-                totalTurns = turnRules.totalTurns(roomUi.players.size, selected.maxRounds),
+                maxRounds = selected.roomSettings.rounds,
+                canDecreaseRounds = selected.roomSettings.rounds > gameConfiguration.minRounds,
+                canIncreaseRounds = selected.roomSettings.rounds < gameConfiguration.maxRounds,
+                totalTurns = turnRules.totalTurns(roomUi.players.size, selected.roomSettings.rounds),
+                oneWordPerTurn = selected.roomSettings.oneWordPerTurn,
                 isReconnecting = !state.isConnected,
             )
         }.stateIn(viewModelScope, WhileUiSubscribed, LobbyUiState())
@@ -50,8 +52,10 @@ internal class LobbyViewModel(
             is LobbyAction.OpeningPlayerSelected -> settings.update { it.copy(openingPlayerId = action.playerId) }
             is LobbyAction.RoundsChanged -> {
                 val rounds = action.value.coerceIn(gameConfiguration.minRounds, gameConfiguration.maxRounds)
-                settings.update { it.copy(maxRounds = rounds) }
+                settings.update { it.copy(roomSettings = it.roomSettings.copy(rounds = rounds)) }
             }
+            is LobbyAction.OneWordPerTurnChanged ->
+                settings.update { it.copy(roomSettings = it.roomSettings.copy(oneWordPerTurn = action.enabled)) }
             LobbyAction.Leave -> Unit
         }
     }
@@ -61,12 +65,12 @@ internal class LobbyViewModel(
         val openingPlayerId =
             repository.state.value.room
                 ?.let(selected::openingPlayerIdIn)
-        viewModelScope.launch { startGameUseCase(openingPlayerId, selected.maxRounds) }
+        viewModelScope.launch { startGameUseCase(openingPlayerId, selected.roomSettings) }
     }
 
     private data class LobbySettings(
         val openingPlayerId: String? = null,
-        val maxRounds: Int,
+        val roomSettings: RoomSettings,
     ) {
         fun openingPlayerIdIn(room: RoomState): String? = openingPlayerId?.takeIf { id -> room.players.any { it.id == id } }
     }

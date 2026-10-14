@@ -11,5 +11,9 @@ internal sealed interface LobbyAction {
         val value: Int,
     ) : LobbyAction
 
+    data class OneWordPerTurnChanged(
+        val enabled: Boolean,
+    ) : LobbyAction
+
     data object Leave : LobbyAction
 }

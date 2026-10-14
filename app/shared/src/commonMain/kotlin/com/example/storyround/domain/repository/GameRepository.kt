@@ -1,6 +1,7 @@
 package com.example.storyround.domain.repository
 
 import com.example.storyround.domain.model.GameState
+import com.example.storyround.protocol.RoomSettings
 import kotlinx.coroutines.flow.StateFlow
 
 internal interface GameRepository {
@@ -17,7 +18,7 @@ internal interface GameRepository {
 
     suspend fun startGame(
         openingPlayerId: String?,
-        maxRounds: Int,
+        settings: RoomSettings,
     )
 
     suspend fun submitPrompt(text: String)

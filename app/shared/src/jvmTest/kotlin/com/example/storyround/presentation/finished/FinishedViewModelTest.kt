@@ -11,6 +11,7 @@ import com.example.storyround.protocol.Contribution
 import com.example.storyround.protocol.GameStatus
 import com.example.storyround.protocol.Player
 import com.example.storyround.protocol.PlayerColour
+import com.example.storyround.protocol.RoomSettings
 import com.example.storyround.protocol.RoomState
 import io.mockk.coVerify
 import io.mockk.every
@@ -48,7 +49,7 @@ class FinishedViewModelTest {
             prompt = "A door opened.",
             contributions = listOf(Contribution(sam.id, "A horse arrived.", 0), Contribution(alex.id, "It wore a hat.", 1)),
             maxPlayers = 10,
-            maxRounds = 1,
+            settings = RoomSettings(rounds = 1),
         )
     private val gameState = MutableStateFlow(GameState(room = finishedRoom, playerId = alex.id, isConnected = true))
     private val repository = mockk<GameRepository> { every { state } returns gameState }

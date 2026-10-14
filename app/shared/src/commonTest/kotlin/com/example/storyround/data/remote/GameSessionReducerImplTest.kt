@@ -5,6 +5,7 @@ import com.example.storyround.domain.model.GameState
 import com.example.storyround.protocol.GameStatus
 import com.example.storyround.protocol.Player
 import com.example.storyround.protocol.PlayerColour
+import com.example.storyround.protocol.RoomSettings
 import com.example.storyround.protocol.RoomState
 import com.example.storyround.protocol.SavedStory
 import com.example.storyround.protocol.ServerMessage
@@ -23,7 +24,7 @@ class GameSessionReducerImplTest {
             players = listOf(player),
             status = GameStatus.Lobby,
             maxPlayers = 10,
-            maxRounds = 3,
+            settings = RoomSettings(rounds = 3),
         )
 
     @Test

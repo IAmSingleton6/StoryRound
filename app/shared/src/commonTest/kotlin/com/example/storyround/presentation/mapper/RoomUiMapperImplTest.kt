@@ -4,6 +4,7 @@ import com.example.storyround.protocol.Contribution
 import com.example.storyround.protocol.GameStatus
 import com.example.storyround.protocol.Player
 import com.example.storyround.protocol.PlayerColour
+import com.example.storyround.protocol.RoomSettings
 import com.example.storyround.protocol.RoomState
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -26,7 +27,7 @@ class RoomUiMapperImplTest {
             turnNumber = 4,
             turnDeadlineEpochMillis = 12_000,
             maxPlayers = 10,
-            maxRounds = 3,
+            settings = RoomSettings(rounds = 3),
         )
 
     @Test

@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
@@ -287,8 +288,13 @@ private fun HostSettings(
                 }
             }
         }
-        Box(Modifier.fillMaxWidth().height(2.dp).background(colors.stageDivider))
+        SettingsDivider()
         RoundsStepper(uiState, onAction)
+        SettingsDivider()
+        OneWordToggle(
+            isOn = uiState.oneWordPerTurn,
+            onToggle = { onAction(LobbyAction.OneWordPerTurnChanged(it)) },
+        )
     }
 }
 
@@ -377,6 +383,50 @@ private fun StepperButton(
         contentAlignment = Alignment.Center,
     ) {
         TintedIcon(icon, tint = if (enabled) colors.ink else colors.onStageDisabled, modifier = Modifier.size(18.dp))
+    }
+}
+
+@Composable
+private fun SettingsDivider() {
+    Box(Modifier.fillMaxWidth().height(2.dp).background(StoryRoundTheme.colors.stageDivider))
+}
+
+@Composable
+private fun OneWordToggle(
+    isOn: Boolean,
+    onToggle: (Boolean) -> Unit,
+) {
+    val colors = StoryRoundTheme.colors
+    val typography = StoryRoundTheme.typography
+    Row(
+        modifier = Modifier.fillMaxWidth().toggleable(value = isOn, role = Role.Switch, onValueChange = onToggle),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            BasicText("One word each", style = typography.title.copy(color = colors.onStage))
+            BasicText(
+                "Every turn is a single word, opening included",
+                style = typography.meta.copy(color = colors.onStageMuted),
+            )
+        }
+        ToggleSwitch(isOn)
+    }
+}
+
+@Composable
+private fun ToggleSwitch(isOn: Boolean) {
+    val colors = StoryRoundTheme.colors
+    Box(
+        modifier =
+            Modifier
+                .size(width = 52.dp, height = 32.dp)
+                .background(if (isOn) colors.cue else colors.stageDisabledFill, CircleShape)
+                .border(2.dp, if (isOn) colors.ink else colors.stageOutlineSoft, CircleShape)
+                .padding(4.dp),
+        contentAlignment = if (isOn) Alignment.CenterEnd else Alignment.CenterStart,
+    ) {
+        Box(Modifier.size(20.dp).background(if (isOn) colors.ink else colors.onStageMuted, CircleShape))
     }
 }
 

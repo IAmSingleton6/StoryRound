@@ -3,12 +3,15 @@ package com.example.storyround.presentation.lobby
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.example.storyround.presentation.model.PlayerUi
 import com.example.storyround.protocol.PlayerColour
@@ -79,6 +82,26 @@ class LobbyScreenTest {
             onNodeWithText("YOU").assertIsDisplayed()
             onNodeWithText("START GAME").assertDoesNotExist()
             onNodeWithText("Who opens the story?").assertDoesNotExist()
+        }
+
+    @Test
+    fun `given one word each is off when the host presses it then turning it on is requested`() =
+        runComposeUiTest {
+            val actions = mutableListOf<LobbyAction>()
+            setContent { StoryRoundTheme { LobbyScreen(hostLobby) { actions += it } } }
+
+            onNodeWithText("One word each").performScrollTo().assertIsOff().performClick()
+
+            assertEquals(listOf<LobbyAction>(LobbyAction.OneWordPerTurnChanged(true)), actions)
+        }
+
+    @Test
+    fun `given one word each is on when the lobby is shown then the switch is on`() =
+        runComposeUiTest {
+            setContent { StoryRoundTheme { LobbyScreen(hostLobby.copy(oneWordPerTurn = true)) {} } }
+
+            onNodeWithText("One word each").performScrollTo().assertIsOn()
+            onNodeWithText("Every turn is a single word, opening included").assertExists()
         }
 
     @Test
