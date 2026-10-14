@@ -36,15 +36,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.storyround.presentation.model.HistoryStoryUi
+import com.example.storyround.presentation.model.StoryUi
 import com.example.storyround.ui.components.ErrorBanner
 import com.example.storyround.ui.components.PlayerAvatar
-import com.example.storyround.ui.components.SrButton
-import com.example.storyround.ui.components.SrButtonSize
-import com.example.storyround.ui.components.SrButtonVariant
-import com.example.storyround.ui.components.SrIcon
-import com.example.storyround.ui.components.SrIcons
-import com.example.storyround.ui.components.StageScaffold
+import com.example.storyround.ui.components.RaisedButton
+import com.example.storyround.ui.components.RaisedButtonColor
+import com.example.storyround.ui.components.RaisedButtonSize
+import com.example.storyround.ui.components.StageBackground
+import com.example.storyround.ui.components.StoryRoundIcons
+import com.example.storyround.ui.components.TintedIcon
 import com.example.storyround.ui.components.WriterShareStrip
 import com.example.storyround.ui.components.hardShadow
 import com.example.storyround.ui.components.tilt
@@ -61,18 +61,19 @@ private val IllustrationLineShape = RoundedCornerShape(3.dp)
 internal fun HistoryScreen(
     uiState: HistoryUiState,
     onAction: (HistoryAction) -> Unit,
-) = StageScaffold {
+) = StageBackground {
     Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).padding(top = 8.dp)) {
         HistoryHeader(onBack = { onAction(HistoryAction.Back) })
         when (uiState) {
             HistoryUiState.Loading -> Unit
-            is HistoryUiState.Error -> ErrorBanner(uiState.message, Modifier.padding(horizontal = 20.dp, vertical = 10.dp))
-            is HistoryUiState.Content ->
+            is HistoryUiState.Content -> {
+                uiState.error?.let { error -> ErrorBanner(error, Modifier.padding(horizontal = 20.dp, vertical = 10.dp)) }
                 if (uiState.stories.isEmpty()) {
                     EmptyHistory(onBack = { onAction(HistoryAction.Back) })
                 } else {
                     HistoryList(uiState.stories, onOpen = { onAction(HistoryAction.OpenStory(it)) })
                 }
+            }
         }
     }
 }
@@ -96,7 +97,7 @@ private fun HistoryHeader(onBack: () -> Unit) {
                     .semantics { contentDescription = "Back" },
             contentAlignment = Alignment.Center,
         ) {
-            SrIcon(SrIcons.Back, tint = colors.onStage, modifier = Modifier.size(20.dp))
+            TintedIcon(StoryRoundIcons.Back, tint = colors.onStage, modifier = Modifier.size(20.dp))
         }
         Column {
             BasicText(
@@ -111,7 +112,7 @@ private fun HistoryHeader(onBack: () -> Unit) {
 
 @Composable
 private fun HistoryList(
-    stories: List<HistoryStoryUi>,
+    stories: List<StoryUi>,
     onOpen: (String) -> Unit,
 ) {
     LazyColumn(
@@ -127,7 +128,7 @@ private fun HistoryList(
 
 @Composable
 private fun HistoryCard(
-    story: HistoryStoryUi,
+    story: StoryUi,
     tiltDegrees: Float,
     onOpen: () -> Unit,
 ) {
@@ -150,7 +151,7 @@ private fun HistoryCard(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             BasicText(
-                text = story.opening,
+                text = story.prompt,
                 style = typography.storyExcerpt.copy(color = colors.ink),
                 maxLines = EXCERPT_MAX_LINES,
                 overflow = TextOverflow.Ellipsis,
@@ -158,7 +159,7 @@ private fun HistoryCard(
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 OverlappingAvatars(story)
                 BasicText(
-                    "${story.players.size} players · ${story.contributionCount} contributions",
+                    "${story.players.size} players · ${story.contributions.size} contributions",
                     style = typography.metaStrong.copy(color = colors.onPaperMuted),
                 )
             }
@@ -167,7 +168,7 @@ private fun HistoryCard(
 }
 
 @Composable
-private fun OverlappingAvatars(story: HistoryStoryUi) {
+private fun OverlappingAvatars(story: StoryUi) {
     val paper = StoryRoundTheme.colors.paper
     Row(Modifier.padding(end = 6.dp), horizontalArrangement = Arrangement.spacedBy((-6).dp)) {
         story.players.take(HISTORY_CARD_AVATAR_LIMIT).forEach { player ->
@@ -191,12 +192,12 @@ private fun ColumnScope.EmptyHistory(onBack: () -> Unit) {
             "Finish a game and the story is saved here, on this device.",
             style = typography.body.copy(color = colors.onStageMuted, textAlign = TextAlign.Center),
         )
-        SrButton(
+        RaisedButton(
             label = "BACK",
             onClick = onBack,
             modifier = Modifier.padding(top = 10.dp),
-            variant = SrButtonVariant.Paper,
-            size = SrButtonSize.Medium,
+            color = RaisedButtonColor.Paper,
+            size = RaisedButtonSize.Medium,
             contentPadding = PaddingValues(horizontal = 32.dp),
             textStyle = typography.sendButton,
         )

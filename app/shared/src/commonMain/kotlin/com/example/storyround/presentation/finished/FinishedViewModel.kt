@@ -4,11 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.storyround.domain.repository.GameRepository
 import com.example.storyround.domain.usecase.PlayAgainUseCase
+import com.example.storyround.presentation.WhileUiSubscribed
 import com.example.storyround.presentation.mapper.RoomUiMapper
-import com.example.storyround.presentation.model.StoryUi
-import com.example.storyround.presentation.model.storySegments
-import com.example.storyround.presentation.model.storyWriters
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -22,19 +19,17 @@ internal class FinishedViewModel(
     val uiState: StateFlow<FinishedUiState> =
         repository.state
             .map { state ->
-                val room = state.room?.let(roomUiMapper::map)
-                val story = room?.let { StoryUi(it.roomCode, it.prompt, it.players, it.contributions, it.promptAuthor) }
-                val segments = room?.let { storySegments(it.prompt, it.promptAuthor, it.contributions) }.orEmpty()
+                val room = state.room?.let(roomUiMapper::map) ?: return@map FinishedUiState()
                 FinishedUiState(
-                    story = story,
-                    segments = segments,
-                    writers = room?.let { storyWriters(it.players, segments) }.orEmpty(),
-                    host = room?.let { it.players.firstOrNull { player -> player.id == it.hostId } },
+                    segments = room.segments,
+                    writers = room.writers,
+                    contributionCount = room.contributions.size,
+                    host = room.host,
                     playerId = state.playerId,
-                    canPlayAgain = room?.hostId == state.playerId,
-                    isReconnecting = room != null && !state.isConnected,
+                    canPlayAgain = room.hostId == state.playerId,
+                    isReconnecting = !state.isConnected,
                 )
-            }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FinishedUiState())
+            }.stateIn(viewModelScope, WhileUiSubscribed, FinishedUiState())
 
     fun onAction(action: FinishedAction) {
         when (action) {

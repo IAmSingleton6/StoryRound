@@ -20,12 +20,13 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.example.storyround.presentation.model.countOf
+import com.example.storyround.ui.components.FlatButton
+import com.example.storyround.ui.components.RaisedButton
 import com.example.storyround.ui.components.ReconnectingBanner
-import com.example.storyround.ui.components.SrButton
-import com.example.storyround.ui.components.SrIcons
-import com.example.storyround.ui.components.StageButton
-import com.example.storyround.ui.components.StageScaffold
+import com.example.storyround.ui.components.StageBackground
 import com.example.storyround.ui.components.StoryPaper
+import com.example.storyround.ui.components.StoryRoundIcons
 import com.example.storyround.ui.components.StoryText
 import com.example.storyround.ui.components.WriterLegend
 import com.example.storyround.ui.components.hardShadow
@@ -39,7 +40,7 @@ private val FinishedStoryPadding = PaddingValues(start = 18.dp, top = 18.dp, end
 internal fun FinishedScreen(
     uiState: FinishedUiState,
     onAction: (FinishedAction) -> Unit,
-) = StageScaffold {
+) = StageBackground {
     val colors = StoryRoundTheme.colors
     val typography = StoryRoundTheme.typography
     Column(
@@ -56,11 +57,11 @@ internal fun FinishedScreen(
         }
         WriterLegend(uiState.writers, currentPlayerId = uiState.playerId)
         if (uiState.canPlayAgain) {
-            SrButton(
+            RaisedButton(
                 label = "PLAY AGAIN",
                 onClick = { onAction(FinishedAction.PlayAgain) },
                 modifier = Modifier.fillMaxWidth(),
-                leadingIcon = SrIcons.Replay,
+                leadingIcon = StoryRoundIcons.Replay,
             )
         } else {
             uiState.host?.let { host ->
@@ -71,7 +72,7 @@ internal fun FinishedScreen(
                 )
             }
         }
-        StageButton("Home", onClick = { onAction(FinishedAction.Home) }, modifier = Modifier.fillMaxWidth())
+        FlatButton("Home", onClick = { onAction(FinishedAction.Home) }, modifier = Modifier.fillMaxWidth())
     }
     if (uiState.isReconnecting) {
         ReconnectingBanner(
@@ -86,7 +87,6 @@ internal fun FinishedScreen(
 private fun FinishedHeader(uiState: FinishedUiState) {
     val colors = StoryRoundTheme.colors
     val typography = StoryRoundTheme.typography
-    val contributions = (uiState.segments.size - 1).coerceAtLeast(0)
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -109,13 +109,11 @@ private fun FinishedHeader(uiState: FinishedUiState) {
             style = typography.headline.copy(color = colors.onStage, textAlign = TextAlign.Center),
         )
         BasicText(
-            text = "${plural(contributions, "contribution")} · ${plural(uiState.writers.size, "writer")} · saved to your history",
+            text = "${countOf(
+                uiState.contributionCount,
+                "contribution",
+            )} · ${countOf(uiState.writers.size, "writer")} · saved to your history",
             style = typography.caption.copy(color = colors.onStageMuted, textAlign = TextAlign.Center),
         )
     }
 }
-
-private fun plural(
-    count: Int,
-    noun: String,
-): String = if (count == 1) "1 $noun" else "$count ${noun}s"

@@ -1,15 +1,12 @@
 package com.example.storyround.presentation.history
 
-import com.example.storyround.presentation.model.HistoryStoryUi
+import com.example.storyround.presentation.model.StoryUi
 
 internal sealed interface HistoryUiState {
     data object Loading : HistoryUiState
 
     data class Content(
-        val stories: List<HistoryStoryUi>,
-    ) : HistoryUiState
-
-    data class Error(
-        val message: String,
+        val stories: List<StoryUi>,
+        val error: String? = null,
     ) : HistoryUiState
 }

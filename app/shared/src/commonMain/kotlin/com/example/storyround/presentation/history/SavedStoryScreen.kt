@@ -18,13 +18,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import com.example.storyround.ui.components.SrIcon
-import com.example.storyround.ui.components.SrIcons
-import com.example.storyround.ui.components.StageButton
-import com.example.storyround.ui.components.StagePillButton
-import com.example.storyround.ui.components.StageScaffold
+import com.example.storyround.ui.components.FlatButton
+import com.example.storyround.ui.components.PillButton
+import com.example.storyround.ui.components.StageBackground
 import com.example.storyround.ui.components.StoryPaper
+import com.example.storyround.ui.components.StoryRoundIcons
 import com.example.storyround.ui.components.StoryText
+import com.example.storyround.ui.components.TintedIcon
 import com.example.storyround.ui.components.WriterLegend
 import com.example.storyround.ui.components.WriterShareStrip
 import com.example.storyround.ui.theme.StoryRoundTheme
@@ -35,7 +35,7 @@ private val SavedStoryPadding = PaddingValues(start = 20.dp, top = 20.dp, end = 
 internal fun SavedStoryScreen(
     uiState: SavedStoryUiState,
     onBack: () -> Unit,
-) = StageScaffold {
+) = StageBackground {
     val colors = StoryRoundTheme.colors
     val typography = StoryRoundTheme.typography
     Column(
@@ -51,12 +51,12 @@ internal fun SavedStoryScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            StagePillButton(
+            PillButton(
                 onClick = onBack,
                 contentPadding = PaddingValues(horizontal = 13.dp),
                 modifier = Modifier.semantics { contentDescription = "Back" },
             ) {
-                SrIcon(SrIcons.Back, tint = colors.onStage, modifier = Modifier.size(18.dp))
+                TintedIcon(StoryRoundIcons.Back, tint = colors.onStage, modifier = Modifier.size(18.dp))
             }
             BasicText("SAVED STORY", style = typography.eyebrow.copy(color = colors.onStageMuted))
         }
@@ -72,6 +72,6 @@ internal fun SavedStoryScreen(
             }
         }
         WriterLegend(uiState.writers)
-        StageButton("Back to history", onClick = onBack, modifier = Modifier.fillMaxWidth())
+        FlatButton("Back to history", onClick = onBack, modifier = Modifier.fillMaxWidth())
     }
 }

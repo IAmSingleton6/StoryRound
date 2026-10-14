@@ -22,6 +22,7 @@ class FinishedScreenTest {
         FinishedUiState(
             segments = listOf(StorySegmentUi("A door opened.", alex), StorySegmentUi("A horse arrived.", sam)),
             writers = listOf(StoryWriterUi(alex, 1), StoryWriterUi(sam, 1)),
+            contributionCount = 1,
             host = alex,
             playerId = alex.id,
             canPlayAgain = true,
