@@ -1,19 +1,18 @@
 package com.example.storyround.data.idea
 
-import com.example.storyround.presentation.model.MAX_CONTRIBUTION_LENGTH
+import com.example.storyround.protocol.MAX_STORY_TEXT_LENGTH
 import com.example.storyround.random.RandomNumberGenerator
+import io.mockk.every
+import io.mockk.mockk
 import kotlin.test.Test
 import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 class BundledStoryIdeaProviderTest {
-    private val provider = BundledStoryIdeaProvider(SequenceRandomNumberGenerator())
+    private var nextIndex = 0
 
-    private class SequenceRandomNumberGenerator : RandomNumberGenerator {
-        private var next = 0
-
-        override fun nextInt(until: Int): Int = next++ % until
-    }
+    private val randomNumberGenerator = mockk<RandomNumberGenerator> { every { nextInt(any()) } answers { nextIndex++ % firstArg<Int>() } }
+    private val provider = BundledStoryIdeaProvider(randomNumberGenerator)
 
     @Test
     fun `given the current idea when another is requested then a different idea is returned`() {
@@ -29,8 +28,8 @@ class BundledStoryIdeaProviderTest {
     @Test
     fun `given any idea when returned then it fits in a single contribution`() {
         repeat(50) {
-            assertTrue(provider.openingIdea(current = "").length <= MAX_CONTRIBUTION_LENGTH)
-            assertTrue(provider.continuationIdea(storySoFar = "It began", current = "").length <= MAX_CONTRIBUTION_LENGTH)
+            assertTrue(provider.openingIdea(current = "").length <= MAX_STORY_TEXT_LENGTH)
+            assertTrue(provider.continuationIdea(storySoFar = "It began", current = "").length <= MAX_STORY_TEXT_LENGTH)
         }
     }
 
