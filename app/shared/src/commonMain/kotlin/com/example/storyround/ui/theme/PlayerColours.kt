@@ -19,7 +19,7 @@ internal fun PlayerColour.toColor(): Color =
 
 internal fun PlayerColour.toContentColor(): Color =
     when (this) {
-        PlayerColour.Yellow, PlayerColour.Orange, PlayerColour.Teal, PlayerColour.Lime -> MidnightPaperColors.ink
+        PlayerColour.Yellow, PlayerColour.Orange, PlayerColour.Teal, PlayerColour.Lime -> DarkColors.ink
         PlayerColour.Blue, PlayerColour.Green, PlayerColour.Red, PlayerColour.Purple, PlayerColour.Pink, PlayerColour.Indigo ->
-            MidnightPaperColors.paperWhite
+            DarkColors.paperWhite
     }

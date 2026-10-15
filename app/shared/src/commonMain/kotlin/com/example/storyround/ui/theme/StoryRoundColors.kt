@@ -32,7 +32,7 @@ internal data class StoryRoundColors(
     val coralInk: Color,
 )
 
-internal val MidnightPaperColors =
+internal val DarkColors =
     StoryRoundColors(
         stage = Color(0xFF231A45),
         stageRaised = Color(0xFF2F2560),

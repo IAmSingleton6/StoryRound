@@ -8,17 +8,24 @@ import kotlin.test.assertTrue
 class PlayerColoursTest {
     @Test
     fun `given every player colour when drawn then each has its own distinct colour`() {
+        // When
         val colours = PlayerColour.entries.map { it.toColor() }
 
+        // Then
         assertEquals(colours.size, colours.toSet().size)
     }
 
     @Test
     fun `given every player colour when text is drawn on it then it uses ink or white from the palette`() {
-        val allowed = setOf(MidnightPaperColors.ink, MidnightPaperColors.paperWhite)
+        // Given
+        val allowed = setOf(DarkColors.ink, DarkColors.paperWhite)
 
-        assertTrue(PlayerColour.entries.all { it.toContentColor() in allowed })
-        assertEquals(MidnightPaperColors.ink, PlayerColour.Yellow.toContentColor())
-        assertEquals(MidnightPaperColors.paperWhite, PlayerColour.Blue.toContentColor())
+        // When
+        val contentColours = PlayerColour.entries.associateWith { it.toContentColor() }
+
+        // Then
+        assertTrue(contentColours.values.all { it in allowed })
+        assertEquals(DarkColors.ink, contentColours.getValue(PlayerColour.Yellow))
+        assertEquals(DarkColors.paperWhite, contentColours.getValue(PlayerColour.Blue))
     }
 }
