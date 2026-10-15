@@ -14,14 +14,26 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.storyround.presentation.model.PlayerUi
+import com.example.storyround.ui.preview.ComponentPreview
+import com.example.storyround.ui.preview.PreviewPlayers
 import com.example.storyround.ui.theme.StoryRoundTheme
 import com.example.storyround.ui.theme.toColor
+import org.jetbrains.compose.resources.stringResource
+import storyround.app.shared.generated.resources.Res
+import storyround.app.shared.generated.resources.player_writing_now
 
 private const val STRIP_ANIMATION_MILLIS = 300
 private const val WAITING_ALPHA = 0.55f
+private val ActiveAvatarSize = 36.dp
+private val WaitingAvatarSize = 28.dp
+private val StripInitialSize = 13.sp
+
+private val ActiveRingReach = 5.dp
+private val ActiveRingGap = 3.dp
 
 @Composable
 internal fun PlayerStrip(
@@ -39,17 +51,17 @@ private fun StripAvatar(
     player: PlayerUi,
     isActive: Boolean,
 ) {
-    val animation = tween<Float>(STRIP_ANIMATION_MILLIS)
-    val size by animateDpAsState(if (isActive) 36.dp else 28.dp, tween(STRIP_ANIMATION_MILLIS), label = "stripSize")
-    val alpha by animateFloatAsState(if (isActive) 1f else WAITING_ALPHA, animation, label = "stripAlpha")
+    val size by animateDpAsState(if (isActive) ActiveAvatarSize else WaitingAvatarSize, tween(STRIP_ANIMATION_MILLIS), label = "stripSize")
+    val alpha by animateFloatAsState(if (isActive) 1f else WAITING_ALPHA, tween(STRIP_ANIMATION_MILLIS), label = "stripAlpha")
     val stage = StoryRoundTheme.colors.stage
+    val description = if (isActive) stringResource(Res.string.player_writing_now, player.name) else player.name
     PlayerAvatar(
         player = player,
         size = size,
-        initialSize = 13.sp,
+        initialSize = StripInitialSize,
         modifier =
             Modifier
-                .semantics { contentDescription = if (isActive) "${player.name}, writing now" else player.name }
+                .semantics { contentDescription = description }
                 .then(if (isActive) Modifier.activeRing(player.colour.toColor(), stage) else Modifier)
                 .alpha(alpha),
     )
@@ -61,6 +73,14 @@ private fun Modifier.activeRing(
 ): Modifier =
     drawBehind {
         val radius = size.minDimension / 2f
-        drawCircle(ring, radius = radius + 5.dp.toPx())
-        drawCircle(gap, radius = radius + 3.dp.toPx())
+        drawCircle(ring, radius = radius + ActiveRingReach.toPx())
+        drawCircle(gap, radius = radius + ActiveRingGap.toPx())
+    }
+
+@Preview
+@Composable
+private fun PlayerStripPreview() =
+    ComponentPreview {
+        PlayerStrip(PreviewPlayers.all, activePlayerId = PreviewPlayers.alex.id)
+        PlayerStrip(PreviewPlayers.all, activePlayerId = null)
     }

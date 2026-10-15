@@ -1,11 +1,15 @@
 package com.example.storyround.ui.components
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.rememberScrollState
@@ -39,13 +43,18 @@ import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextRange
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.storyround.presentation.model.StorySegmentUi
+import com.example.storyround.ui.preview.ComponentPreview
+import com.example.storyround.ui.preview.PreviewPlayers
+import com.example.storyround.ui.preview.PreviewStory
+import com.example.storyround.ui.theme.OutlineWidth
 import com.example.storyround.ui.theme.StoryRoundTheme
 import com.example.storyround.ui.theme.toColor
 import com.example.storyround.ui.theme.toContentColor
@@ -56,17 +65,22 @@ private const val NEWEST_HIGHLIGHT_ALPHA = 0.36f
 private const val FADE_IN_MILLIS = 600
 private const val SCROLL_DELAY_MILLIS = 250L
 private const val NEWEST_TAG_ID = "newestTag"
-
-private val PieceGap = 14.sp
-
+private const val NO_NEWEST_PIECE = -1
 private const val HIGHLIGHT_ASCENT_EM = 0.92f
 private const val HIGHLIGHT_DESCENT_EM = 0.28f
 private val HighlightPaddingX = 3.dp
 private val HighlightPaddingY = 2.dp
 private val HighlightRadius = 4.dp
 private val HighlightUnderline = 3.dp
+private val PieceGap = 14.sp
+
 private val TagShape = RoundedCornerShape(6.dp)
 private val TagGap = 6.dp
+private val TagPaddingX = 6.dp
+private val TagPaddingY = 1.5.dp
+private val TagOutline = OutlineWidth.Fine
+private val TagHeight = 21.dp
+
 private val StoryTextPadding = PaddingValues(start = 20.dp, top = 22.dp, end = 20.dp, bottom = 28.dp)
 
 @Composable
@@ -74,33 +88,22 @@ internal fun StoryText(
     segments: List<StorySegmentUi>,
     modifier: Modifier = Modifier,
     newestTag: String? = null,
-    textStyle: TextStyle = StoryRoundTheme.typography.story,
     contentPadding: PaddingValues = StoryTextPadding,
 ) {
+    val emphasiseNewest = newestTag != null
     val scroll = rememberScrollState()
-    val newestAlpha = remember { Animatable(1f) }
-    LaunchedEffect(segments.size) {
-        if (newestTag != null && segments.isNotEmpty()) {
-            newestAlpha.snapTo(0f)
-            newestAlpha.animateTo(1f, tween(FADE_IN_MILLIS))
-        }
-    }
-    LaunchedEffect(segments.size) {
-        if (newestTag != null) {
-            delay(SCROLL_DELAY_MILLIS)
-            scroll.animateScrollTo(scroll.maxValue)
-        }
-    }
+    val newestPieceAlpha = rememberNewestPieceFadeIn(pieceCount = segments.size, enabled = emphasiseNewest)
+    ScrollToNewestPieceEffect(scroll, pieceCount = segments.size, enabled = emphasiseNewest)
+
     val colors = StoryRoundTheme.colors
-    val style = textStyle.copy(color = colors.ink)
-    val newestIndex = if (newestTag != null) segments.lastIndex else -1
+    val style = StoryRoundTheme.typography.story.copy(color = colors.ink)
+    val newestIndex = if (emphasiseNewest) segments.lastIndex else NO_NEWEST_PIECE
     val story =
-        remember(segments, newestIndex, newestAlpha.value) {
-            annotate(segments, newestIndex, colors.ink.copy(alpha = newestAlpha.value))
+        remember(segments, newestIndex, newestPieceAlpha.value) {
+            buildStoryText(segments, newestIndex, colors.ink.copy(alpha = newestPieceAlpha.value))
         }
-    val tagContent = newestTag?.let { tag -> segments.lastOrNull()?.let { rememberNewestTag(tag, it) } }
+    val tagContent = newestTag?.let { tag -> segments.lastOrNull()?.let { rememberNewestTagContent(tag, it) } }
     var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
-    val density = LocalDensity.current
     BasicText(
         text = story.text,
         modifier =
@@ -109,21 +112,47 @@ internal fun StoryText(
                 .verticalScroll(scroll)
                 .padding(contentPadding)
                 .semantics { contentDescription = segments.joinToString(" ") { it.text } }
-                .drawBehind {
-                    val result = layout ?: return@drawBehind
-                    val fontSizePx = with(density) { style.fontSize.toPx() }
-                    story.ranges.forEachIndexed { index, range ->
-                        val author = segments[index].author ?: return@forEachIndexed
-                        val appear = if (index == newestIndex) newestAlpha.value else 1f
-                        val wash = if (index == newestIndex) NEWEST_HIGHLIGHT_ALPHA else HIGHLIGHT_ALPHA
-                        val colour = author.colour.toColor()
-                        drawHighlight(result, range, fontSizePx, colour.copy(alpha = wash * appear), colour.copy(alpha = appear))
-                    }
-                },
+                .pieceHighlights(
+                    layout = { layout },
+                    story = story,
+                    segments = segments,
+                    newestIndex = newestIndex,
+                    newestPieceAlpha = { newestPieceAlpha.value },
+                    fontSize = style.fontSize,
+                ),
         style = style,
         onTextLayout = { layout = it },
         inlineContent = tagContent?.let { mapOf(NEWEST_TAG_ID to it) } ?: emptyMap(),
     )
+}
+
+@Composable
+private fun rememberNewestPieceFadeIn(
+    pieceCount: Int,
+    enabled: Boolean,
+): Animatable<Float, AnimationVector1D> {
+    val alpha = remember { Animatable(1f) }
+    LaunchedEffect(pieceCount) {
+        if (enabled && pieceCount > 0) {
+            alpha.snapTo(0f)
+            alpha.animateTo(1f, tween(FADE_IN_MILLIS))
+        }
+    }
+    return alpha
+}
+
+@Composable
+private fun ScrollToNewestPieceEffect(
+    scroll: ScrollState,
+    pieceCount: Int,
+    enabled: Boolean,
+) {
+    LaunchedEffect(pieceCount) {
+        if (enabled) {
+            delay(SCROLL_DELAY_MILLIS)
+            scroll.animateScrollTo(scroll.maxValue)
+        }
+    }
 }
 
 private class AnnotatedStory(
@@ -131,7 +160,7 @@ private class AnnotatedStory(
     val ranges: List<TextRange>,
 )
 
-private fun annotate(
+private fun buildStoryText(
     segments: List<StorySegmentUi>,
     newestIndex: Int,
     newestInk: Color,
@@ -158,7 +187,7 @@ private fun annotate(
 }
 
 @Composable
-private fun rememberNewestTag(
+private fun rememberNewestTagContent(
     tag: String,
     segment: StorySegmentUi,
 ): InlineTextContent {
@@ -171,8 +200,8 @@ private fun rememberNewestTag(
         val placeholder =
             with(density) {
                 Placeholder(
-                    width = (textSize.width.toDp() + 12.dp + 3.dp + TagGap).toSp(),
-                    height = 21.dp.toSp(),
+                    width = (textSize.width.toDp() + TagPaddingX * 2 + TagOutline * 2 + TagGap).toSp(),
+                    height = TagHeight.toSp(),
                     placeholderVerticalAlign = PlaceholderVerticalAlign.TextCenter,
                 )
             }
@@ -185,13 +214,34 @@ private fun rememberNewestTag(
                         .padding(start = TagGap)
                         .wrapContentSize()
                         .background(author?.colour?.toColor() ?: colors.ink, TagShape)
-                        .border(1.5.dp, colors.ink, TagShape)
-                        .padding(horizontal = 6.dp, vertical = 1.5.dp),
+                        .border(TagOutline, colors.ink, TagShape)
+                        .padding(horizontal = TagPaddingX, vertical = TagPaddingY),
                 style = tagStyle.copy(color = author?.colour?.toContentColor() ?: colors.paper),
             )
         }
     }
 }
+
+private fun Modifier.pieceHighlights(
+    layout: () -> TextLayoutResult?,
+    story: AnnotatedStory,
+    segments: List<StorySegmentUi>,
+    newestIndex: Int,
+    newestPieceAlpha: () -> Float,
+    fontSize: TextUnit,
+): Modifier =
+    drawBehind {
+        val result = layout() ?: return@drawBehind
+        val fontSizePx = fontSize.toPx()
+        story.ranges.forEachIndexed { index, range ->
+            val author = segments[index].author ?: return@forEachIndexed
+            val isNewest = index == newestIndex
+            val fadeIn = if (isNewest) newestPieceAlpha() else 1f
+            val washAlpha = if (isNewest) NEWEST_HIGHLIGHT_ALPHA else HIGHLIGHT_ALPHA
+            val color = author.colour.toColor()
+            drawHighlight(result, range, fontSizePx, wash = color.copy(alpha = washAlpha * fadeIn), underline = color.copy(alpha = fadeIn))
+        }
+    }
 
 private fun DrawScope.drawHighlight(
     layout: TextLayoutResult,
@@ -201,31 +251,12 @@ private fun DrawScope.drawHighlight(
     underline: Color,
 ) {
     if (range.collapsed) return
-    val padX = HighlightPaddingX.toPx()
-    val padY = HighlightPaddingY.toPx()
-    val radius = CornerRadius(HighlightRadius.toPx())
     val underlineHeight = HighlightUnderline.toPx()
     val firstLine = layout.getLineForOffset(range.start)
     val lastLine = layout.getLineForOffset(range.end - 1)
     for (line in firstLine..lastLine) {
-        val left = if (line == firstLine) layout.getHorizontalPosition(range.start, true) else layout.getLineLeft(line)
-        val right = if (line == lastLine) layout.getHorizontalPosition(range.end, true) else layout.getLineRight(line)
-        val baseline = layout.getLineBaseline(line)
-        val startRadius = if (line == firstLine) radius else CornerRadius.Zero
-        val endRadius = if (line == lastLine) radius else CornerRadius.Zero
-        val box =
-            RoundRect(
-                left = left - padX,
-                top = baseline - fontSizePx * HIGHLIGHT_ASCENT_EM - padY,
-                right = right + padX,
-                bottom = baseline + fontSizePx * HIGHLIGHT_DESCENT_EM + padY,
-                topLeftCornerRadius = startRadius,
-                topRightCornerRadius = endRadius,
-                bottomRightCornerRadius = endRadius,
-                bottomLeftCornerRadius = startRadius,
-            )
-        val clip = Path().apply { addRoundRect(box) }
-        clipPath(clip) {
+        val box = lineHighlightBox(layout, range, line, isFirstLine = line == firstLine, isLastLine = line == lastLine, fontSizePx)
+        clipPath(Path().apply { addRoundRect(box) }) {
             drawRect(wash, topLeft = Offset(box.left, box.top), size = Size(box.width, box.height))
             drawRect(
                 underline,
@@ -235,3 +266,47 @@ private fun DrawScope.drawHighlight(
         }
     }
 }
+
+private fun DrawScope.lineHighlightBox(
+    layout: TextLayoutResult,
+    range: TextRange,
+    line: Int,
+    isFirstLine: Boolean,
+    isLastLine: Boolean,
+    fontSizePx: Float,
+): RoundRect {
+    val padX = HighlightPaddingX.toPx()
+    val padY = HighlightPaddingY.toPx()
+    val radius = CornerRadius(HighlightRadius.toPx())
+    val left = if (isFirstLine) layout.getHorizontalPosition(range.start, true) else layout.getLineLeft(line)
+    val right = if (isLastLine) layout.getHorizontalPosition(range.end, true) else layout.getLineRight(line)
+    val baseline = layout.getLineBaseline(line)
+    val startRadius = if (isFirstLine) radius else CornerRadius.Zero
+    val endRadius = if (isLastLine) radius else CornerRadius.Zero
+    return RoundRect(
+        left = left - padX,
+        top = baseline - fontSizePx * HIGHLIGHT_ASCENT_EM - padY,
+        right = right + padX,
+        bottom = baseline + fontSizePx * HIGHLIGHT_DESCENT_EM + padY,
+        topLeftCornerRadius = startRadius,
+        topRightCornerRadius = endRadius,
+        bottomRightCornerRadius = endRadius,
+        bottomLeftCornerRadius = startRadius,
+    )
+}
+
+@Preview
+@Composable
+private fun StoryTextPreview() =
+    ComponentPreview {
+        StoryPaper(Modifier.fillMaxWidth().height(360.dp)) { StoryText(PreviewStory.segments) }
+    }
+
+@Preview
+@Composable
+private fun StoryTextNewestPiecePreview() =
+    ComponentPreview {
+        StoryPaper(Modifier.fillMaxWidth().height(360.dp)) {
+            StoryText(PreviewStory.segments, newestTag = PreviewPlayers.jordan.name.uppercase())
+        }
+    }

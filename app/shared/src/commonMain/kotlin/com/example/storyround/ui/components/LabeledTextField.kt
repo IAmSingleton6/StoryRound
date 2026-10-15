@@ -19,8 +19,13 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.example.storyround.ui.preview.ComponentPreview
+import com.example.storyround.ui.preview.PreviewSurface
+import com.example.storyround.ui.theme.OutlineWidth
 import com.example.storyround.ui.theme.StoryRoundTheme
 
 private val LabeledTextFieldShape = RoundedCornerShape(14.dp)
@@ -38,7 +43,7 @@ internal fun LabeledTextField(
 ) {
     val colors = StoryRoundTheme.colors
     Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        BasicText(label.uppercase(), style = StoryRoundTheme.typography.label.copy(color = colors.onPaperMuted))
+        BasicText(label.uppercase(), style = StoryRoundTheme.typography.eyebrowMedium.copy(color = colors.onPaperMuted))
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
@@ -58,7 +63,7 @@ internal fun LabeledTextField(
                             .fillMaxWidth()
                             .height(height)
                             .background(colors.paperWhite, LabeledTextFieldShape)
-                            .border(2.5.dp, colors.ink, LabeledTextFieldShape)
+                            .border(OutlineWidth.Regular, colors.ink, LabeledTextFieldShape)
                             .padding(horizontal = 16.dp),
                     contentAlignment = Alignment.CenterStart,
                 ) {
@@ -75,3 +80,19 @@ internal fun LabeledTextField(
         )
     }
 }
+
+@Preview
+@Composable
+private fun LabeledTextFieldPreview() =
+    ComponentPreview(PreviewSurface.Paper) {
+        LabeledTextField(value = "", onValueChange = {}, label = "Your name", placeholder = "What should we call you?")
+        LabeledTextField(value = "Alex", onValueChange = {}, label = "Your name", placeholder = "What should we call you?")
+        LabeledTextField(
+            value = "7F2K",
+            onValueChange = {},
+            label = "Room code",
+            placeholder = "ABCD",
+            textStyle = StoryRoundTheme.typography.codeInput.copy(textAlign = TextAlign.Center),
+            height = 64.dp,
+        )
+    }

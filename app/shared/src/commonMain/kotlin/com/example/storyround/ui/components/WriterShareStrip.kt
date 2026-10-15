@@ -9,10 +9,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.storyround.presentation.model.StoryWriterUi
+import com.example.storyround.ui.preview.ComponentPreview
+import com.example.storyround.ui.preview.PreviewStory
+import com.example.storyround.ui.preview.PreviewSurface
+import com.example.storyround.ui.theme.OutlineWidth
 import com.example.storyround.ui.theme.StoryRoundTheme
 import com.example.storyround.ui.theme.toColor
+
+private val ShareBarHeight = 12.dp
 
 @Composable
 internal fun WriterShareStrip(
@@ -23,16 +30,20 @@ internal fun WriterShareStrip(
     Row(
         modifier
             .fillMaxWidth()
-            .height(14.dp)
-            .drawBehind { drawRect(ink, topLeft = Offset(0f, size.height - 2.dp.toPx())) },
+            .height(ShareBarHeight + OutlineWidth.Thin)
+            .drawBehind { drawRect(ink, topLeft = Offset(0f, size.height - OutlineWidth.Thin.toPx())) },
     ) {
         writers.filter { it.pieces > 0 }.forEach { writer ->
             Box(
                 Modifier
                     .weight(writer.pieces.toFloat())
-                    .height(12.dp)
+                    .height(ShareBarHeight)
                     .background(writer.player.colour.toColor()),
             )
         }
     }
 }
+
+@Preview
+@Composable
+private fun WriterShareStripPreview() = ComponentPreview(PreviewSurface.Paper) { WriterShareStrip(PreviewStory.writers) }

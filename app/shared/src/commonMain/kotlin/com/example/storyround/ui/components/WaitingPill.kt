@@ -26,12 +26,17 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.storyround.presentation.model.PlayerUi
+import com.example.storyround.ui.preview.ComponentPreview
+import com.example.storyround.ui.preview.PreviewPlayers
+import com.example.storyround.ui.theme.OutlineWidth
 import com.example.storyround.ui.theme.StoryRoundTheme
 import com.example.storyround.ui.theme.toColor
 
-private val WaitingPillShape = RoundedCornerShape(30.dp)
+private val WaitingPillShape = RoundedCornerShape(percent = 50)
+private val WaitingPillHeight = 60.dp
 private const val DOT_COUNT = 3
 private const val DOT_STEP_MILLIS = 330
 private const val DOT_IDLE_ALPHA = 0.35f
@@ -47,16 +52,16 @@ internal fun WaitingPill(
         modifier =
             modifier
                 .fillMaxWidth()
-                .height(60.dp)
+                .height(WaitingPillHeight)
                 .background(colors.stageRaised, WaitingPillShape)
-                .dashedBorder(2.dp, colors.stageOutlineSoft, WaitingPillShape)
+                .dashedBorder(OutlineWidth.Thin, colors.stageOutlineSoft, WaitingPillShape)
                 .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite }
                 .padding(start = 10.dp, end = 20.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         PlayerAvatar(writer, size = 38.dp)
-        BasicText(text, modifier = Modifier.weight(1f), style = StoryRoundTheme.typography.bodyStrong.copy(color = colors.onStage))
+        BasicText(text, modifier = Modifier.weight(1f), style = StoryRoundTheme.typography.labelLarge.copy(color = colors.onStage))
         WritingDots(writer)
     }
 }
@@ -82,3 +87,7 @@ private fun WritingDots(writer: PlayerUi) {
         }
     }
 }
+
+@Preview
+@Composable
+private fun WaitingPillPreview() = ComponentPreview { WaitingPill(PreviewPlayers.alex, "Alex is writing…") }

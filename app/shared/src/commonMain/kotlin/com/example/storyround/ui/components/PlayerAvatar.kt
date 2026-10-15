@@ -2,7 +2,9 @@ package com.example.storyround.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicText
@@ -11,11 +13,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
 import com.example.storyround.presentation.model.PlayerUi
+import com.example.storyround.ui.preview.ComponentPreview
+import com.example.storyround.ui.preview.PreviewPlayers
+import com.example.storyround.ui.theme.OutlineWidth
 import com.example.storyround.ui.theme.StoryRoundTheme
 import com.example.storyround.ui.theme.toColor
 import com.example.storyround.ui.theme.toContentColor
@@ -27,7 +33,7 @@ internal fun PlayerAvatar(
     player: PlayerUi,
     size: Dp,
     modifier: Modifier = Modifier,
-    borderWidth: Dp = 2.dp,
+    borderWidth: Dp = OutlineWidth.Thin,
     initialSize: TextUnit = TextUnit.Unspecified,
     borderColor: Color = StoryRoundTheme.colors.ink,
 ) {
@@ -47,3 +53,12 @@ internal fun PlayerAvatar(
         )
     }
 }
+
+@Preview
+@Composable
+private fun PlayerAvatarPreview() =
+    ComponentPreview {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            PreviewPlayers.allColours.forEach { player -> PlayerAvatar(player, size = 44.dp) }
+        }
+    }

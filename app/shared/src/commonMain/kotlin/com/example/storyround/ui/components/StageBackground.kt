@@ -15,6 +15,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.rotate
+import com.example.storyround.ui.preview.PhonePreview
+import com.example.storyround.ui.preview.ScreenPreview
 import com.example.storyround.ui.theme.StoryRoundTheme
 
 private const val RAY_PERIOD_DEGREES = 20f
@@ -82,3 +84,7 @@ private fun rayColorStops(ray: Color): Array<Pair<Float, Color>> {
         add(1f to Color.Transparent)
     }.toTypedArray()
 }
+
+@PhonePreview
+@Composable
+private fun StageBackgroundPreview() = ScreenPreview { StageBackground {} }

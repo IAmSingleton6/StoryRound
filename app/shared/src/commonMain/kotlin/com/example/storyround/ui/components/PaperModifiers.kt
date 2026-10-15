@@ -1,5 +1,7 @@
 package com.example.storyround.ui.components
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithCache
@@ -13,9 +15,13 @@ import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.example.storyround.ui.theme.CardShape
+import com.example.storyround.ui.theme.OutlineWidth
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
+
+private val PaperSheetCornerRadius = 28.dp
 
 internal fun Modifier.hardShadow(
     offsetY: Dp,
@@ -27,13 +33,30 @@ internal fun Modifier.hardShadow(
         translate(top = offsetY.toPx()) { drawOutline(outline, color) }
     }
 
+internal fun Modifier.printedSurface(
+    fill: Color,
+    ink: Color,
+    shape: Shape,
+    shadowOffset: Dp,
+    shadowColor: Color,
+    outlineWidth: Dp = OutlineWidth.Regular,
+): Modifier =
+    hardShadow(offsetY = shadowOffset, color = shadowColor, shape = shape)
+        .background(fill, shape)
+        .border(outlineWidth, ink, shape)
+
+internal fun Modifier.stagePanel(
+    fill: Color,
+    outline: Color,
+): Modifier = background(fill, CardShape).border(OutlineWidth.Thin, outline, CardShape)
+
 internal fun Modifier.paperSheet(
     paper: Color,
     edge: Color,
 ): Modifier =
     drawWithCache {
-        val radius = 28.dp.toPx()
-        val edgeWidth = 3.dp.toPx()
+        val radius = PaperSheetCornerRadius.toPx()
+        val edgeWidth = OutlineWidth.Thick.toPx()
         val outer = CornerRadius(radius)
         val inner = CornerRadius(radius, radius - edgeWidth)
         val edgePath = Path()
@@ -59,8 +82,8 @@ internal fun Modifier.paperSheet(
 
 internal fun Modifier.tilt(
     degrees: Float,
-    dx: Dp,
-    dy: Dp,
+    dx: Dp = 0.dp,
+    dy: Dp = 0.dp,
 ): Modifier =
     graphicsLayer {
         val radians = degrees * PI / 180.0
