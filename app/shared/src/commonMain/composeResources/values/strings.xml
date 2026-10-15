@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="back">Back</string>
+    <string name="host">Host</string>
+    <string name="player_you">You</string>
+    <string name="player_you_mid_sentence">you</string>
+    <string name="player_legend_you">%1$s (you)</string>
+    <string name="player_writing_now">%1$s, writing now</string>
+    <string name="reconnecting_banner">Reconnecting… your seat is saved</string>
+    <string name="writer_legend_title">PLAYERS</string>
+    <string name="writer_legend_chip_description">%1$s, %2$s</string>
+    <string name="writing_field_idea">Idea</string>
+    <string name="writing_field_idea_action">Replace your text with a random idea</string>
+    <string name="writing_field_one_word_only">One word only, no spaces</string>
+
+    <plurals name="count_pieces">
+        <item quantity="one">%1$d piece</item>
+        <item quantity="other">%1$d pieces</item>
+    </plurals>
+    <plurals name="count_players">
+        <item quantity="one">%1$d player</item>
+        <item quantity="other">%1$d players</item>
+    </plurals>
+    <plurals name="count_contributions">
+        <item quantity="one">%1$d contribution</item>
+        <item quantity="other">%1$d contributions</item>
+    </plurals>
+    <plurals name="count_writers">
+        <item quantity="one">%1$d writer</item>
+        <item quantity="other">%1$d writers</item>
+    </plurals>
+    <plurals name="count_turns">
+        <item quantity="one">%1$d turn</item>
+        <item quantity="other">%1$d turns</item>
+    </plurals>
+    <plurals name="count_times">
+        <item quantity="one">%1$d time</item>
+        <item quantity="other">%1$d times</item>
+    </plurals>
+    <plurals name="count_saved_stories">
+        <item quantity="one">%1$d saved story</item>
+        <item quantity="other">%1$d saved stories</item>
+    </plurals>
+
+    <string name="error_server_unreachable">Can't reach Story Round right now. Check your internet connection and try again.</string>
+    <string name="error_reconnecting">Reconnecting...</string>
+    <string name="error_unreadable_message">Received an unreadable server message.</string>
+    <string name="error_no_room">Join a room before taking this action.</string>
+
+    <string name="home_history_description">Story history, %1$s</string>
+    <string name="home_wordmark_story">Story</string>
+    <string name="home_wordmark_round">Round</string>
+    <string name="home_tagline">Write a story. One sentence at a time. </string>
+    <string name="home_tagline_emphasis">Less time every turn.</string>
+    <string name="home_name_label">Your name</string>
+    <string name="home_name_placeholder">What should we call you?</string>
+    <string name="home_connecting">CONNECTING…</string>
+    <string name="home_create_game">CREATE GAME</string>
+    <string name="home_join_game">JOIN GAME</string>
+    <string name="home_room_code_label">Room code</string>
+    <string name="home_room_code_placeholder">ABCD</string>
+    <string name="home_cancel">Cancel</string>
+
+    <string name="lobby_leave">Leave lobby</string>
+    <string name="lobby_title">LOBBY</string>
+    <string name="lobby_room_code">ROOM CODE</string>
+    <string name="lobby_room_code_hint">Friends join with this code</string>
+    <string name="lobby_player_count_description">%1$d of %2$d players</string>
+    <string name="lobby_player_count_of">OF %1$d</string>
+    <string name="lobby_players">PLAYERS</string>
+    <string name="lobby_players_count">%1$d / %2$d PLAYERS</string>
+    <string name="lobby_you">YOU</string>
+    <plurals name="lobby_open_seats">
+        <item quantity="one">%1$d seat open</item>
+        <item quantity="other">%1$d seats open</item>
+    </plurals>
+    <string name="lobby_opener_question">Who opens the story?</string>
+    <string name="lobby_random">Random</string>
+    <string name="lobby_random_player">Random player</string>
+    <string name="lobby_rounds">Rounds</string>
+    <string name="lobby_rounds_summary">Everyone writes %1$s · %2$s</string>
+    <string name="lobby_fewer_rounds">Fewer rounds</string>
+    <string name="lobby_more_rounds">More rounds</string>
+    <string name="lobby_one_word">One word each</string>
+    <string name="lobby_one_word_summary">Every turn is a single word, opening included</string>
+    <string name="lobby_waiting_for_host">Waiting for %1$s to start the game…</string>
+    <string name="lobby_host_picks">The host picks who opens and how many rounds.</string>
+    <string name="lobby_host_ready">You are the host. Start when you're ready.</string>
+    <string name="lobby_start_game">START GAME</string>
+
+    <string name="story_opening">OPENING</string>
+    <string name="story_no_timer_yet">No timer yet</string>
+    <string name="story_start_the_story">START THE STORY</string>
+    <string name="story_no_timer">NO TIMER</string>
+    <string name="story_start_placeholder">Start the story…</string>
+    <string name="story_start_one_word_placeholder">Start with one word…</string>
+    <string name="story_start_story">START STORY</string>
+    <string name="story_opening_hint">The opening line becomes the first coloured piece of the story.</string>
+    <string name="story_opening_one_word_hint">The first word becomes the first coloured piece of the story.</string>
+    <string name="story_opening_subtitle_writer">Write the opening line or premise. Take your time.</string>
+    <string name="story_opening_subtitle_waiting">%1$s is starting the story…</string>
+    <string name="story_opening_one_word_subtitle_writer">Write the first word. Take your time.</string>
+    <string name="story_opening_one_word_subtitle_waiting">%1$s is choosing the first word…</string>
+    <string name="story_opening_waiting">Waiting for %1$s…</string>
+    <string name="story_opening_writer_unknown">The opening writer</string>
+    <string name="story_continue_placeholder">Continue the story…</string>
+    <string name="story_one_word_placeholder">Add one word…</string>
+    <string name="story_submit">SUBMIT</string>
+    <string name="story_round_label">ROUND %1$d OF %2$d</string>
+    <string name="story_turn_label">Turn %1$d of %2$d</string>
+    <string name="story_turn_tag_yours">YOUR TURN</string>
+    <string name="story_turn_tag_player">%1$s’S TURN</string>
+    <string name="story_one_word_tag">ONE WORD</string>
+    <string name="story_turn_summary_next">%1$ds turn · next: %2$s, %3$ds</string>
+    <string name="story_turn_summary_final">%1$ds turn · final turn</string>
+    <string name="story_seconds_unit">s</string>
+    <string name="story_time_left">Time left</string>
+    <string name="story_writing">%1$s is writing…</string>
+    <string name="story_picking_word">%1$s is picking a word…</string>
+    <string name="story_time_up">Time’s up! Over to %1$s.</string>
+
+    <string name="finished_story_complete">STORY COMPLETE</string>
+    <string name="finished_the_end">The End.</string>
+    <string name="finished_summary">%1$s · %2$s · saved to your history</string>
+    <string name="finished_play_again">PLAY AGAIN</string>
+    <string name="finished_play_again_hint">%1$s can start another round from here.</string>
+    <string name="finished_home">Home</string>
+
+    <string name="history_title">Story history</string>
+    <string name="history_subtitle">Finished stories saved on this device</string>
+    <string name="history_story_summary">%1$s · %2$s</string>
+    <string name="history_empty_title">No completed stories yet.</string>
+    <string name="history_empty_body">Finish a game and the story is saved here, on this device.</string>
+    <string name="history_back">BACK</string>
+
+    <string name="saved_story_title">SAVED STORY</string>
+    <string name="saved_story_back_to_history">Back to history</string>
+</resources>
