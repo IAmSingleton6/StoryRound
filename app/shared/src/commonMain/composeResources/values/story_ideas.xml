@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="story_ideas_opening">
+        <item>The lighthouse keeper had not seen a ship in forty years, until this morning.</item>
+        <item>Every cat in the village disappeared on the same night.</item>
+        <item>My grandmother's recipe book had one page that was always locked.</item>
+        <item>The new kid at school claimed to be from the year 2300.</item>
+        <item>At exactly midnight, the museum's statues began to argue.</item>
+        <item>The treasure map was drawn on the back of a takeaway menu.</item>
+        <item>Nobody remembered inviting the man in the purple hat to the wedding.</item>
+        <item>The last dragon in the world was working at a car wash.</item>
+        <item>When the elevator stopped between floors, a voice asked for the password.</item>
+        <item>The robot vacuum had been collecting something other than dust.</item>
+        <item>It rained upwards in the town of Little Wickham every Tuesday.</item>
+        <item>A letter arrived addressed to me, postmarked fifty years in the future.</item>
+        <item>The goldfish won the lottery.</item>
+        <item>Deep beneath the library, someone was still reading by candlelight.</item>
+        <item>The astronauts returned home to find the Earth had been redecorated.</item>
+        <item>On the first day of her new job, the witch accidentally turned her boss into a teapot.</item>
+        <item>The snowman in the garden was in a different place every morning.</item>
+        <item>Captain Barnacle's ship had a leak, a mutiny, and a very confused parrot.</item>
+        <item>The haunted house was for sale, and the ghost was the estate agent.</item>
+        <item>Every mirror in town started showing tomorrow.</item>
+    </string-array>
+    <string-array name="story_ideas_new_sentence">
+        <item>Suddenly, the lights went out.</item>
+        <item>Nobody noticed the door quietly closing behind them.</item>
+        <item>Meanwhile, on the other side of town, an alarm started ringing.</item>
+        <item>Just when things seemed hopeless, a taxi pulled up.</item>
+        <item>Without warning, the ground began to shake.</item>
+        <item>To everyone's surprise, the dog started talking.</item>
+        <item>Then came a knock at the door.</item>
+        <item>Unfortunately, nobody had read the instructions.</item>
+        <item>A voice from the shadows whispered, &quot;You're late.&quot;</item>
+        <item>In a panic, they grabbed the nearest umbrella and ran.</item>
+        <item>It turned out the whole thing had been a birthday surprise.</item>
+        <item>Hours later, still covered in glitter, they reached the top.</item>
+        <item>The plan was perfect, except for the goat.</item>
+        <item>Out of nowhere, a flock of pigeons swooped down.</item>
+        <item>Against all advice, they pressed the big red button.</item>
+        <item>With a deep breath and a terrible idea, they began to sing.</item>
+        <item>Little did they know, they were being followed.</item>
+        <item>The next morning, everything was purple.</item>
+        <item>Somewhere far below, something enormous woke up.</item>
+        <item>But the strangest part was the note left on the table.</item>
+    </string-array>
+    <string-array name="story_ideas_sentence_ending">
+        <item>when suddenly the lights went out.</item>
+        <item>and nobody noticed the door quietly closing behind them.</item>
+        <item>until a taxi pulled up out of nowhere.</item>
+        <item>just as the ground began to shake.</item>
+        <item>but then the dog started talking.</item>
+        <item>because nobody had read the instructions.</item>
+        <item>while a voice from the shadows whispered, &quot;You're late.&quot;</item>
+        <item>and that was when the pigeons arrived.</item>
+        <item>except for one small problem: the goat.</item>
+        <item>so they pressed the big red button, against all advice.</item>
+        <item>and by the next morning, everything was purple.</item>
+        <item>which woke something enormous far below.</item>
+        <item>before anyone could ask what the smell was.</item>
+        <item>and the whole thing turned out to be a birthday surprise.</item>
+        <item>without realising they were being followed.</item>
+        <item>until someone found the note left on the table.</item>
+        <item>and then, with a terrible idea, they began to sing.</item>
+        <item>only to discover it was covered in glitter.</item>
+        <item>as the clock struck thirteen.</item>
+        <item>which, frankly, explained the umbrella.</item>
+    </string-array>
+</resources>

@@ -1,9 +1,9 @@
 package com.example.storyround.domain.idea
 
 internal interface StoryIdeaProvider {
-    fun openingIdea(current: String): String
+    suspend fun openingIdea(current: String): String
 
-    fun continuationIdea(
+    suspend fun continuationIdea(
         storySoFar: String,
         current: String,
     ): String
