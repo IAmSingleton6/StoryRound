@@ -1,0 +1,22 @@
+package com.example.storyround.protocol
+
+object ErrorCode {
+    const val INVALID_MESSAGE = "INVALID_MESSAGE"
+    const val NOT_CONNECTED_AS_PLAYER = "NOT_CONNECTED_AS_PLAYER"
+    const val ROOM_NOT_FOUND = "ROOM_NOT_FOUND"
+    const val PLAYER_NOT_FOUND = "PLAYER_NOT_FOUND"
+    const val INVALID_SESSION = "INVALID_SESSION"
+    const val INVALID_NAME = "INVALID_NAME"
+    const val INVALID_TEXT = "INVALID_TEXT"
+    const val INVALID_WORD = "INVALID_WORD"
+    const val GAME_ALREADY_STARTED = "GAME_ALREADY_STARTED"
+    const val ROOM_FULL = "ROOM_FULL"
+    const val NOT_HOST = "NOT_HOST"
+    const val INVALID_GAME_STATE = "INVALID_GAME_STATE"
+    const val INVALID_ROUNDS = "INVALID_ROUNDS"
+    const val INVALID_PROMPT_OWNER = "INVALID_PROMPT_OWNER"
+    const val NOT_PROMPT_OWNER = "NOT_PROMPT_OWNER"
+    const val TURN_EXPIRED = "TURN_EXPIRED"
+    const val NOT_CURRENT_PLAYER = "NOT_CURRENT_PLAYER"
+    const val CANNOT_LEAVE_GAME = "CANNOT_LEAVE_GAME"
+}

@@ -2,6 +2,9 @@ package com.example.storyround.protocol
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+
+fun protocolJson(): Json = Json { classDiscriminator = "type" }
 
 @Serializable
 sealed interface ClientMessage {
