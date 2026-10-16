@@ -27,12 +27,6 @@ internal interface GameRepository {
 
     suspend fun playAgain()
 
-    suspend fun loadHistory()
-
-    suspend fun openStory(id: String): Boolean
-
-    fun closeStory()
-
     suspend fun leaveRoom()
 
     fun disconnect()

@@ -1,16 +1,14 @@
 package com.example.storyround.data.remote
 
 import com.example.storyround.data.local.RemoteSessionStore
-import com.example.storyround.data.local.StoryHistoryStore
+import com.example.storyround.domain.model.GameError
 import com.example.storyround.domain.model.GameState
 import com.example.storyround.domain.repository.GameRepository
+import com.example.storyround.domain.repository.StoryHistoryRepository
 import com.example.storyround.logging.Logger
 import com.example.storyround.protocol.ClientMessage
 import com.example.storyround.protocol.RoomSettings
-import com.example.storyround.protocol.RoomState
 import com.example.storyround.protocol.ServerMessage
-import com.example.storyround.story.SavedStoryMapper
-import com.example.storyround.time.TimeProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -22,30 +20,18 @@ import kotlinx.coroutines.launch
 import kotlin.concurrent.Volatile
 
 private const val LOG_TAG = "RemoteGameRepository"
-internal const val SERVER_UNREACHABLE_MESSAGE = "Can't reach Story Round right now. Check your internet connection and try again."
-internal const val RECONNECTING_MESSAGE = "Reconnecting..."
-internal const val UNREADABLE_MESSAGE = "Received an unreadable server message."
-internal const val NO_ROOM_MESSAGE = "Join a room before taking this action."
 
 internal class RemoteGameRepository(
     private val serverUrl: String,
     private val sessionStore: RemoteSessionStore,
-    private val storyHistoryStore: StoryHistoryStore,
+    private val storyHistoryRepository: StoryHistoryRepository,
     private val reconnectPolicy: ReconnectPolicy,
     private val sessionReducer: GameSessionReducer,
     private val connectionManager: GameConnectionManager,
-    private val savedStoryMapper: SavedStoryMapper,
-    private val timeProvider: TimeProvider,
     private val scope: CoroutineScope,
     private val logger: Logger,
 ) : GameRepository {
-    private val mutableState =
-        MutableStateFlow(
-            GameState(
-                playerId = sessionStore.load()?.playerId,
-                history = storyHistoryStore.load(),
-            ),
-        )
+    private val mutableState = MutableStateFlow(GameState(playerId = sessionStore.load()?.playerId))
     private var reconnectJob: Job? = null
 
     @Volatile
@@ -78,27 +64,12 @@ internal class RemoteGameRepository(
 
     override suspend fun playAgain() = sendForCurrentPlayer { roomCode, playerId -> ClientMessage.PlayAgain(roomCode, playerId) }
 
-    override suspend fun loadHistory() {
-        val history = storyHistoryStore.load()
-        mutableState.update { it.copy(history = history, error = null) }
-    }
-
-    override suspend fun openStory(id: String): Boolean {
-        val story = storyHistoryStore.load().firstOrNull { it.id == id } ?: return false
-        mutableState.update { it.copy(selectedStory = story, error = null) }
-        return true
-    }
-
-    override fun closeStory() {
-        mutableState.update { it.copy(selectedStory = null) }
-    }
-
     override fun disconnect() {
         reconnectJob?.cancel()
         reconnectJob = null
         connectionManager.disconnect()
         pendingPlayerName = null
-        mutableState.update { GameState(history = it.history) }
+        mutableState.value = GameState()
     }
 
     override suspend fun leaveRoom() {
@@ -130,7 +101,7 @@ internal class RemoteGameRepository(
                 }
             is GameConnectionResult.Failed -> {
                 logger.warn(LOG_TAG, "Could not connect to $serverUrl: ${result.message}")
-                mutableState.update { it.copy(isConnecting = false, error = SERVER_UNREACHABLE_MESSAGE) }
+                mutableState.update { it.copy(isConnecting = false, error = GameError.ServerUnreachable) }
             }
         }
     }
@@ -149,7 +120,7 @@ internal class RemoteGameRepository(
         val room = current.room
         val playerId = current.playerId
         if (room == null || playerId == null) {
-            mutableState.update { it.copy(error = NO_ROOM_MESSAGE) }
+            mutableState.update { it.copy(error = GameError.NoRoom) }
             return
         }
         send(createMessage(room.roomCode, playerId))
@@ -157,7 +128,7 @@ internal class RemoteGameRepository(
 
     private suspend fun send(message: ClientMessage) {
         if (!connectionManager.send(message)) {
-            mutableState.update { it.copy(error = SERVER_UNREACHABLE_MESSAGE) }
+            mutableState.update { it.copy(error = GameError.ServerUnreachable) }
         }
     }
 
@@ -166,23 +137,19 @@ internal class RemoteGameRepository(
     }
 
     private fun handleDisconnection(reason: String?) {
-        mutableState.update { it.copy(isConnecting = false, isConnected = false, error = reason ?: it.error) }
+        mutableState.update { it.copy(isConnecting = false, isConnected = false, error = reason?.let(GameError::Server) ?: it.error) }
         scheduleReconnect()
     }
 
     private suspend fun handleIncomingMessage(incomingMessage: GameSocketIncomingMessage) {
         when (incomingMessage) {
             is GameSocketIncomingMessage.Received -> handleServerMessage(incomingMessage.message)
-            GameSocketIncomingMessage.Unreadable -> mutableState.update { it.copy(error = UNREADABLE_MESSAGE) }
+            GameSocketIncomingMessage.Unreadable -> mutableState.update { it.copy(error = GameError.UnreadableMessage) }
         }
     }
 
     private fun handleServerMessage(message: ServerMessage) {
-        val updatedHistory =
-            (message as? ServerMessage.GameFinished)?.let { finished ->
-                saveFinishedStory(finished.room)
-                storyHistoryStore.load()
-            }
+        if (message is ServerMessage.GameFinished) storyHistoryRepository.saveFinished(message.room)
         var applied: GameSessionReduction? = null
         mutableState.update { current ->
             val reduction =
@@ -191,7 +158,7 @@ internal class RemoteGameRepository(
                     message = message,
                 )
             applied = reduction
-            updatedHistory?.let { reduction.context.state.copy(history = it) } ?: reduction.context.state
+            reduction.context.state
         }
         val reduction = requireNotNull(applied)
         sessionToken = reduction.context.sessionToken
@@ -201,15 +168,6 @@ internal class RemoteGameRepository(
             SessionPersistenceCommand.Clear -> sessionStore.clear()
             null -> Unit
         }
-    }
-
-    private fun saveFinishedStory(room: RoomState) {
-        storyHistoryStore.save(savedStoryMapper.map(room, localStoryId(room), timeProvider.nowEpochMillis()))
-    }
-
-    private fun localStoryId(room: RoomState): String {
-        val contributions = room.contributions.joinToString { "${it.playerId}:${it.turnNumber}:${it.text}" }
-        return "local-${"${room.roomCode}|${room.prompt}|$contributions".hashCode()}"
     }
 
     private fun scheduleReconnect() {
@@ -224,7 +182,8 @@ internal class RemoteGameRepository(
                 var attempt = 0
                 while (!connectionManager.isConnected && sessionStore.load() != null) {
                     delay(reconnectPolicy.delayMillis(attempt++))
-                    mutableState.update { it.copy(isConnecting = true, error = RECONNECTING_MESSAGE) }
+                    logger.info(LOG_TAG, "Reconnecting to $serverUrl (attempt $attempt).")
+                    mutableState.update { it.copy(isConnecting = true, error = GameError.Reconnecting) }
                     connect()
                 }
             }

@@ -1,7 +1,9 @@
 package com.example.storyround.data.remote
 
 import com.example.storyround.data.local.RemoteSession
+import com.example.storyround.domain.model.GameError
 import com.example.storyround.domain.model.GameState
+import com.example.storyround.protocol.ErrorCode
 import com.example.storyround.protocol.Player
 import com.example.storyround.protocol.RoomState
 import com.example.storyround.protocol.ServerMessage
@@ -64,7 +66,7 @@ internal class GameSessionReducerImpl : GameSessionReducer {
         message: ServerMessage.Error,
     ): GameSessionReduction {
         if (message.code !in SESSION_FAILURE_CODES) {
-            return GameSessionReduction(context.copy(state = context.state.copy(error = message.message)))
+            return GameSessionReduction(context.copy(state = context.state.copy(error = GameError.Server(message.message))))
         }
         return GameSessionReduction(
             context =
@@ -72,8 +74,11 @@ internal class GameSessionReducerImpl : GameSessionReducer {
                     state =
                         GameState(
                             isConnected = context.isConnected,
-                            history = context.state.history,
-                            error = message.message.takeIf { context.state.room != null },
+                            error =
+                                GameError.Server(message.message).takeIf {
+                                    context.state.room != null ||
+                                        context.pendingPlayerName != null
+                                },
                         ),
                     sessionToken = null,
                     pendingPlayerName = null,
@@ -90,6 +95,6 @@ internal class GameSessionReducerImpl : GameSessionReducer {
     }
 
     private companion object {
-        val SESSION_FAILURE_CODES = setOf("ROOM_NOT_FOUND", "PLAYER_NOT_FOUND", "INVALID_SESSION")
+        val SESSION_FAILURE_CODES = setOf(ErrorCode.ROOM_NOT_FOUND, ErrorCode.PLAYER_NOT_FOUND, ErrorCode.INVALID_SESSION)
     }
 }
