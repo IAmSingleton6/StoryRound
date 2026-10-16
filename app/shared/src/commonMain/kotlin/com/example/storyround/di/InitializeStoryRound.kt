@@ -1,18 +1,20 @@
 package com.example.storyround.di
 
 import com.example.storyround.configuration.ServerUrlProvider
+import com.example.storyround.logging.LoggingConfiguration
 import org.koin.core.context.startKoin
 import org.koin.dsl.module
-import org.koin.mp.KoinPlatform
 
-fun initializeStoryRound(serverUrlProvider: ServerUrlProvider) {
-    if (KoinPlatform.getKoinOrNull() != null) return
-
+fun initializeStoryRound(
+    serverUrlProvider: ServerUrlProvider,
+    loggingConfiguration: LoggingConfiguration,
+) {
     startKoin {
         modules(
-            appModule,
+            appModule(),
             module {
                 single<ServerUrlProvider> { serverUrlProvider }
+                single { loggingConfiguration }
             },
         )
     }

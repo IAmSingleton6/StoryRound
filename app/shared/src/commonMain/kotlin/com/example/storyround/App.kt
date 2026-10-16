@@ -24,7 +24,11 @@ private const val ROUTE_FADE_MILLIS = 300
 
 @Composable
 fun App() {
-    val viewModel = koinViewModel<AppViewModel>()
+    StoryRoundApp()
+}
+
+@Composable
+internal fun StoryRoundApp(viewModel: AppViewModel = koinViewModel()) {
     val destination by viewModel.destination.collectAsState()
 
     StoryRoundTheme {
@@ -50,7 +54,7 @@ private fun AppDestinationContent(
         AppDestination.Home -> HomeRoute(onOpenHistory = viewModel::showHistory)
         AppDestination.Lobby -> LobbyRoute(onLeave = viewModel::leaveLobby)
         AppDestination.Story -> StoryRoute()
-        AppDestination.Finished -> FinishedRoute(onHome = viewModel::returnHome)
+        AppDestination.Finished -> FinishedRoute(onHome = viewModel::goHomeWithoutLeavingRoom)
         AppDestination.History -> HistoryRoute(onBack = viewModel::closeHistory)
         AppDestination.SavedStory -> SavedStoryRoute(onBack = viewModel::closeSavedStory)
     }

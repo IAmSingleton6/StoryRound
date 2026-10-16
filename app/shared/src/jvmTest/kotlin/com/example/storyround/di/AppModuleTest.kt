@@ -2,6 +2,7 @@ package com.example.storyround.di
 
 import com.example.storyround.configuration.ServerUrlProvider
 import com.example.storyround.domain.repository.GameRepository
+import com.example.storyround.logging.LoggingConfiguration
 import com.example.storyround.presentation.finished.FinishedViewModel
 import com.example.storyround.presentation.history.HistoryViewModel
 import com.example.storyround.presentation.history.SavedStoryViewModel
@@ -16,6 +17,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
+import org.koin.core.KoinApplication
 import org.koin.dsl.koinApplication
 import org.koin.dsl.module
 import kotlin.test.AfterTest
@@ -26,6 +28,7 @@ import kotlin.test.assertNotNull
 @OptIn(ExperimentalCoroutinesApi::class)
 class AppModuleTest {
     private val dispatcher = StandardTestDispatcher()
+    private lateinit var application: KoinApplication
 
     @BeforeTest
     fun setUp() {
@@ -34,25 +37,36 @@ class AppModuleTest {
 
     @AfterTest
     fun tearDown() {
+        if (::application.isInitialized) application.close()
         Dispatchers.resetMain()
     }
 
     @Test
-    fun `given the app module and a server url when every screen is resolved then all dependencies are bound`() {
+    fun `should bind every dependency when each screen's view model is resolved`() {
+        // Given
         val platform =
             module {
                 single<ServerUrlProvider> { ServerUrlProvider { "ws://localhost:8080/game" } }
                 single<Settings> { MapSettings() }
+                single { LoggingConfiguration.Release }
             }
-        val koin = koinApplication { modules(appModule, platform) }.koin
+        application = koinApplication { modules(appModule(), platform) }
 
-        assertNotNull(koin.get<GameRepository>())
-        assertNotNull(koin.get<AppViewModel>())
-        assertNotNull(koin.get<HomeViewModel>())
-        assertNotNull(koin.get<LobbyViewModel>())
-        assertNotNull(koin.get<StoryViewModel>())
-        assertNotNull(koin.get<FinishedViewModel>())
-        assertNotNull(koin.get<HistoryViewModel>())
-        assertNotNull(koin.get<SavedStoryViewModel>())
+        // When
+        val koin = application.koin
+        val resolved =
+            listOf(
+                koin.get<GameRepository>(),
+                koin.get<AppViewModel>(),
+                koin.get<HomeViewModel>(),
+                koin.get<LobbyViewModel>(),
+                koin.get<StoryViewModel>(),
+                koin.get<FinishedViewModel>(),
+                koin.get<HistoryViewModel>(),
+                koin.get<SavedStoryViewModel>(),
+            )
+
+        // Then
+        resolved.forEach(::assertNotNull)
     }
 }
