@@ -1,5 +1,7 @@
 package com.example.storyround.presentation.home
 
+import com.example.storyround.presentation.model.UiText
+
 internal data class HomeUiState(
     val playerName: String = "",
     val hasValidPlayerName: Boolean = false,
@@ -7,7 +9,7 @@ internal data class HomeUiState(
     val isJoining: Boolean = false,
     val isConnecting: Boolean = false,
     val historyCount: Int = 0,
-    val error: String? = null,
+    val error: UiText? = null,
 ) {
     val canCreateGame: Boolean
         get() = hasValidPlayerName && !isConnecting

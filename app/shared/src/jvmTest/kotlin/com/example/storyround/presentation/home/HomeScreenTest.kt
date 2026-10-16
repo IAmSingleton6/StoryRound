@@ -1,122 +1,277 @@
 package com.example.storyround.presentation.home
 
-import androidx.compose.ui.test.ExperimentalTestApi
-import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsEnabled
-import androidx.compose.ui.test.assertIsNotEnabled
-import androidx.compose.ui.test.onNodeWithContentDescription
-import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.v2.runComposeUiTest
-import com.example.storyround.ui.theme.StoryRoundTheme
+import com.example.storyround.presentation.model.UiText
+import com.example.storyround.testing.GIVEN
+import com.example.storyround.testing.THEN
+import com.example.storyround.testing.WHEN
+import com.example.storyround.testing.base.ComponentTest
 import kotlin.test.Test
-import kotlin.test.assertEquals
 
-@OptIn(ExperimentalTestApi::class)
-class HomeScreenTest {
+internal class HomeScreenTest : ComponentTest<HomeUiState, HomeAction>({ state, onAction -> HomeScreen(state, onAction) }) {
     @Test
-    fun `given saved stories when the history pill is pressed then its count is shown and history is opened`() =
-        runComposeUiTest {
-            var action: HomeAction? = null
-            setContent {
-                StoryRoundTheme {
-                    HomeScreen(HomeUiState(historyCount = 3)) { action = it }
-                }
+    fun `should announce how many stories are saved when home is shown`() =
+        componentTest {
+            GIVEN("three stories are saved on this device") {
+                useState(HomeUiState(historyCount = 3))
             }
 
-            onNodeWithContentDescription("Story history, 3 saved stories").assertIsDisplayed().performClick()
-
-            assertEquals(HomeAction.OpenHistory, action)
-        }
-
-    @Test
-    fun `given a valid name when create is pressed then the create action is emitted`() =
-        runComposeUiTest {
-            var action: HomeAction? = null
-            setContent { StoryRoundTheme { HomeScreen(HomeUiState(playerName = "Alex", hasValidPlayerName = true)) { action = it } } }
-
-            onNodeWithText("CREATE GAME").assertIsEnabled().performClick()
-
-            assertEquals(HomeAction.CreateGame, action)
-        }
-
-    @Test
-    fun `given no name when home is shown then create is disabled and join mode can still be opened`() =
-        runComposeUiTest {
-            var action: HomeAction? = null
-            setContent {
-                StoryRoundTheme {
-                    HomeScreen(HomeUiState()) { action = it }
-                }
+            WHEN("Home is shown") {
+                show()
             }
 
-            onNodeWithText("CREATE GAME").assertIsNotEnabled()
-            onNodeWithText("JOIN GAME").assertIsEnabled().performClick()
-
-            assertEquals(HomeAction.ShowJoinGame, action)
+            THEN("the history pill announces three saved stories") {
+                homeRobot.assertHistoryCount("3 saved stories")
+            }
         }
 
     @Test
-    fun `given a name shorter than the minimum when home is shown then create is disabled`() =
-        runComposeUiTest {
-            setContent { StoryRoundTheme { HomeScreen(HomeUiState(playerName = " A ")) {} } }
-
-            onNodeWithText("CREATE GAME").assertIsNotEnabled()
-        }
-
-    @Test
-    fun `given join mode with a name and room code when join and cancel are pressed then both actions are emitted`() =
-        runComposeUiTest {
-            val actions = mutableListOf<HomeAction>()
-            setContent {
-                StoryRoundTheme {
-                    HomeScreen(HomeUiState(playerName = "Sam", hasValidPlayerName = true, roomCode = "7F2K", isJoining = true)) {
-                        actions +=
-                            it
-                    }
-                }
+    fun `should announce no saved stories when nothing has been saved`() =
+        componentTest {
+            GIVEN("no stories are saved on this device") {
+                useState(HomeUiState(historyCount = 0))
             }
 
-            onNodeWithText("JOIN GAME").assertIsEnabled().performClick()
-            onNodeWithText("Cancel").performClick()
+            WHEN("Home is shown") {
+                show()
+            }
 
-            assertEquals(listOf(HomeAction.JoinGame, HomeAction.CancelJoin), actions)
+            THEN("the history pill announces no saved stories") {
+                homeRobot.assertHistoryCount("0 saved stories")
+            }
         }
 
     @Test
-    fun `given join mode without a room code when home is shown then join is disabled`() =
-        runComposeUiTest {
-            setContent {
-                StoryRoundTheme {
-                    HomeScreen(HomeUiState(playerName = "Sam", hasValidPlayerName = true, isJoining = true)) {}
-                }
+    fun `should open history when the history pill is pressed`() =
+        componentTest {
+            GIVEN("Home is showing three saved stories") {
+                useState(HomeUiState(historyCount = 3))
+                show()
             }
 
-            onNodeWithText("ABCD").assertIsDisplayed()
-            onNodeWithText("JOIN GAME").assertIsNotEnabled()
+            WHEN("the player presses the history pill") {
+                homeRobot.tapHistory()
+            }
+
+            THEN("the open history action is emitted") {
+                actions.assertEmitted(HomeAction.OpenHistory)
+            }
         }
 
     @Test
-    fun `given a connection in progress when home is shown then the primary action reports connecting`() =
-        runComposeUiTest {
-            setContent {
-                StoryRoundTheme {
-                    HomeScreen(HomeUiState(playerName = "Alex", hasValidPlayerName = true, isConnecting = true)) {}
-                }
+    fun `should emit the typed name when a name is typed`() =
+        componentTest {
+            GIVEN("Home is showing with no name") {
+                useState(HomeUiState())
+                show()
             }
 
-            onNodeWithText("CONNECTING…").assertIsNotEnabled()
+            WHEN("the player types Alex") {
+                homeRobot.enterName("Alex")
+            }
+
+            THEN("the name change is emitted") {
+                actions.assertEmitted(HomeAction.PlayerNameChanged("Alex"))
+            }
         }
 
     @Test
-    fun `given a server error when home is shown then the error banner is displayed`() =
-        runComposeUiTest {
-            setContent {
-                StoryRoundTheme {
-                    HomeScreen(HomeUiState(error = "We couldn't find that room.")) {}
-                }
+    fun `should emit create game when create is pressed with a valid name`() =
+        componentTest {
+            GIVEN("Home is showing a valid name") {
+                useState(HomeUiState(playerName = "Alex", hasValidPlayerName = true))
+                show()
             }
 
-            onNodeWithText("We couldn't find that room.").assertIsDisplayed()
+            WHEN("the player presses create") {
+                homeRobot.tapCreateGame()
+            }
+
+            THEN("the create game action is emitted") {
+                actions.assertEmitted(HomeAction.CreateGame)
+            }
+        }
+
+    @Test
+    fun `should disable create when no name has been entered`() =
+        componentTest {
+            GIVEN("no name has been entered") {
+                useState(HomeUiState())
+            }
+
+            WHEN("Home is shown") {
+                show()
+            }
+
+            THEN("create is disabled") {
+                homeRobot.assertCreateEnabled(false)
+            }
+        }
+
+    @Test
+    fun `should disable create when the name is shorter than the minimum`() =
+        componentTest {
+            GIVEN("the name is a single letter between spaces") {
+                useState(HomeUiState(playerName = " A "))
+            }
+
+            WHEN("Home is shown") {
+                show()
+            }
+
+            THEN("create is disabled") {
+                homeRobot.assertCreateEnabled(false)
+            }
+        }
+
+    @Test
+    fun `should emit show join game when join is pressed without a name`() =
+        componentTest {
+            GIVEN("Home is showing with no name") {
+                useState(HomeUiState())
+                show()
+            }
+
+            WHEN("the player presses join") {
+                homeRobot.tapJoinGame()
+            }
+
+            THEN("the show join game action is emitted") {
+                actions.assertEmitted(HomeAction.ShowJoinGame)
+            }
+        }
+
+    @Test
+    fun `should show the room code field instead of create when join mode is open`() =
+        componentTest {
+            GIVEN("join mode is open") {
+                useState(HomeUiState(playerName = "Sam", hasValidPlayerName = true, isJoining = true))
+            }
+
+            WHEN("Home is shown") {
+                show()
+            }
+
+            THEN("the room code field replaces create") {
+                homeRobot.assertRoomCodeFieldShown()
+                homeRobot.assertCreateNotShown()
+            }
+        }
+
+    @Test
+    fun `should emit the typed code when a room code is typed`() =
+        componentTest {
+            GIVEN("Home is in join mode") {
+                useState(HomeUiState(playerName = "Sam", hasValidPlayerName = true, isJoining = true))
+                show()
+            }
+
+            WHEN("the player types a room code") {
+                homeRobot.enterRoomCode("7f2k")
+            }
+
+            THEN("the code change is emitted as typed") {
+                actions.assertEmitted(HomeAction.RoomCodeChanged("7f2k"))
+            }
+        }
+
+    @Test
+    fun `should emit join game when join is pressed with a name and room code`() =
+        componentTest {
+            GIVEN("Home is in join mode with a name and room code") {
+                useState(HomeUiState(playerName = "Sam", hasValidPlayerName = true, roomCode = "7F2K", isJoining = true))
+                show()
+            }
+
+            WHEN("the player presses join") {
+                homeRobot.tapJoinGame()
+            }
+
+            THEN("the join game action is emitted") {
+                actions.assertEmitted(HomeAction.JoinGame)
+            }
+        }
+
+    @Test
+    fun `should emit cancel join when cancel is pressed`() =
+        componentTest {
+            GIVEN("Home is in join mode") {
+                useState(HomeUiState(playerName = "Sam", hasValidPlayerName = true, roomCode = "7F2K", isJoining = true))
+                show()
+            }
+
+            WHEN("the player presses cancel") {
+                homeRobot.tapCancel()
+            }
+
+            THEN("the cancel join action is emitted") {
+                actions.assertEmitted(HomeAction.CancelJoin)
+            }
+        }
+
+    @Test
+    fun `should disable join when no room code has been entered`() =
+        componentTest {
+            GIVEN("join mode is open with a name but no room code") {
+                useState(HomeUiState(playerName = "Sam", hasValidPlayerName = true, isJoining = true))
+            }
+
+            WHEN("Home is shown") {
+                show()
+            }
+
+            THEN("join is disabled and the code placeholder is shown") {
+                homeRobot.assertJoinEnabled(false)
+                homeRobot.assertRoomCodePlaceholderShown()
+            }
+        }
+
+    @Test
+    fun `should report connecting on create when a connection is in progress`() =
+        componentTest {
+            GIVEN("the app is connecting") {
+                useState(HomeUiState(playerName = "Alex", hasValidPlayerName = true, isConnecting = true))
+            }
+
+            WHEN("Home is shown") {
+                show()
+            }
+
+            THEN("the primary action reads connecting and is disabled") {
+                homeRobot.assertConnecting()
+            }
+        }
+
+    @Test
+    fun `should report connecting on join when a connection is in progress in join mode`() =
+        componentTest {
+            GIVEN("the app is connecting while join mode is open") {
+                useState(
+                    HomeUiState(playerName = "Sam", hasValidPlayerName = true, roomCode = "7F2K", isJoining = true, isConnecting = true),
+                )
+            }
+
+            WHEN("Home is shown") {
+                show()
+            }
+
+            THEN("the join action reads connecting and is disabled") {
+                homeRobot.assertConnecting()
+            }
+        }
+
+    @Test
+    fun `should announce the error when the server reports one`() =
+        componentTest {
+            GIVEN("the server could not find the room") {
+                useState(HomeUiState(error = UiText.Plain("We couldn't find that room.")))
+            }
+
+            WHEN("Home is shown") {
+                show()
+            }
+
+            THEN("the error banner announces it") {
+                homeRobot.assertErrorShown("We couldn't find that room.")
+            }
         }
 }
