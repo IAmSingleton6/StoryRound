@@ -17,53 +17,93 @@ class PlayingUiStateTest {
 
     @Test
     fun `given time left when the countdown is read then it rounds up to one decimal place`() {
-        assertEquals("7.3", playing(timeLeftMillis = 7_300L).timeLeftText)
-        assertEquals("7.3", playing(timeLeftMillis = 7_201L).timeLeftText)
-        assertEquals("0.0", playing(timeLeftMillis = 0L).timeLeftText)
+        // When
+        val exact = playing(timeLeftMillis = 7_300L).timeLeftText
+        val roundedUp = playing(timeLeftMillis = 7_201L).timeLeftText
+        val none = playing(timeLeftMillis = 0L).timeLeftText
+
+        // Then
+        assertEquals("7.3", exact)
+        assertEquals("7.3", roundedUp)
+        assertEquals("0.0", none)
     }
 
     @Test
     fun `given five seconds or less left when read then the turn is urgent`() {
-        assertFalse(playing(timeLeftMillis = 5_001L).isUrgent)
-        assertTrue(playing(timeLeftMillis = 5_000L).isUrgent)
+        // When
+        val justOverFiveSeconds = playing(timeLeftMillis = 5_001L).isUrgent
+        val fiveSeconds = playing(timeLeftMillis = 5_000L).isUrgent
+
+        // Then
+        assertFalse(justOverFiveSeconds)
+        assertTrue(fiveSeconds)
     }
 
     @Test
-    fun `given a following turn when the turn label is read then it names the next writer and their time`() {
-        assertEquals("13s turn · next: Sam, 12s", playing(playerId = alex.id).nextTurnLabel)
-        assertEquals("13s turn · next: you, 12s", playing(playerId = sam.id).nextTurnLabel)
-        assertEquals("13s turn · final turn", playing(nextPlayer = null).nextTurnLabel)
+    fun `given time left in a turn when the fraction is read then it is the share of the turn remaining`() {
+        // When
+        val half = playing(timeLeftMillis = 6_500L).timeLeftFraction
+        val withoutDuration = playing(timeLeftMillis = 6_500L).copy(turnDurationMillis = 0L).timeLeftFraction
+
+        // Then
+        assertEquals(0.5f, half)
+        assertEquals(0f, withoutDuration)
     }
 
     @Test
-    fun `given the newest piece when its tag is read then it names the author, or YOU for this player`() {
-        assertEquals("ALEX", playing(playerId = sam.id).newestTag)
-        assertEquals("YOU", playing(playerId = alex.id).newestTag)
-        assertNull(playing(segments = emptyList()).newestTag)
+    fun `given this and the next turn's durations when read in seconds then both are whole seconds`() {
+        // When
+        val state = playing()
+
+        // Then
+        assertEquals(13L, state.turnSeconds)
+        assertEquals(12L, state.nextTurnSeconds)
     }
 
     @Test
-    fun `given a draft when read then it can only be submitted on your turn and warns near the limit`() {
-        assertTrue(playing(playerId = alex.id, draft = "A horse.").canSubmitContribution)
-        assertFalse(playing(playerId = sam.id, draft = "A horse.").canSubmitContribution)
-        assertFalse(playing(playerId = alex.id, draft = "  ").canSubmitContribution)
-        assertTrue(playing(draft = "a".repeat(260)).isDraftNearLimit)
+    fun `given a story with pieces when the newest author is read then it is the last piece's writer`() {
+        // When
+        val author = playing(segments = listOf(StorySegmentUi("A door opened.", alex), StorySegmentUi("A horse.", sam))).newestAuthor
+        val noPieces = playing(segments = emptyList()).newestAuthor
+
+        // Then
+        assertEquals(sam, author)
+        assertNull(noPieces)
     }
 
     @Test
-    fun `given one word turns when the draft is read then a broken word is explained and the warning comes near the word limit`() {
-        assertEquals("One word only, no spaces", playing(draft = "a horse", isDraftValid = false, oneWordPerTurn = true).draftError)
-        assertNull(playing(draft = "horse", isDraftValid = true, oneWordPerTurn = true).draftError)
-        assertNull(playing(draft = "", oneWordPerTurn = true).draftError)
-        assertNull(playing(draft = "a horse", isDraftValid = false).draftError)
-        assertTrue(playing(draft = "a".repeat(25), oneWordPerTurn = true).isDraftNearLimit)
-        assertFalse(playing(draft = "a".repeat(24), oneWordPerTurn = true).isDraftNearLimit)
+    fun `given a draft when read then it can only be submitted on your turn`() {
+        // When
+        val onYourTurn = playing(playerId = alex.id, draft = "A horse.").canSubmitContribution
+        val onTheirTurn = playing(playerId = sam.id, draft = "A horse.").canSubmitContribution
+        val blankDraft = playing(playerId = alex.id, draft = "  ").canSubmitContribution
+
+        // Then
+        assertTrue(onYourTurn)
+        assertFalse(onTheirTurn)
+        assertFalse(blankDraft)
+    }
+
+    @Test
+    fun `given one word turns when the draft is read then only a draft with a space in the middle breaks the rule`() {
+        // When
+        val twoWords = playing(draft = "a horse", isDraftValid = false, oneWordPerTurn = true)
+        val oneWord = playing(draft = "horse", isDraftValid = true, oneWordPerTurn = true)
+        val empty = playing(draft = "", oneWordPerTurn = true)
+        val freeWriting = playing(draft = "a horse", isDraftValid = false)
+
+        // Then
+        assertTrue(twoWords.breaksOneWordRule)
+        assertFalse(twoWords.canSubmitContribution)
+        assertFalse(oneWord.breaksOneWordRule)
+        assertTrue(oneWord.canSubmitContribution)
+        assertFalse(empty.breaksOneWordRule)
+        assertFalse(freeWriting.breaksOneWordRule)
     }
 
     private fun playing(
         playerId: String = alex.id,
         timeLeftMillis: Long = 10_000L,
-        nextPlayer: PlayerUi? = sam,
         segments: List<StorySegmentUi> = listOf(StorySegmentUi("A door opened.", alex)),
         draft: String = "",
         isDraftValid: Boolean = draft.isNotBlank(),
@@ -80,12 +120,16 @@ class PlayingUiStateTest {
                 turn = TurnUi(alex, number = 2, deadlineEpochMillis = 20_000L),
                 maxRounds = 2,
             ),
+        activePlayer = alex,
         playerId = playerId,
-        nowEpochMillis = 20_000L - timeLeftMillis,
+        timeLeftMillis = timeLeftMillis,
         contributionDraft = draft,
         segments = segments,
         turnDurationMillis = 13_000L,
-        nextPlayer = nextPlayer,
+        nextPlayer = sam,
+        round = 2,
+        turn = 3,
+        totalTurns = 4,
         nextTurnDurationMillis = 12_000L,
         oneWordPerTurn = oneWordPerTurn,
         isDraftValid = isDraftValid,

@@ -2,16 +2,13 @@ package com.example.storyround.presentation.story
 
 import com.example.storyround.presentation.model.PlayerUi
 import com.example.storyround.presentation.model.RoomUi
-import com.example.storyround.presentation.model.STORY_TEXT_WARNING_LENGTH
 import com.example.storyround.presentation.model.StorySegmentUi
-import com.example.storyround.presentation.model.URGENT_TURN_MILLIS
-import com.example.storyround.presentation.model.WORD_WARNING_LENGTH
 import com.example.storyround.protocol.MAX_STORY_TEXT_LENGTH
 
+private const val URGENT_TURN_MILLIS = 5_000L
 private const val MILLIS_PER_SECOND = 1_000L
 private const val MILLIS_PER_TENTH = 100L
 private const val TENTHS_PER_SECOND = 10L
-private const val ONE_WORD_ERROR = "One word only, no spaces"
 
 internal sealed interface StoryUiState {
     data object Loading : StoryUiState
@@ -29,17 +26,15 @@ internal sealed interface StoryUiState {
         val canSubmitOpeningPrompt: Boolean
             get() = isOpeningWriter && isDraftValid
 
-        val isDraftNearLimit: Boolean
-            get() = isNearLimit(openingPromptDraft, oneWordPerTurn)
-
-        val draftError: String?
-            get() = oneWordError(openingPromptDraft, oneWordPerTurn, isDraftValid)
+        val breaksOneWordRule: Boolean
+            get() = breaksOneWordRule(openingPromptDraft, oneWordPerTurn, isDraftValid)
     }
 
     data class Playing(
         val room: RoomUi,
+        val activePlayer: PlayerUi,
         val playerId: String?,
-        val nowEpochMillis: Long,
+        val timeLeftMillis: Long,
         val contributionDraft: String,
         val segments: List<StorySegmentUi> = emptyList(),
         val round: Int = 1,
@@ -54,14 +49,8 @@ internal sealed interface StoryUiState {
         val maxDraftLength: Int = MAX_STORY_TEXT_LENGTH,
         val isDraftValid: Boolean = false,
     ) : StoryUiState {
-        val activePlayer: PlayerUi?
-            get() = room.turn?.player
-
         val isYourTurn: Boolean
-            get() = playerId != null && activePlayer?.id == playerId
-
-        val timeLeftMillis: Long
-            get() = ((room.turn?.deadlineEpochMillis ?: nowEpochMillis) - nowEpochMillis).coerceIn(0, turnDurationMillis)
+            get() = playerId != null && activePlayer.id == playerId
 
         val timeLeftFraction: Float
             get() = if (turnDurationMillis > 0) timeLeftMillis.toFloat() / turnDurationMillis else 0f
@@ -72,11 +61,8 @@ internal sealed interface StoryUiState {
         val canSubmitContribution: Boolean
             get() = isYourTurn && isDraftValid
 
-        val isDraftNearLimit: Boolean
-            get() = isNearLimit(contributionDraft, oneWordPerTurn)
-
-        val draftError: String?
-            get() = oneWordError(contributionDraft, oneWordPerTurn, isDraftValid)
+        val breaksOneWordRule: Boolean
+            get() = breaksOneWordRule(contributionDraft, oneWordPerTurn, isDraftValid)
 
         val timeLeftText: String
             get() {
@@ -84,35 +70,19 @@ internal sealed interface StoryUiState {
                 return "${tenths / TENTHS_PER_SECOND}.${tenths % TENTHS_PER_SECOND}"
             }
 
-        val nextTurnLabel: String
-            get() {
-                val current = "${turnDurationMillis / MILLIS_PER_SECOND}s turn"
-                val next = nextPlayer ?: return "$current · final turn"
-                return "$current · next: ${displayName(next, lowercaseYou = true)}, ${nextTurnDurationMillis / MILLIS_PER_SECOND}s"
-            }
+        val turnSeconds: Long
+            get() = turnDurationMillis / MILLIS_PER_SECOND
 
-        val newestTag: String?
-            get() = segments.lastOrNull()?.author?.let { displayName(it).uppercase() }
+        val nextTurnSeconds: Long
+            get() = nextTurnDurationMillis / MILLIS_PER_SECOND
 
-        fun displayName(
-            player: PlayerUi,
-            lowercaseYou: Boolean = false,
-        ): String =
-            when {
-                player.id != playerId -> player.name
-                lowercaseYou -> "you"
-                else -> "You"
-            }
+        val newestAuthor: PlayerUi?
+            get() = segments.lastOrNull()?.author
     }
 }
 
-private fun isNearLimit(
-    draft: String,
-    oneWordPerTurn: Boolean,
-): Boolean = draft.length >= if (oneWordPerTurn) WORD_WARNING_LENGTH else STORY_TEXT_WARNING_LENGTH
-
-private fun oneWordError(
+private fun breaksOneWordRule(
     draft: String,
     oneWordPerTurn: Boolean,
     isDraftValid: Boolean,
-): String? = ONE_WORD_ERROR.takeIf { oneWordPerTurn && draft.isNotBlank() && !isDraftValid }
+): Boolean = oneWordPerTurn && draft.isNotBlank() && !isDraftValid

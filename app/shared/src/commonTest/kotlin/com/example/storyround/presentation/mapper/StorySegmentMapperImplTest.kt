@@ -15,6 +15,7 @@ class StorySegmentMapperImplTest {
 
     @Test
     fun `given a prompt and contributions when laid out then the prompt comes first and blank pieces are skipped`() {
+        // When
         val segments =
             mapper.segments(
                 prompt = "  A door opened. ",
@@ -27,6 +28,7 @@ class StorySegmentMapperImplTest {
                     ),
             )
 
+        // Then
         assertEquals(
             listOf(
                 StorySegmentUi("A door opened.", alex),
@@ -39,17 +41,23 @@ class StorySegmentMapperImplTest {
 
     @Test
     fun `given no prompt yet when laid out then the story is empty`() {
-        assertEquals(emptyList(), mapper.segments(prompt = "", promptAuthor = alex, contributions = emptyList()))
+        // When
+        val segments = mapper.segments(prompt = "", promptAuthor = alex, contributions = emptyList())
+
+        // Then
+        assertEquals(emptyList(), segments)
     }
 
     @Test
     fun `given the pieces of a story when writers are counted then every player is listed in order with their share`() {
+        // Given
         val jo = PlayerUi("jo", "Jo", PlayerColour.Pink)
         val segments = listOf(StorySegmentUi("One.", alex), StorySegmentUi("Two.", sam), StorySegmentUi("Three.", alex))
 
-        assertEquals(
-            listOf(StoryWriterUi(alex, 2), StoryWriterUi(sam, 1), StoryWriterUi(jo, 0)),
-            mapper.writers(listOf(alex, sam, jo), segments),
-        )
+        // When
+        val writers = mapper.writers(listOf(alex, sam, jo), segments)
+
+        // Then
+        assertEquals(listOf(StoryWriterUi(alex, 2), StoryWriterUi(sam, 1), StoryWriterUi(jo, 0)), writers)
     }
 }

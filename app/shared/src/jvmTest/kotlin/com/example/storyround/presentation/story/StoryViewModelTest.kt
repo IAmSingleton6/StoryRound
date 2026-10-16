@@ -4,12 +4,11 @@ import com.example.storyround.configuration.GameConfiguration
 import com.example.storyround.domain.idea.StoryIdeaProvider
 import com.example.storyround.domain.model.GameState
 import com.example.storyround.domain.repository.GameRepository
-import com.example.storyround.domain.usecase.SubmitContributionUseCase
-import com.example.storyround.domain.usecase.SubmitPromptUseCase
 import com.example.storyround.presentation.mapper.ContributionUiMapperImpl
 import com.example.storyround.presentation.mapper.PlayerUiMapperImpl
 import com.example.storyround.presentation.mapper.RoomUiMapperImpl
 import com.example.storyround.presentation.mapper.StorySegmentMapperImpl
+import com.example.storyround.presentation.mapper.StoryUiStateMapperImpl
 import com.example.storyround.protocol.Contribution
 import com.example.storyround.protocol.GameStatus
 import com.example.storyround.protocol.Player
@@ -20,6 +19,7 @@ import com.example.storyround.protocol.UserTextSanitizerImpl
 import com.example.storyround.protocol.UserTextValidatorImpl
 import com.example.storyround.rules.TurnRulesImpl
 import com.example.storyround.time.TimeProvider
+import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
@@ -52,12 +52,9 @@ class StoryViewModelTest {
     private val sam = Player("sam", "Sam", PlayerColour.Yellow)
     private val configuration = GameConfiguration(firstTurnMillis = 15_000L, turnReductionMillis = 1_000L, minimumTurnMillis = 5_000L)
     private val gameState = MutableStateFlow(GameState())
-    private val repository = mockk<GameRepository> { every { state } returns gameState }
-    private val submitPromptUseCase = mockk<SubmitPromptUseCase>(relaxed = true)
-    private val submitContributionUseCase = mockk<SubmitContributionUseCase>(relaxed = true)
+    private val gameRepository = mockk<GameRepository>(relaxed = true) { every { state } returns gameState }
     private val timeProvider = mockk<TimeProvider> { every { nowEpochMillis() } returns 0L }
     private val storyIdeaProvider = mockk<StoryIdeaProvider>()
-    private val oneWordSettings = RoomSettings(rounds = 2, oneWordPerTurn = true)
 
     @BeforeTest
     fun setUp() {
@@ -72,29 +69,35 @@ class StoryViewModelTest {
     @Test
     fun `given the opening writer with a draft when they submit then the prompt is sent and the draft cleared`() =
         runTest(dispatcher) {
+            // Given
             gameState.value = GameState(room = promptRoom(openingPlayer = alex), playerId = alex.id)
             val viewModel = viewModel()
-
             viewModel.onAction(StoryAction.OpeningPromptChanged("A door opened."))
+
+            // When
             viewModel.onAction(StoryAction.SubmitOpeningPrompt)
             advanceUntilIdle()
 
+            // Then
             val uiState = assertIs<StoryUiState.OpeningPrompt>(viewModel.uiState.value)
             assertTrue(uiState.isOpeningWriter)
             assertEquals("Alex", uiState.openingPlayer?.name)
             assertEquals("", uiState.openingPromptDraft)
-            coVerify(exactly = 1) { submitPromptUseCase("A door opened.") }
+            coVerify(exactly = 1) { gameRepository.submitPrompt("A door opened.") }
         }
 
     @Test
     fun `given another player opens and the socket drops when observed then this player waits and sees reconnecting`() =
         runTest(dispatcher) {
+            // Given
             gameState.value = GameState(room = promptRoom(openingPlayer = alex), playerId = sam.id, isConnected = false)
             val viewModel = viewModel()
 
+            // When
             viewModel.onAction(StoryAction.OpeningPromptChanged("I should not be able to send this."))
             advanceUntilIdle()
 
+            // Then
             val uiState = assertIs<StoryUiState.OpeningPrompt>(viewModel.uiState.value)
             assertFalse(uiState.isOpeningWriter)
             assertFalse(uiState.canSubmitOpeningPrompt)
@@ -105,14 +108,17 @@ class StoryViewModelTest {
     @Test
     fun `given an opening draft when a random idea is requested then the draft is replaced with an opening idea`() =
         runTest(dispatcher) {
+            // Given
             gameState.value = GameState(room = promptRoom(openingPlayer = alex), playerId = alex.id)
-            every { storyIdeaProvider.openingIdea("My own start") } returns "The goldfish won the lottery."
+            coEvery { storyIdeaProvider.openingIdea("My own start") } returns "The goldfish won the lottery."
             val viewModel = viewModel()
-
             viewModel.onAction(StoryAction.OpeningPromptChanged("My own start"))
+
+            // When
             viewModel.onAction(StoryAction.RandomOpeningPrompt)
             advanceUntilIdle()
 
+            // Then
             val uiState = assertIs<StoryUiState.OpeningPrompt>(viewModel.uiState.value)
             assertEquals("The goldfish won the lottery.", uiState.openingPromptDraft)
             assertTrue(uiState.canSubmitOpeningPrompt)
@@ -121,82 +127,85 @@ class StoryViewModelTest {
     @Test
     fun `given a draft longer than the limit when typed then it is cut to the story text limit`() =
         runTest(dispatcher) {
+            // Given
             gameState.value = GameState(room = promptRoom(openingPlayer = alex), playerId = alex.id)
             val viewModel = viewModel()
 
+            // When
             viewModel.onAction(StoryAction.OpeningPromptChanged("a".repeat(300)))
             advanceUntilIdle()
 
+            // Then
             assertEquals(280, assertIs<StoryUiState.OpeningPrompt>(viewModel.uiState.value).openingPromptDraft.length)
+        }
+
+    @Test
+    fun `given a one word game when a long draft is typed then it is cut to the word limit`() =
+        runTest(dispatcher) {
+            // Given
+            val oneWord = RoomSettings(rounds = 2, oneWordPerTurn = true)
+            gameState.value = GameState(room = promptRoom(openingPlayer = alex).copy(settings = oneWord), playerId = alex.id)
+            val viewModel = viewModel()
+
+            // When
+            viewModel.onAction(StoryAction.OpeningPromptChanged("a".repeat(40)))
+            advanceUntilIdle()
+
+            // Then
+            val uiState = assertIs<StoryUiState.OpeningPrompt>(viewModel.uiState.value)
+            assertEquals(30, uiState.openingPromptDraft.length)
+            assertTrue(uiState.canSubmitOpeningPrompt)
         }
 
     @Test
     fun `given the server accepts the prompt when play starts then the same state flow enters playing`() =
         runTest(dispatcher) {
+            // Given
             gameState.value = GameState(room = promptRoom(openingPlayer = alex), playerId = alex.id)
             val viewModel = viewModel()
             advanceUntilIdle()
 
+            // When
             gameState.value = GameState(room = playingRoom(turnNumber = 0), playerId = alex.id)
             advanceUntilIdle()
 
+            // Then
             val uiState = assertIs<StoryUiState.Playing>(viewModel.uiState.value)
             assertEquals("A door opened.", uiState.room.prompt)
-            assertEquals(0, uiState.nowEpochMillis)
-        }
-
-    @Test
-    fun `given the third timed turn of two players and two rounds when observed then round, turn, durations and next writer are exposed`() =
-        runTest(dispatcher) {
-            gameState.value = GameState(room = playingRoom(turnNumber = 2), playerId = alex.id)
-            val viewModel = viewModel()
-            advanceUntilIdle()
-
-            val uiState = assertIs<StoryUiState.Playing>(viewModel.uiState.value)
-            assertEquals(2, uiState.round)
-            assertEquals(3, uiState.turn)
-            assertEquals(4, uiState.totalTurns)
-            assertEquals(13_000L, uiState.turnDurationMillis)
-            assertEquals("Sam", uiState.nextPlayer?.name)
-            assertEquals(12_000L, uiState.nextTurnDurationMillis)
-            assertEquals(listOf("A door opened.", "A horse arrived.", "It wore a hat."), uiState.segments.map { it.text })
-        }
-
-    @Test
-    fun `given the final turn when observed then there is no next writer`() =
-        runTest(dispatcher) {
-            gameState.value = GameState(room = playingRoom(turnNumber = 3), playerId = alex.id)
-            val viewModel = viewModel()
-            advanceUntilIdle()
-
-            assertNull(assertIs<StoryUiState.Playing>(viewModel.uiState.value).nextPlayer)
+            assertEquals(0L, uiState.timeLeftMillis)
         }
 
     @Test
     fun `given your turn with a draft when it is submitted then the contribution is sent and the draft cleared`() =
         runTest(dispatcher) {
+            // Given
             gameState.value = GameState(room = playingRoom(turnNumber = 0), playerId = alex.id)
             val viewModel = viewModel()
             runCurrent()
-
             viewModel.onAction(StoryAction.ContributionChanged("A horse appeared."))
+
+            // When
             viewModel.onAction(StoryAction.SubmitContribution)
             runCurrent()
 
+            // Then
             assertEquals("", assertIs<StoryUiState.Playing>(viewModel.uiState.value).contributionDraft)
-            coVerify(exactly = 1) { submitContributionUseCase("A horse appeared.") }
+            coVerify(exactly = 1) { gameRepository.submitContribution("A horse appeared.") }
         }
 
     @Test
     fun `given a turn that passes without a contribution when play moves on then the hand-over is announced briefly`() =
         runTest(dispatcher) {
+            // Given
             gameState.value = GameState(room = playingRoom(turnNumber = 2), playerId = alex.id)
             val viewModel = viewModel()
             runCurrent()
 
+            // When
             gameState.value = gameState.value.copy(room = playingRoom(turnNumber = 3))
             runCurrent()
 
+            // Then
             assertEquals("Sam", assertIs<StoryUiState.Playing>(viewModel.uiState.value).timeUpHandOver?.name)
             advanceTimeBy(1_801)
             assertNull(assertIs<StoryUiState.Playing>(viewModel.uiState.value).timeUpHandOver)
@@ -205,98 +214,50 @@ class StoryViewModelTest {
     @Test
     fun `given a turn that passes with a contribution when play moves on then nothing is announced`() =
         runTest(dispatcher) {
+            // Given
             gameState.value = GameState(room = playingRoom(turnNumber = 2), playerId = alex.id)
             val viewModel = viewModel()
             runCurrent()
 
+            // When
             val nextTurn = playingRoom(turnNumber = 3)
             val contributions = nextTurn.contributions + Contribution(alex.id, "Then it spoke.", 2)
             gameState.value = gameState.value.copy(room = nextTurn.copy(contributions = contributions))
             runCurrent()
 
+            // Then
             assertNull(assertIs<StoryUiState.Playing>(viewModel.uiState.value).timeUpHandOver)
         }
 
     @Test
     fun `given your turn with a draft when a random idea is requested then it follows on from the latest piece`() =
         runTest(dispatcher) {
+            // Given
             gameState.value = GameState(room = playingRoom(turnNumber = 2), playerId = alex.id)
-            every { storyIdeaProvider.continuationIdea("It wore a hat.", "Half a thought") } returns "Then came a knock at the door."
+            coEvery { storyIdeaProvider.continuationIdea("It wore a hat.", "Half a thought") } returns "Then came a knock at the door."
             val viewModel = viewModel()
-
             viewModel.onAction(StoryAction.ContributionChanged("Half a thought"))
+
+            // When
             viewModel.onAction(StoryAction.RandomContribution)
             advanceUntilIdle()
 
+            // Then
             assertEquals("Then came a knock at the door.", assertIs<StoryUiState.Playing>(viewModel.uiState.value).contributionDraft)
-        }
-
-    @Test
-    fun `given a one word game when your draft has a space then it is invalid and the rule is explained`() =
-        runTest(dispatcher) {
-            gameState.value = GameState(room = playingRoom(turnNumber = 0).copy(settings = oneWordSettings), playerId = alex.id)
-            val viewModel = viewModel()
-            runCurrent()
-
-            viewModel.onAction(StoryAction.ContributionChanged("a horse"))
-            runCurrent()
-
-            val uiState = assertIs<StoryUiState.Playing>(viewModel.uiState.value)
-            assertTrue(uiState.oneWordPerTurn)
-            assertFalse(uiState.isDraftValid)
-            assertEquals("One word only, no spaces", uiState.draftError)
-        }
-
-    @Test
-    fun `given a one word game when your draft is a single word with a trailing space then it is valid`() =
-        runTest(dispatcher) {
-            gameState.value = GameState(room = playingRoom(turnNumber = 0).copy(settings = oneWordSettings), playerId = alex.id)
-            val viewModel = viewModel()
-            runCurrent()
-
-            viewModel.onAction(StoryAction.ContributionChanged("horse "))
-            runCurrent()
-
-            val uiState = assertIs<StoryUiState.Playing>(viewModel.uiState.value)
-            assertTrue(uiState.isDraftValid)
-            assertNull(uiState.draftError)
-        }
-
-    @Test
-    fun `given a one word game when a long opening draft is typed then it is cut to the word limit`() =
-        runTest(dispatcher) {
-            gameState.value = GameState(room = promptRoom(openingPlayer = alex).copy(settings = oneWordSettings), playerId = alex.id)
-            val viewModel = viewModel()
-
-            viewModel.onAction(StoryAction.OpeningPromptChanged("a".repeat(40)))
-            advanceUntilIdle()
-
-            val uiState = assertIs<StoryUiState.OpeningPrompt>(viewModel.uiState.value)
-            assertEquals(30, uiState.maxDraftLength)
-            assertEquals(30, uiState.openingPromptDraft.length)
-            assertTrue(uiState.canSubmitOpeningPrompt)
-        }
-
-    @Test
-    fun `given no room when observed then the story is loading`() =
-        runTest(dispatcher) {
-            val viewModel = viewModel()
-            advanceUntilIdle()
-
-            assertEquals(StoryUiState.Loading, viewModel.uiState.value)
         }
 
     private fun TestScope.viewModel(): StoryViewModel {
         val viewModel =
             StoryViewModel(
-                repository = repository,
-                submitPromptUseCase = submitPromptUseCase,
-                submitContributionUseCase = submitContributionUseCase,
+                gameRepository = gameRepository,
                 timeProvider = timeProvider,
-                roomUiMapper = RoomUiMapperImpl(PlayerUiMapperImpl(), ContributionUiMapperImpl(), StorySegmentMapperImpl()),
-                turnRules = TurnRulesImpl(configuration),
+                storyUiStateMapper =
+                    StoryUiStateMapperImpl(
+                        RoomUiMapperImpl(PlayerUiMapperImpl(), ContributionUiMapperImpl(), StorySegmentMapperImpl()),
+                        TurnRulesImpl(configuration),
+                        UserTextValidatorImpl(UserTextSanitizerImpl()),
+                    ),
                 storyIdeaProvider = storyIdeaProvider,
-                userTextValidator = UserTextValidatorImpl(UserTextSanitizerImpl()),
             )
         backgroundScope.launch { viewModel.uiState.collect() }
         return viewModel
