@@ -21,6 +21,4 @@ data class GameConfiguration(
         require(turnReductionMillis >= 0) { "The turn reduction must not be negative." }
         require(minimumTurnMillis > 0) { "The minimum turn duration must be positive." }
     }
-
-    fun turnDurationMillis(turnNumber: Int): Long = (firstTurnMillis - turnNumber * turnReductionMillis).coerceAtLeast(minimumTurnMillis)
 }

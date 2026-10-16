@@ -26,5 +26,6 @@ class TurnRulesImpl(
         playerCount: Int,
     ): Int = turnNumber / playerCount + 1
 
-    override fun durationMillis(turnNumber: Int): Long = gameConfiguration.turnDurationMillis(turnNumber)
+    override fun durationMillis(turnNumber: Int): Long =
+        with(gameConfiguration) { (firstTurnMillis - turnNumber * turnReductionMillis).coerceAtLeast(minimumTurnMillis) }
 }

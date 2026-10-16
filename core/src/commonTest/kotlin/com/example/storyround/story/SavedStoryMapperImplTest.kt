@@ -8,7 +8,7 @@ import com.example.storyround.protocol.RoomSettings
 import com.example.storyround.protocol.RoomState
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
+import kotlin.test.assertIs
 
 class SavedStoryMapperImplTest {
     private val mapper = SavedStoryMapperImpl()
@@ -28,9 +28,15 @@ class SavedStoryMapperImplTest {
         )
 
     @Test
-    fun `given a finished room when mapped then the story keeps its writers, colours and contribution order`() {
-        val story = mapper.map(finishedRoom, id = "story-1", createdAtEpochMillis = 42L)
+    fun `should keep the writers and the contribution order when a finished room is mapped`() {
+        // Given
+        val room = finishedRoom
 
+        // When
+        val mapping = mapper.map(room, id = "story-1", createdAtEpochMillis = 42L)
+
+        // Then
+        val story = assertIs<SavedStoryMapping.Mapped>(mapping).story
         assertEquals("story-1", story.id)
         assertEquals("A door opened.", story.prompt)
         assertEquals(sam.id, story.promptPlayerId)
@@ -41,15 +47,28 @@ class SavedStoryMapperImplTest {
 
     @Test
     fun `given a finished room without a recorded opener when mapped then the host is credited with the prompt`() {
-        val story = mapper.map(finishedRoom.copy(openingPlayerId = null), id = "story-1", createdAtEpochMillis = 1L)
+        // When
+        val mapping = mapper.map(finishedRoom.copy(openingPlayerId = null), id = "story-1", createdAtEpochMillis = 1L)
 
-        assertEquals(alex.id, story.promptPlayerId)
+        // Then
+        assertEquals(alex.id, assertIs<SavedStoryMapping.Mapped>(mapping).story.promptPlayerId)
     }
 
     @Test
-    fun `given a room that has not finished when mapped then it is rejected`() {
-        assertFailsWith<IllegalArgumentException> {
-            mapper.map(finishedRoom.copy(status = GameStatus.Playing), id = "story-1", createdAtEpochMillis = 1L)
-        }
+    fun `should report an incomplete story when the room has not finished`() {
+        // When
+        val mapping = mapper.map(finishedRoom.copy(status = GameStatus.Playing), id = "story-1", createdAtEpochMillis = 1L)
+
+        // Then
+        assertEquals(SavedStoryMapping.Incomplete("the room has not finished"), mapping)
+    }
+
+    @Test
+    fun `should report an incomplete story when a finished room has no opening prompt`() {
+        // When
+        val mapping = mapper.map(finishedRoom.copy(prompt = null), id = "story-1", createdAtEpochMillis = 1L)
+
+        // Then
+        assertEquals(SavedStoryMapping.Incomplete("the room has no opening prompt"), mapping)
     }
 }

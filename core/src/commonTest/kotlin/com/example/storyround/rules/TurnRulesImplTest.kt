@@ -12,27 +12,48 @@ class TurnRulesImplTest {
 
     @Test
     fun `given three players and two rounds when totalled then everyone writes twice`() {
-        assertEquals(6, rules.totalTurns(playerCount = 3, rounds = 2))
+        // When
+        val totalTurns = rules.totalTurns(playerCount = 3, rounds = 2)
+
+        // Then
+        assertEquals(6, totalTurns)
     }
 
     @Test
     fun `given the turn after the last one when checked then the game is complete`() {
-        assertFalse(rules.isComplete(turnNumber = 5, playerCount = 3, rounds = 2))
-        assertTrue(rules.isComplete(turnNumber = 6, playerCount = 3, rounds = 2))
+        // When
+        val lastTurnComplete = rules.isComplete(turnNumber = 5, playerCount = 3, rounds = 2)
+        val turnAfterLastComplete = rules.isComplete(turnNumber = 6, playerCount = 3, rounds = 2)
+
+        // Then
+        assertFalse(lastTurnComplete)
+        assertTrue(turnAfterLastComplete)
     }
 
     @Test
     fun `given successive turns when the writer is chosen then players take turns in order`() {
-        assertEquals(listOf(0, 1, 2, 0, 1), (0..4).map { rules.playerIndex(it, playerCount = 3) })
+        // When
+        val writers = (0..4).map { rules.playerIndex(it, playerCount = 3) }
+
+        // Then
+        assertEquals(listOf(0, 1, 2, 0, 1), writers)
     }
 
     @Test
     fun `given successive turns when the round is read then it advances once everyone has written`() {
-        assertEquals(listOf(1, 1, 1, 2, 2), (0..4).map { rules.round(it, playerCount = 3) })
+        // When
+        val rounds = (0..4).map { rules.round(it, playerCount = 3) }
+
+        // Then
+        assertEquals(listOf(1, 1, 1, 2, 2), rounds)
     }
 
     @Test
     fun `given successive turns when their duration is read then it follows the configured countdown`() {
-        assertEquals(listOf(15_000L, 14_000L, 5_000L), listOf(0, 1, 40).map(rules::durationMillis))
+        // When
+        val durations = listOf(0, 1, 40).map(rules::durationMillis)
+
+        // Then
+        assertEquals(listOf(15_000L, 14_000L, 5_000L), durations)
     }
 }

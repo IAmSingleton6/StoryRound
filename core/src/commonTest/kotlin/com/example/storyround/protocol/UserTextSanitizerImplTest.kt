@@ -8,28 +8,49 @@ class UserTextSanitizerImplTest {
 
     @Test
     fun `given surrounding and repeated whitespace when sanitised then it is trimmed and collapsed to single spaces`() {
-        assertEquals("A door opened.", sanitizer.sanitize("  A \t door\n\n opened.  "))
+        // When
+        val sanitized = sanitizer.sanitize("  A \t door\n\n opened.  ")
+
+        // Then
+        assertEquals("A door opened.", sanitized)
     }
 
     @Test
     fun `given control and invisible formatting characters when sanitised then they are removed`() {
-        assertEquals("Alex", sanitizer.sanitize("A\u0000l​e‮x\u0007"))
+        // When
+        val sanitized = sanitizer.sanitize("A\u0000l​e‮x\u0007")
+
+        // Then
+        assertEquals("Alex", sanitized)
     }
 
     @Test
     fun `given text made only of whitespace and invisible characters when sanitised then it is empty`() {
-        assertEquals("", sanitizer.sanitize(" ​\n⁠\t "))
+        // When
+        val sanitized = sanitizer.sanitize(" ​\n⁠\t ")
+
+        // Then
+        assertEquals("", sanitized)
     }
 
     @Test
     fun `given emoji and accented text when sanitised then it is preserved`() {
+        // Given
         val text = "Zoë 👩‍🚀 waved"
 
-        assertEquals(text, sanitizer.sanitize(text))
+        // When
+        val sanitized = sanitizer.sanitize(text)
+
+        // Then
+        assertEquals(text, sanitized)
     }
 
     @Test
     fun `given an unpaired surrogate when sanitised then it is removed`() {
-        assertEquals("ab", sanitizer.sanitize("a\uD83Db"))
+        // When
+        val sanitized = sanitizer.sanitize("a\uD83Db")
+
+        // Then
+        assertEquals("ab", sanitized)
     }
 }

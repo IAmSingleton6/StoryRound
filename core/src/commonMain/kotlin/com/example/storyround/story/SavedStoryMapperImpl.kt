@@ -9,15 +9,18 @@ class SavedStoryMapperImpl : SavedStoryMapper {
         room: RoomState,
         id: String,
         createdAtEpochMillis: Long,
-    ): SavedStory {
-        require(room.status == GameStatus.Finished) { "Only a finished room has a complete story." }
-        return SavedStory(
-            id = id,
-            prompt = requireNotNull(room.prompt) { "A finished room always has an opening prompt." },
-            promptPlayerId = room.openingPlayerId ?: room.hostId,
-            createdAtEpochMillis = createdAtEpochMillis,
-            players = room.players,
-            contributions = room.contributions,
+    ): SavedStoryMapping {
+        if (room.status != GameStatus.Finished) return SavedStoryMapping.Incomplete("the room has not finished")
+        val prompt = room.prompt ?: return SavedStoryMapping.Incomplete("the room has no opening prompt")
+        return SavedStoryMapping.Mapped(
+            SavedStory(
+                id = id,
+                prompt = prompt,
+                promptPlayerId = room.openingPlayerId ?: room.hostId,
+                createdAtEpochMillis = createdAtEpochMillis,
+                players = room.players,
+                contributions = room.contributions,
+            ),
         )
     }
 }

@@ -11,39 +11,71 @@ class UserTextValidatorImplTest {
 
     @Test
     fun `given a padded name when validated then the sanitised name is returned`() {
-        assertEquals("Mary Jane", validator.validPlayerName("  Mary \n Jane "))
+        // When
+        val name = validator.validPlayerName("  Mary \n Jane ")
+
+        // Then
+        assertEquals("Mary Jane", name)
     }
 
     @Test
     fun `given a name too short after sanitising or too long when validated then it is rejected`() {
-        assertNull(validator.validPlayerName(" A​ "))
-        assertNull(validator.validPlayerName("A".repeat(MAX_PLAYER_NAME_LENGTH + 1)))
+        // When
+        val tooShort = validator.validPlayerName(" A​ ")
+        val tooLong = validator.validPlayerName("A".repeat(MAX_PLAYER_NAME_LENGTH + 1))
+
+        // Then
+        assertNull(tooShort)
+        assertNull(tooLong)
     }
 
     @Test
     fun `given story text within the limit when validated then the sanitised text is returned`() {
-        assertEquals("A door opened.", validator.validStoryText(" A door\nopened. ", freeWriting))
-        assertEquals(MAX_STORY_TEXT_LENGTH, validator.validStoryText("a".repeat(MAX_STORY_TEXT_LENGTH), freeWriting)?.length)
+        // When
+        val text = validator.validStoryText(" A door\nopened. ", freeWriting)
+        val lengthAtLimit = validator.validStoryText("a".repeat(MAX_STORY_TEXT_LENGTH), freeWriting)?.length
+
+        // Then
+        assertEquals("A door opened.", text)
+        assertEquals(MAX_STORY_TEXT_LENGTH, lengthAtLimit)
     }
 
     @Test
     fun `given blank or over-long story text when validated then it is rejected`() {
-        assertNull(validator.validStoryText(" ​\n ", freeWriting))
-        assertNull(validator.validStoryText("a".repeat(MAX_STORY_TEXT_LENGTH + 1), freeWriting))
+        // When
+        val blank = validator.validStoryText(" ​\n ", freeWriting)
+        val overLong = validator.validStoryText("a".repeat(MAX_STORY_TEXT_LENGTH + 1), freeWriting)
+
+        // Then
+        assertNull(blank)
+        assertNull(overLong)
     }
 
     @Test
     fun `given one word turns and a padded word with punctuation when validated then the sanitised word is returned`() {
-        assertEquals("\"Hello,", validator.validStoryText("  \"Hello, \n", oneWord))
-        assertEquals("mother-in-law's", validator.validStoryText("mother-in-law's", oneWord))
-        assertEquals(MAX_WORD_LENGTH, validator.validStoryText("a".repeat(MAX_WORD_LENGTH), oneWord)?.length)
+        // When
+        val quoted = validator.validStoryText("  \"Hello, \n", oneWord)
+        val hyphenated = validator.validStoryText("mother-in-law's", oneWord)
+        val lengthAtLimit = validator.validStoryText("a".repeat(MAX_WORD_LENGTH), oneWord)?.length
+
+        // Then
+        assertEquals("\"Hello,", quoted)
+        assertEquals("mother-in-law's", hyphenated)
+        assertEquals(MAX_WORD_LENGTH, lengthAtLimit)
     }
 
     @Test
     fun `given one word turns and several words, a blank or an over-long word when validated then it is rejected`() {
-        assertNull(validator.validStoryText("a horse", oneWord))
-        assertNull(validator.validStoryText("a\nhorse", oneWord))
-        assertNull(validator.validStoryText(" ​ ", oneWord))
-        assertNull(validator.validStoryText("a".repeat(MAX_WORD_LENGTH + 1), oneWord))
+        // When
+        val twoWords = validator.validStoryText("a horse", oneWord)
+        val splitByNewline = validator.validStoryText("a\nhorse", oneWord)
+        val blank = validator.validStoryText(" ​ ", oneWord)
+        val overLong = validator.validStoryText("a".repeat(MAX_WORD_LENGTH + 1), oneWord)
+
+        // Then
+        assertNull(twoWords)
+        assertNull(splitByNewline)
+        assertNull(blank)
+        assertNull(overLong)
     }
 }
