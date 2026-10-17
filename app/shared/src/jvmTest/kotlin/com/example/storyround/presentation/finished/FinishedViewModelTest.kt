@@ -2,7 +2,6 @@ package com.example.storyround.presentation.finished
 
 import com.example.storyround.domain.model.GameState
 import com.example.storyround.domain.repository.GameRepository
-import com.example.storyround.domain.usecase.PlayAgainUseCase
 import com.example.storyround.presentation.mapper.ContributionUiMapperImpl
 import com.example.storyround.presentation.mapper.PlayerUiMapperImpl
 import com.example.storyround.presentation.mapper.RoomUiMapperImpl
@@ -52,8 +51,7 @@ class FinishedViewModelTest {
             settings = RoomSettings(rounds = 1),
         )
     private val gameState = MutableStateFlow(GameState(room = finishedRoom, playerId = alex.id, isConnected = true))
-    private val repository = mockk<GameRepository> { every { state } returns gameState }
-    private val playAgainUseCase = mockk<PlayAgainUseCase>(relaxed = true)
+    private val gameRepository = mockk<GameRepository>(relaxed = true) { every { state } returns gameState }
 
     @BeforeTest
     fun setUp() {
@@ -68,10 +66,14 @@ class FinishedViewModelTest {
     @Test
     fun `given a finished room seen by a guest when observed then the story, writer counts and host are exposed`() =
         runTest(dispatcher) {
+            // Given
             gameState.value = gameState.value.copy(playerId = sam.id)
+
+            // When
             val viewModel = viewModel()
             advanceUntilIdle()
 
+            // Then
             val uiState = viewModel.uiState.value
             assertEquals(listOf("A door opened.", "A horse arrived.", "It wore a hat."), uiState.segments.map { it.text })
             assertEquals(listOf("Alex" to 2, "Sam" to 1), uiState.writers.map { it.player.name to it.pieces })
@@ -84,30 +86,36 @@ class FinishedViewModelTest {
     @Test
     fun `given the host when play again is chosen then another game is requested`() =
         runTest(dispatcher) {
+            // Given
             val viewModel = viewModel()
 
+            // When
             viewModel.onAction(FinishedAction.PlayAgain)
             advanceUntilIdle()
 
+            // Then
             assertTrue(viewModel.uiState.value.canPlayAgain)
-            coVerify(exactly = 1) { playAgainUseCase() }
+            coVerify(exactly = 1) { gameRepository.playAgain() }
         }
 
     @Test
     fun `given the socket drops on the finished screen when observed then reconnecting is exposed`() =
         runTest(dispatcher) {
+            // Given
             gameState.value = gameState.value.copy(isConnected = false)
+
+            // When
             val viewModel = viewModel()
             advanceUntilIdle()
 
+            // Then
             assertTrue(viewModel.uiState.value.isReconnecting)
         }
 
     private fun TestScope.viewModel(): FinishedViewModel {
         val viewModel =
             FinishedViewModel(
-                repository = repository,
-                playAgainUseCase = playAgainUseCase,
+                gameRepository = gameRepository,
                 roomUiMapper = RoomUiMapperImpl(PlayerUiMapperImpl(), ContributionUiMapperImpl(), StorySegmentMapperImpl()),
             )
         backgroundScope.launch { viewModel.uiState.collect() }

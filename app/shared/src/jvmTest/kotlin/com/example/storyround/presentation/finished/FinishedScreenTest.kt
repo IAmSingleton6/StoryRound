@@ -1,69 +1,127 @@
 package com.example.storyround.presentation.finished
 
-import androidx.compose.ui.test.ExperimentalTestApi
-import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.onNodeWithContentDescription
-import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.v2.runComposeUiTest
-import com.example.storyround.presentation.model.PlayerUi
-import com.example.storyround.presentation.model.StorySegmentUi
-import com.example.storyround.presentation.model.StoryWriterUi
-import com.example.storyround.protocol.PlayerColour
-import com.example.storyround.ui.theme.StoryRoundTheme
+import com.example.storyround.testing.GIVEN
+import com.example.storyround.testing.THEN
+import com.example.storyround.testing.WHEN
+import com.example.storyround.testing.base.ComponentTest
+import com.example.storyround.testing.fixtures.finishedStory
+import com.example.storyround.testing.fixtures.sam
 import kotlin.test.Test
-import kotlin.test.assertEquals
 
-@OptIn(ExperimentalTestApi::class)
-class FinishedScreenTest {
-    private val alex = PlayerUi("alex", "Alex", PlayerColour.Blue)
-    private val sam = PlayerUi("sam", "Sam", PlayerColour.Yellow)
-    private val finished =
-        FinishedUiState(
-            segments = listOf(StorySegmentUi("A door opened.", alex), StorySegmentUi("A horse arrived.", sam)),
-            writers = listOf(StoryWriterUi(alex, 1), StoryWriterUi(sam, 1)),
-            contributionCount = 1,
-            host = alex,
-            playerId = alex.id,
-            canPlayAgain = true,
-        )
-
+internal class FinishedScreenTest : ComponentTest<FinishedUiState, FinishedAction>({ state, onAction -> FinishedScreen(state, onAction) }) {
     @Test
-    fun `given a host on a finished story when the actions are pressed then each is emitted`() =
-        runComposeUiTest {
-            val actions = mutableListOf<FinishedAction>()
-            setContent { StoryRoundTheme { FinishedScreen(finished) { actions += it } } }
-
-            onNodeWithText("STORY COMPLETE").assertIsDisplayed()
-            onNodeWithText("1 contribution · 2 writers · saved to your history").assertIsDisplayed()
-            onNodeWithContentDescription("Alex (you), 1 pieces").assertIsDisplayed()
-            onNodeWithText("PLAY AGAIN").performClick()
-            onNodeWithText("Home").performClick()
-            onNodeWithText("View story").assertDoesNotExist()
-            onNodeWithText("Story history").assertDoesNotExist()
-
-            assertEquals(listOf(FinishedAction.PlayAgain, FinishedAction.Home), actions)
-        }
-
-    @Test
-    fun `given a guest when shown then the host is named and only home is offered`() =
-        runComposeUiTest {
-            setContent {
-                StoryRoundTheme {
-                    FinishedScreen(finished.copy(playerId = sam.id, canPlayAgain = false)) {}
-                }
+    fun `should summarise the finished story when it is shown`() =
+        componentTest {
+            GIVEN("a story of one prompt and one contribution by two writers has finished") {
+                useState(finishedStory())
             }
 
-            onNodeWithText("Alex can start another round from here.").assertIsDisplayed()
-            onNodeWithText("PLAY AGAIN").assertDoesNotExist()
-            onNodeWithText("Home").assertIsDisplayed()
+            WHEN("the finished screen is shown") {
+                show()
+            }
+
+            THEN("it summarises the story and shows all of it") {
+                finishedRobot.assertSummary("1 contribution · 2 writers · saved to your history")
+                finishedRobot.assertStoryShown("A door opened. A horse arrived.")
+            }
         }
 
     @Test
-    fun `given a dropped connection when the finished story is shown then the reconnecting banner is displayed`() =
-        runComposeUiTest {
-            setContent { StoryRoundTheme { FinishedScreen(finished.copy(isReconnecting = true)) {} } }
+    fun `should mark the viewer's own chip when listing the writers`() =
+        componentTest {
+            GIVEN("Alex and Sam wrote one piece each and Alex is viewing") {
+                useState(finishedStory())
+            }
 
-            onNodeWithText("Reconnecting… your seat is saved").assertIsDisplayed()
+            WHEN("the finished screen is shown") {
+                show()
+            }
+
+            THEN("Alex's chip says you and both show one piece") {
+                finishedRobot.assertWriterShown("Alex (you)", pieces = 1)
+                finishedRobot.assertWriterShown("Sam", pieces = 1)
+            }
+        }
+
+    @Test
+    fun `should offer no shortcut to view the story when it is already on screen`() =
+        componentTest {
+            GIVEN("a story has finished") {
+                useState(finishedStory())
+            }
+
+            WHEN("the finished screen is shown") {
+                show()
+            }
+
+            THEN("there is no view story or history shortcut") {
+                finishedRobot.assertNoStoryShortcuts()
+            }
+        }
+
+    @Test
+    fun `should emit play again when the host presses play again`() =
+        componentTest {
+            GIVEN("Alex, the host, is viewing a finished story") {
+                useState(finishedStory())
+                show()
+            }
+
+            WHEN("Alex presses play again") {
+                finishedRobot.tapPlayAgain()
+            }
+
+            THEN("the play again action is emitted") {
+                actions.assertEmitted(FinishedAction.PlayAgain)
+            }
+        }
+
+    @Test
+    fun `should emit home when home is pressed`() =
+        componentTest {
+            GIVEN("a finished story is showing") {
+                useState(finishedStory())
+                show()
+            }
+
+            WHEN("the player presses home") {
+                finishedRobot.tapHome()
+            }
+
+            THEN("the home action is emitted") {
+                actions.assertEmitted(FinishedAction.Home)
+            }
+        }
+
+    @Test
+    fun `should tell a guest the host can play again when a guest views the finished story`() =
+        componentTest {
+            GIVEN("Sam, a guest, is viewing") {
+                useState(finishedStory(viewerId = sam.id))
+            }
+
+            WHEN("the finished screen is shown") {
+                show()
+            }
+
+            THEN("Sam is told Alex can start another round, with no replay button") {
+                finishedRobot.assertHostCanReplay("Alex")
+            }
+        }
+
+    @Test
+    fun `should show the reconnecting banner when the connection has dropped`() =
+        componentTest {
+            GIVEN("the connection has dropped after the game finished") {
+                useState(finishedStory(isReconnecting = true))
+            }
+
+            WHEN("the finished screen is shown") {
+                show()
+            }
+
+            THEN("the reconnecting banner is shown") {
+                finishedRobot.assertReconnectingShown()
+            }
         }
 }

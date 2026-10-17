@@ -3,7 +3,6 @@ package com.example.storyround.presentation.finished
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.storyround.domain.repository.GameRepository
-import com.example.storyround.domain.usecase.PlayAgainUseCase
 import com.example.storyround.presentation.WhileUiSubscribed
 import com.example.storyround.presentation.mapper.RoomUiMapper
 import kotlinx.coroutines.flow.StateFlow
@@ -12,12 +11,11 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 internal class FinishedViewModel(
-    repository: GameRepository,
-    private val playAgainUseCase: PlayAgainUseCase,
+    private val gameRepository: GameRepository,
     private val roomUiMapper: RoomUiMapper,
 ) : ViewModel() {
     val uiState: StateFlow<FinishedUiState> =
-        repository.state
+        gameRepository.state
             .map { state ->
                 val room = state.room?.let(roomUiMapper::map) ?: return@map FinishedUiState()
                 FinishedUiState(
@@ -33,7 +31,7 @@ internal class FinishedViewModel(
 
     fun onAction(action: FinishedAction) {
         when (action) {
-            FinishedAction.PlayAgain -> viewModelScope.launch { playAgainUseCase() }
+            FinishedAction.PlayAgain -> viewModelScope.launch { gameRepository.playAgain() }
             FinishedAction.Home -> Unit
         }
     }
