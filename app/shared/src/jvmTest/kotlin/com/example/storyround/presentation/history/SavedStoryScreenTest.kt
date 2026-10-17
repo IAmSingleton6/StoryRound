@@ -1,48 +1,84 @@
 package com.example.storyround.presentation.history
 
-import androidx.compose.ui.test.ExperimentalTestApi
-import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.onNodeWithContentDescription
-import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.v2.runComposeUiTest
-import com.example.storyround.presentation.model.PlayerUi
-import com.example.storyround.presentation.model.StorySegmentUi
-import com.example.storyround.presentation.model.StoryWriterUi
-import com.example.storyround.protocol.PlayerColour
-import com.example.storyround.ui.theme.StoryRoundTheme
+import com.example.storyround.testing.GIVEN
+import com.example.storyround.testing.THEN
+import com.example.storyround.testing.WHEN
+import com.example.storyround.testing.base.ComponentTest
+import com.example.storyround.testing.fixtures.savedStory
 import kotlin.test.Test
-import kotlin.test.assertEquals
 
-@OptIn(ExperimentalTestApi::class)
-class SavedStoryScreenTest {
-    private val alex = PlayerUi("alex", "Alex", PlayerColour.Blue)
-    private val sam = PlayerUi("sam", "Sam", PlayerColour.Yellow)
-    private val saved =
-        SavedStoryUiState(
-            segments = listOf(StorySegmentUi("A door opened.", alex), StorySegmentUi("A horse arrived.", sam)),
-            writers = listOf(StoryWriterUi(alex, 1), StoryWriterUi(sam, 1)),
-        )
-
+internal class SavedStoryScreenTest :
+    ComponentTest<SavedStoryUiState, SavedStoryScreenTest.Navigation>({ state, onAction ->
+        SavedStoryScreen(state, onBack = { onAction(SavedStoryScreenTest.Navigation.Back) })
+    }) {
     @Test
-    fun `given a saved story when shown then the story and its writers are displayed`() =
-        runComposeUiTest {
-            setContent { StoryRoundTheme { SavedStoryScreen(saved) {} } }
+    fun `should show the saved story's text when it is opened`() =
+        componentTest {
+            GIVEN("the story \"A door opened. A horse arrived.\" is saved") {
+                useState(savedStory())
+            }
 
-            onNodeWithText("SAVED STORY").assertIsDisplayed()
-            onNodeWithContentDescription("A door opened. A horse arrived.").assertIsDisplayed()
-            onNodeWithContentDescription("Sam, 1 pieces").assertIsDisplayed()
+            WHEN("it is opened") {
+                show()
+            }
+
+            THEN("the whole story is shown") {
+                savedStoryRobot.assertStoryShown("A door opened. A horse arrived.")
+            }
         }
 
     @Test
-    fun `given a saved story when either back control is pressed then story history is reopened`() =
-        runComposeUiTest {
-            var backPresses = 0
-            setContent { StoryRoundTheme { SavedStoryScreen(saved) { backPresses++ } } }
+    fun `should list each writer's pieces when it is opened`() =
+        componentTest {
+            GIVEN("Alex and Sam wrote one piece each") {
+                useState(savedStory())
+            }
 
-            onNodeWithContentDescription("Back").performClick()
-            onNodeWithText("Back to history").performClick()
+            WHEN("the saved story is opened") {
+                show()
+            }
 
-            assertEquals(2, backPresses)
+            THEN("both writers are listed with one piece") {
+                savedStoryRobot.assertWriterShown("Alex", pieces = 1)
+                savedStoryRobot.assertWriterShown("Sam", pieces = 1)
+            }
         }
+
+    @Test
+    fun `should go back to history when the back pill is pressed`() =
+        componentTest {
+            GIVEN("a saved story is open") {
+                useState(savedStory())
+                show()
+            }
+
+            WHEN("the player presses the back pill") {
+                savedStoryRobot.tapBack()
+            }
+
+            THEN("history is reopened") {
+                actions.assertEmitted(Navigation.Back)
+            }
+        }
+
+    @Test
+    fun `should go back to history when back to history is pressed`() =
+        componentTest {
+            GIVEN("a saved story is open") {
+                useState(savedStory())
+                show()
+            }
+
+            WHEN("the player presses back to history") {
+                savedStoryRobot.tapBackToHistory()
+            }
+
+            THEN("history is reopened") {
+                actions.assertEmitted(Navigation.Back)
+            }
+        }
+
+    enum class Navigation {
+        Back,
+    }
 }

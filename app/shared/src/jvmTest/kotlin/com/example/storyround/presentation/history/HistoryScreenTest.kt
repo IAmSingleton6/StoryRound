@@ -1,67 +1,114 @@
 package com.example.storyround.presentation.history
 
-import androidx.compose.ui.test.ExperimentalTestApi
-import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.onNodeWithContentDescription
-import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.v2.runComposeUiTest
-import com.example.storyround.presentation.model.ContributionUi
-import com.example.storyround.presentation.model.PlayerUi
-import com.example.storyround.presentation.model.StoryUi
-import com.example.storyround.presentation.model.StoryWriterUi
-import com.example.storyround.protocol.PlayerColour
-import com.example.storyround.ui.theme.StoryRoundTheme
+import com.example.storyround.presentation.model.UiText
+import com.example.storyround.testing.GIVEN
+import com.example.storyround.testing.THEN
+import com.example.storyround.testing.WHEN
+import com.example.storyround.testing.base.ComponentTest
+import com.example.storyround.testing.fixtures.savedDoorStory
+import storyround.app.shared.generated.resources.Res
+import storyround.app.shared.generated.resources.error_reconnecting
 import kotlin.test.Test
-import kotlin.test.assertEquals
 
-@OptIn(ExperimentalTestApi::class)
-class HistoryScreenTest {
-    private val alex = PlayerUi("alex", "Alex", PlayerColour.Blue)
-    private val sam = PlayerUi("sam", "Sam", PlayerColour.Yellow)
-    private val story =
-        StoryUi(
-            id = "story-1",
-            prompt = "A door opened.",
-            players = listOf(alex, sam),
-            contributions = List(3) { turn -> ContributionUi(if (turn % 2 == 0) sam else alex, "Piece $turn.", turn) },
-            promptAuthor = alex,
-            writers = listOf(StoryWriterUi(alex, 2), StoryWriterUi(sam, 2)),
-        )
-
+internal class HistoryScreenTest : ComponentTest<HistoryUiState, HistoryAction>({ state, onAction -> HistoryScreen(state, onAction) }) {
     @Test
-    fun `given saved stories when a card and back are pressed then the story opens and history closes`() =
-        runComposeUiTest {
-            val actions = mutableListOf<HistoryAction>()
-            setContent { StoryRoundTheme { HistoryScreen(HistoryUiState.Content(listOf(story))) { actions += it } } }
+    fun `should summarise each saved story on its card`() =
+        componentTest {
+            GIVEN("one story with two players and three contributions is saved") {
+                useState(HistoryUiState.Content(listOf(savedDoorStory)))
+            }
 
-            onNodeWithText("Story history").assertIsDisplayed()
-            onNodeWithText("2 players · 3 contributions").assertIsDisplayed()
-            onNodeWithText("A door opened.").performClick()
-            onNodeWithContentDescription("Back").performClick()
+            WHEN("story history is shown") {
+                show()
+            }
 
-            assertEquals(listOf(HistoryAction.OpenStory("story-1"), HistoryAction.Back), actions)
+            THEN("its card shows the prompt and its size") {
+                historyRobot.assertStoriesShown("A door opened.")
+                historyRobot.assertStorySummary("2 players · 3 contributions")
+            }
         }
 
     @Test
-    fun `given no saved stories when back is pressed then the empty history closes`() =
-        runComposeUiTest {
-            var action: HistoryAction? = null
-            setContent { StoryRoundTheme { HistoryScreen(HistoryUiState.Content(emptyList())) { action = it } } }
+    fun `should emit open story when a card is pressed`() =
+        componentTest {
+            GIVEN("story history is showing a saved story") {
+                useState(HistoryUiState.Content(listOf(savedDoorStory)))
+                show()
+            }
 
-            onNodeWithText("No completed stories yet.").assertIsDisplayed()
-            onNodeWithText("Finish a game and the story is saved here, on this device.").assertIsDisplayed()
-            onNodeWithText("BACK").performClick()
+            WHEN("the player presses its card") {
+                historyRobot.tapStory("A door opened.")
+            }
 
-            assertEquals(HistoryAction.Back, action)
+            THEN("that story is opened") {
+                actions.assertEmitted(HistoryAction.OpenStory("story-1"))
+            }
         }
 
     @Test
-    fun `given a connection error when history is shown then the error is announced above the saved stories`() =
-        runComposeUiTest {
-            setContent { StoryRoundTheme { HistoryScreen(HistoryUiState.Content(listOf(story), error = "Reconnecting...")) {} } }
+    fun `should emit back when back is pressed`() =
+        componentTest {
+            GIVEN("story history is showing a saved story") {
+                useState(HistoryUiState.Content(listOf(savedDoorStory)))
+                show()
+            }
 
-            onNodeWithText("Reconnecting...").assertIsDisplayed()
-            onNodeWithText("A door opened.").assertIsDisplayed()
+            WHEN("the player presses back") {
+                historyRobot.tapBack()
+            }
+
+            THEN("history is closed") {
+                actions.assertEmitted(HistoryAction.Back)
+            }
+        }
+
+    @Test
+    fun `should explain there are no stories when history is empty`() =
+        componentTest {
+            GIVEN("no stories are saved") {
+                useState(HistoryUiState.Content(emptyList()))
+            }
+
+            WHEN("story history is shown") {
+                show()
+            }
+
+            THEN("it explains stories are saved here once a game finishes") {
+                historyRobot.assertEmpty()
+            }
+        }
+
+    @Test
+    fun `should emit back when the empty history's back button is pressed`() =
+        componentTest {
+            GIVEN("empty story history is showing") {
+                useState(HistoryUiState.Content(emptyList()))
+                show()
+            }
+
+            WHEN("the player presses back") {
+                historyRobot.tapEmptyStateBack()
+            }
+
+            THEN("history is closed") {
+                actions.assertEmitted(HistoryAction.Back)
+            }
+        }
+
+    @Test
+    fun `should announce the error above the saved stories when the connection has a problem`() =
+        componentTest {
+            GIVEN("the app is reconnecting while a story is saved") {
+                useState(HistoryUiState.Content(listOf(savedDoorStory), error = UiText.Resource(Res.string.error_reconnecting)))
+            }
+
+            WHEN("story history is shown") {
+                show()
+            }
+
+            THEN("the error is announced and the story is still readable") {
+                historyRobot.assertErrorShown("Reconnecting...")
+                historyRobot.assertStoriesShown("A door opened.")
+            }
         }
 }

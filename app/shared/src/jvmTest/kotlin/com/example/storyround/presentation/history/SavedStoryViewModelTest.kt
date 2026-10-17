@@ -1,7 +1,7 @@
 package com.example.storyround.presentation.history
 
-import com.example.storyround.domain.model.GameState
-import com.example.storyround.domain.repository.GameRepository
+import com.example.storyround.domain.model.StoryHistoryState
+import com.example.storyround.domain.repository.StoryHistoryRepository
 import com.example.storyround.presentation.mapper.ContributionUiMapperImpl
 import com.example.storyround.presentation.mapper.PlayerUiMapperImpl
 import com.example.storyround.presentation.mapper.SavedStoryUiMapperImpl
@@ -30,8 +30,8 @@ import kotlin.test.assertEquals
 @OptIn(ExperimentalCoroutinesApi::class)
 class SavedStoryViewModelTest {
     private val dispatcher = StandardTestDispatcher()
-    private val gameState = MutableStateFlow(GameState())
-    private val repository = mockk<GameRepository> { every { state } returns gameState }
+    private val historyState = MutableStateFlow(StoryHistoryState())
+    private val storyHistoryRepository = mockk<StoryHistoryRepository> { every { state } returns historyState }
     private val mapper = SavedStoryUiMapperImpl(PlayerUiMapperImpl(), ContributionUiMapperImpl(), StorySegmentMapperImpl())
 
     @BeforeTest
@@ -47,11 +47,12 @@ class SavedStoryViewModelTest {
     @Test
     fun `given a selected saved story when observed then its pieces and every writer's share are exposed`() =
         runTest(dispatcher) {
+            // Given
             val alex = Player("alex", "Alex", PlayerColour.Blue)
             val sam = Player("sam", "Sam", PlayerColour.Yellow)
             val jo = Player("jo", "Jo", PlayerColour.Pink)
-            gameState.value =
-                GameState(
+            historyState.value =
+                StoryHistoryState(
                     selectedStory =
                         SavedStory(
                             id = "story-1",
@@ -62,10 +63,13 @@ class SavedStoryViewModelTest {
                             contributions = listOf(Contribution(sam.id, "A horse arrived.", 0), Contribution(alex.id, "It wore a hat.", 1)),
                         ),
                 )
-            val viewModel = SavedStoryViewModel(repository, mapper)
+
+            // When
+            val viewModel = SavedStoryViewModel(storyHistoryRepository, mapper)
             backgroundScope.launch { viewModel.uiState.collect() }
             advanceUntilIdle()
 
+            // Then
             val uiState = viewModel.uiState.value
             assertEquals(listOf("A door opened.", "A horse arrived.", "It wore a hat."), uiState.segments.map { it.text })
             assertEquals(listOf("Alex" to 2, "Sam" to 1, "Jo" to 0), uiState.writers.map { it.player.name to it.pieces })
@@ -74,10 +78,12 @@ class SavedStoryViewModelTest {
     @Test
     fun `given no selected story when observed then nothing is shown`() =
         runTest(dispatcher) {
-            val viewModel = SavedStoryViewModel(repository, mapper)
+            // When
+            val viewModel = SavedStoryViewModel(storyHistoryRepository, mapper)
             backgroundScope.launch { viewModel.uiState.collect() }
             advanceUntilIdle()
 
+            // Then
             assertEquals(SavedStoryUiState(), viewModel.uiState.value)
         }
 }

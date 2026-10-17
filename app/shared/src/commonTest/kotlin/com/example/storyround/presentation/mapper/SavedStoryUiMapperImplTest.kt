@@ -12,6 +12,7 @@ class SavedStoryUiMapperImplTest {
 
     @Test
     fun `given a saved story with a departed player's contribution when mapped then that contribution is omitted`() {
+        // Given
         val story =
             SavedStory(
                 id = "story-1",
@@ -22,8 +23,10 @@ class SavedStoryUiMapperImplTest {
                 contributions = listOf(Contribution("unknown", "Ignored", turnNumber = 1)),
             )
 
+        // When
         val mapped = mapper.map(story)
 
+        // Then
         assertEquals(emptyList(), mapped.contributions)
         assertEquals("Alex", mapped.promptAuthor?.name)
         assertEquals(listOf("Prompt"), mapped.segments.map { it.text })

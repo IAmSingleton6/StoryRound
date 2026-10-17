@@ -6,8 +6,10 @@ import androidx.compose.runtime.getValue
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
-internal fun SavedStoryRoute(onBack: () -> Unit) {
-    val viewModel = koinViewModel<SavedStoryViewModel>()
+internal fun SavedStoryRoute(
+    onBack: () -> Unit,
+    viewModel: SavedStoryViewModel = koinViewModel(),
+) {
     val uiState by viewModel.uiState.collectAsState()
     SavedStoryScreen(uiState = uiState, onBack = onBack)
 }
