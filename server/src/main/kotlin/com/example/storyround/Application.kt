@@ -1,9 +1,9 @@
 package com.example.storyround
 
-import com.example.storyround.config.EnvironmentServerConfigProvider
+import com.example.storyround.config.ServerConfigProviderImpl
+import com.example.storyround.config.SystemEnvironment
 import com.example.storyround.di.serverModule
 import com.example.storyround.game.GameWebSocketHandler
-import com.example.storyround.room.RoomRegistry
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import io.ktor.server.engine.EngineConnectorBuilder
@@ -14,14 +14,15 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
 import io.ktor.server.websocket.WebSockets
 import io.ktor.server.websocket.webSocket
-import org.koin.ktor.ext.inject
+import org.koin.core.module.Module
+import org.koin.ktor.ext.get
 import org.koin.ktor.plugin.Koin
 
 private const val MAX_WEBSOCKET_FRAME_BYTES = 16L * 1024
 private const val MAX_HEADER_BYTES = 65_536
 
 fun main() {
-    val config = EnvironmentServerConfigProvider().load()
+    val config = ServerConfigProviderImpl(SystemEnvironment()).load()
     embeddedServer(Netty, configure = {
         connectors.add(
             EngineConnectorBuilder().apply {
@@ -31,13 +32,13 @@ fun main() {
         )
         maxHeaderSize = MAX_HEADER_BYTES
     }) {
-        module()
+        storyRoundServer()
     }.start(wait = true)
 }
 
-internal fun Application.module(registry: RoomRegistry? = null) {
-    install(Koin) { modules(serverModule(registry)) }
-    val gameWebSocketHandler: GameWebSocketHandler by inject()
+fun Application.storyRoundServer(overrides: List<Module> = emptyList()) {
+    install(Koin) { modules(listOf(serverModule()) + overrides) }
+    val gameWebSocketHandler: GameWebSocketHandler = get()
     install(WebSockets) { maxFrameSize = MAX_WEBSOCKET_FRAME_BYTES }
 
     routing {

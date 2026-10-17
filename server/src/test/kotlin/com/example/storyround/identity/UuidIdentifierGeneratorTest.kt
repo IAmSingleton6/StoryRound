@@ -10,9 +10,11 @@ class UuidIdentifierGeneratorTest {
 
     @Test
     fun `given two identifiers when generated then each is a distinct UUID`() {
+        // When
         val first = generator.generate()
         val second = generator.generate()
 
+        // Then
         assertNotEquals(first, second)
         assertEquals(first, UUID.fromString(first).toString())
     }
