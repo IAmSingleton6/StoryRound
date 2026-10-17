@@ -25,7 +25,7 @@ jobs:
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v4
       - run: ./gradlew qualityCheck
-      - run: ./gradlew :core:jvmTest :app:shared:jvmTest :server:test kotlinStoreYarnLock
+      - run: ./gradlew :core:jvmTest :testing:jvmTest :app:shared:jvmTest :server:test kotlinStoreYarnLock
 
   deploy-web:
     needs: verify

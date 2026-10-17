@@ -35,7 +35,7 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v4
-      - run: ./gradlew :core:jvmTest :app:shared:jvmTest :server:test kotlinStoreYarnLock
+      - run: ./gradlew :core:jvmTest :testing:jvmTest :app:shared:jvmTest :server:test kotlinStoreYarnLock
 
   linux-builds:
     needs: tests

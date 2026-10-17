@@ -1,3 +1,4 @@
+import dev.detekt.gradle.Detekt
 import org.jlleitschuh.gradle.ktlint.KtlintExtension
 import org.jlleitschuh.gradle.ktlint.tasks.BaseKtLintCheckTask
 
@@ -29,6 +30,11 @@ subprojects {
         exclude("**/build/**")
     }
 
+    tasks.withType<Detekt>().configureEach {
+        val buildDirectory = layout.buildDirectory.get().asFile
+        exclude { it.file.startsWith(buildDirectory) }
+    }
+
     if (project.path == ":app:shared") {
         extensions.configure<KtlintExtension> {
             additionalEditorconfig.put("ktlint_standard_function-naming", "disabled")
@@ -57,5 +63,7 @@ tasks.register("qualityCheck") {
         ":app:shared:detektCommonMainSourceSet",
         ":app:shared:detektCommonTestSourceSet",
         ":app:shared:detektJvmTestSourceSet",
+        ":testing:detektCommonMainSourceSet",
+        ":testing:detektCommonTestSourceSet",
     )
 }
