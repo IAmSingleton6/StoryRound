@@ -1,178 +1,336 @@
 package com.example.storyround.presentation.story
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.test.ExperimentalTestApi
-import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsEnabled
-import androidx.compose.ui.test.assertIsNotEnabled
-import androidx.compose.ui.test.hasSetTextAction
-import androidx.compose.ui.test.onNodeWithContentDescription
-import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performImeAction
-import androidx.compose.ui.test.performTextInput
-import androidx.compose.ui.test.v2.runComposeUiTest
-import com.example.storyround.presentation.model.PlayerUi
-import com.example.storyround.presentation.model.RoomUi
-import com.example.storyround.presentation.model.StorySegmentUi
-import com.example.storyround.presentation.model.TurnUi
-import com.example.storyround.protocol.PlayerColour
-import com.example.storyround.ui.theme.StoryRoundTheme
+import com.example.storyround.testing.GIVEN
+import com.example.storyround.testing.THEN
+import com.example.storyround.testing.WHEN
+import com.example.storyround.testing.base.ComponentTest
+import com.example.storyround.testing.fixtures.alex
+import com.example.storyround.testing.fixtures.alexWritingTurnThree
+import com.example.storyround.testing.fixtures.sam
 import kotlin.test.Test
-import kotlin.test.assertEquals
 
-@OptIn(ExperimentalTestApi::class)
-class PlayingScreenTest {
-    private val alex = PlayerUi("alex", "Alex", PlayerColour.Blue)
-    private val sam = PlayerUi("sam", "Sam", PlayerColour.Yellow)
-
-    private fun playing(
-        playerId: String,
-        timeLeftMillis: Long,
-        draft: String = "",
-        nextPlayer: PlayerUi? = sam,
-        timeUpHandOver: PlayerUi? = null,
-        isDraftValid: Boolean = draft.isNotBlank(),
-        oneWordPerTurn: Boolean = false,
-    ) = StoryUiState.Playing(
-        room =
-            RoomUi(
-                roomCode = "AB12",
-                hostId = alex.id,
-                players = listOf(alex, sam),
-                maxPlayers = 10,
-                prompt = "A door opened.",
-                contributions = emptyList(),
-                turn = TurnUi(alex, number = 2, deadlineEpochMillis = 20_000L),
-                promptAuthor = alex,
-                maxRounds = 2,
-            ),
-        playerId = playerId,
-        nowEpochMillis = 20_000L - timeLeftMillis,
-        contributionDraft = draft,
-        segments = listOf(StorySegmentUi("A door opened.", alex)),
-        round = 2,
-        turn = 3,
-        totalTurns = 4,
-        turnDurationMillis = 13_000L,
-        nextPlayer = nextPlayer,
-        nextTurnDurationMillis = 12_000L,
-        timeUpHandOver = timeUpHandOver,
-        oneWordPerTurn = oneWordPerTurn,
-        maxDraftLength = if (oneWordPerTurn) 30 else 280,
-        isDraftValid = isDraftValid,
-    )
-
+internal class PlayingScreenTest : ComponentTest<StoryUiState, StoryAction>({ state, onAction -> StoryScreen(state, onAction) }) {
     @Test
-    fun `given your turn with a draft when shown then the turn, countdown and submit are ready`() =
-        runComposeUiTest {
-            var action: StoryAction? = null
-            setContent { StoryRoundTheme { StoryScreen(playing(alex.id, 7_300L, draft = "A horse arrived.")) { action = it } } }
-
-            onNodeWithText("ROUND 2 OF 2").assertIsDisplayed()
-            onNodeWithText("Turn 3 of 4").assertIsDisplayed()
-            onNodeWithText("YOUR TURN").assertIsDisplayed()
-            onNodeWithText("13s turn · next: Sam, 12s").assertIsDisplayed()
-            onNodeWithText("7.3").assertIsDisplayed()
-            onNodeWithContentDescription("Time left").assertIsDisplayed()
-            onNodeWithText("SUBMIT").assertIsEnabled().performClick()
-
-            assertEquals(StoryAction.SubmitContribution, action)
-        }
-
-    @Test
-    fun `given your turn when text is typed then the change is emitted`() =
-        runComposeUiTest {
-            val actions = mutableListOf<StoryAction>()
-            setContent {
-                var uiState by remember { mutableStateOf(playing(alex.id, 7_300L)) }
-                StoryRoundTheme {
-                    StoryScreen(uiState) { action ->
-                        actions += action
-                        if (action is StoryAction.ContributionChanged) {
-                            uiState = uiState.copy(contributionDraft = action.value, isDraftValid = action.value.isNotBlank())
-                        }
-                    }
-                }
+    fun `should show the round and turn when a turn is in progress`() =
+        componentTest {
+            GIVEN("it is turn 3 of 4, in round 2 of 2") {
+                useState(alexWritingTurnThree(viewerId = alex.id, timeLeftMillis = 7_300L))
             }
 
-            onNode(hasSetTextAction()).performTextInput("A horse arrived.")
-            onNodeWithText("SUBMIT").assertIsEnabled().performClick()
-
-            assertEquals(listOf(StoryAction.ContributionChanged("A horse arrived."), StoryAction.SubmitContribution), actions)
-        }
-
-    @Test
-    fun `given your turn with a blank draft on the final turn when shown then submit is disabled`() =
-        runComposeUiTest {
-            setContent { StoryRoundTheme { StoryScreen(playing(alex.id, 3_000L, nextPlayer = null)) {} } }
-
-            onNodeWithText("13s turn · final turn").assertIsDisplayed()
-            onNodeWithText("SUBMIT").assertIsNotEnabled()
-        }
-
-    @Test
-    fun `given someone else's turn when shown then their writing is awaited and the newest piece is tagged`() =
-        runComposeUiTest {
-            setContent { StoryRoundTheme { StoryScreen(playing(sam.id, 4_200L)) {} } }
-
-            onNodeWithText("ALEX’S TURN").assertIsDisplayed()
-            onNodeWithText("13s turn · next: you, 12s").assertIsDisplayed()
-            onNodeWithText("Alex is writing…").assertIsDisplayed()
-            onNodeWithContentDescription("A door opened.").assertIsDisplayed()
-            onNodeWithText("SUBMIT").assertDoesNotExist()
-        }
-
-    @Test
-    fun `given your turn in a one word game when shown then the field asks for one word without ideas`() =
-        runComposeUiTest {
-            setContent { StoryRoundTheme { StoryScreen(playing(alex.id, 7_300L, oneWordPerTurn = true)) {} } }
-
-            onNodeWithText("ONE WORD").assertIsDisplayed()
-            onNodeWithContentDescription("Add one word…").assertIsDisplayed()
-            onNodeWithText("0/30").assertIsDisplayed()
-            onNodeWithText("Idea").assertDoesNotExist()
-        }
-
-    @Test
-    fun `given your turn in a one word game with two words when shown then the rule is explained and submit is disabled`() =
-        runComposeUiTest {
-            setContent {
-                StoryRoundTheme { StoryScreen(playing(alex.id, 7_300L, draft = "a horse", isDraftValid = false, oneWordPerTurn = true)) {} }
+            WHEN("the story screen is shown") {
+                show()
             }
 
-            onNodeWithText("One word only, no spaces").assertIsDisplayed()
-            onNodeWithText("SUBMIT").assertIsNotEnabled()
+            THEN("the round and turn are shown") {
+                playingRobot.assertRound(2, of = 2)
+                playingRobot.assertTurnNumber(3, of = 4)
+            }
         }
 
     @Test
-    fun `given your turn in a one word game with a word when the keyboard send key is pressed then it is submitted`() =
-        runComposeUiTest {
-            var action: StoryAction? = null
-            setContent { StoryRoundTheme { StoryScreen(playing(alex.id, 7_300L, draft = "horse", oneWordPerTurn = true)) { action = it } } }
+    fun `should show the viewer's turn with its countdown when it is their turn`() =
+        componentTest {
+            GIVEN("it is Alex's turn with 7.3 seconds left") {
+                useState(alexWritingTurnThree(viewerId = alex.id, timeLeftMillis = 7_300L))
+            }
 
-            onNode(hasSetTextAction()).performImeAction()
+            WHEN("Alex sees the story screen") {
+                show()
+            }
 
-            assertEquals(StoryAction.SubmitContribution, action)
+            THEN("it says it is Alex's turn and counts down from 7.3 seconds") {
+                playingRobot.assertYourTurn()
+                playingRobot.assertCountdown("7.3")
+                playingRobot.assertCountdownBarShown()
+            }
         }
 
     @Test
-    fun `given someone else's turn in a one word game when shown then they are picking a word`() =
-        runComposeUiTest {
-            setContent { StoryRoundTheme { StoryScreen(playing(sam.id, 4_200L, oneWordPerTurn = true)) {} } }
+    fun `should name the next writer and their time when another turn follows`() =
+        componentTest {
+            GIVEN("Alex is writing a 13-second turn and Sam's 12-second turn is next") {
+                useState(alexWritingTurnThree(viewerId = alex.id, timeLeftMillis = 7_300L))
+            }
 
-            onNodeWithText("Alex is picking a word…").assertIsDisplayed()
-            onNodeWithText("ONE WORD").assertIsDisplayed()
+            WHEN("Alex sees the story screen") {
+                show()
+            }
+
+            THEN("the turn card names Sam and the next turn's length") {
+                playingRobot.assertTurnSummary("13s turn · next: Sam, 12s")
+            }
         }
 
     @Test
-    fun `given an expired turn when shown then the hand-over toast names the next writer`() =
-        runComposeUiTest {
-            setContent { StoryRoundTheme { StoryScreen(playing(sam.id, 12_000L, timeUpHandOver = alex)) {} } }
+    fun `should say it is the final turn when nobody writes next`() =
+        componentTest {
+            GIVEN("Alex is writing the last turn") {
+                useState(alexWritingTurnThree(viewerId = alex.id, timeLeftMillis = 3_000L, nextPlayer = null))
+            }
 
-            onNodeWithText("Time’s up! Over to Alex.").assertIsDisplayed()
+            WHEN("Alex sees the story screen") {
+                show()
+            }
+
+            THEN("the turn card says it is the final turn") {
+                playingRobot.assertTurnSummary("13s turn · final turn")
+            }
+        }
+
+    @Test
+    fun `should disable submit when the draft is blank`() =
+        componentTest {
+            GIVEN("it is Alex's turn and Alex has not written anything") {
+                useState(alexWritingTurnThree(viewerId = alex.id, timeLeftMillis = 3_000L))
+            }
+
+            WHEN("Alex sees the story screen") {
+                show()
+            }
+
+            THEN("submit is disabled") {
+                playingRobot.assertSubmitEnabled(false)
+            }
+        }
+
+    @Test
+    fun `should emit submit contribution when submit is pressed with a draft`() =
+        componentTest {
+            GIVEN("it is Alex's turn and Alex has written \"A horse arrived.\"") {
+                useState(alexWritingTurnThree(viewerId = alex.id, timeLeftMillis = 7_300L, draft = "A horse arrived."))
+                show()
+            }
+
+            WHEN("Alex presses submit") {
+                playingRobot.tapSubmit()
+            }
+
+            THEN("the contribution is submitted") {
+                actions.assertEmitted(StoryAction.SubmitContribution)
+            }
+        }
+
+    @Test
+    fun `should emit the typed text when the writer types`() =
+        componentTest {
+            GIVEN("it is Alex's turn with an empty writing field") {
+                useState(alexWritingTurnThree(viewerId = alex.id, timeLeftMillis = 7_300L))
+                show()
+            }
+
+            WHEN("Alex types \"A horse arrived.\"") {
+                playingRobot.enterContribution("A horse arrived.")
+            }
+
+            THEN("the typed text is emitted") {
+                actions.assertEmitted(StoryAction.ContributionChanged("A horse arrived."))
+            }
+        }
+
+    @Test
+    fun `should emit a random idea request when idea is pressed`() =
+        componentTest {
+            GIVEN("it is Alex's turn") {
+                useState(alexWritingTurnThree(viewerId = alex.id, timeLeftMillis = 7_300L))
+                show()
+            }
+
+            WHEN("Alex presses idea") {
+                playingRobot.tapIdea()
+            }
+
+            THEN("a random idea is requested") {
+                actions.assertEmitted(StoryAction.RandomContribution)
+            }
+        }
+
+    @Test
+    fun `should wait for the writer when it is someone else's turn`() =
+        componentTest {
+            GIVEN("it is Alex's turn and Sam is watching") {
+                useState(alexWritingTurnThree(viewerId = sam.id, timeLeftMillis = 4_200L))
+            }
+
+            WHEN("Sam sees the story screen") {
+                show()
+            }
+
+            THEN("Sam sees Alex is writing and has nothing to submit") {
+                playingRobot.assertTurnOf("Alex")
+            }
+        }
+
+    @Test
+    fun `should call the viewer you when they write next`() =
+        componentTest {
+            GIVEN("it is Alex's turn and Sam writes next") {
+                useState(alexWritingTurnThree(viewerId = sam.id, timeLeftMillis = 4_200L))
+            }
+
+            WHEN("Sam sees the story screen") {
+                show()
+            }
+
+            THEN("the turn card says Sam is next as you") {
+                playingRobot.assertTurnSummary("13s turn · next: you, 12s")
+            }
+        }
+
+    @Test
+    fun `should show the story so far and tag its newest piece when someone else is writing`() =
+        componentTest {
+            GIVEN("Alex's prompt is the newest piece of the story") {
+                useState(alexWritingTurnThree(viewerId = sam.id, timeLeftMillis = 4_200L))
+            }
+
+            WHEN("Sam sees the story screen") {
+                show()
+            }
+
+            THEN("the story is shown with its newest piece tagged with Alex's name") {
+                playingRobot.assertStoryShown("A door opened.")
+                playingRobot.assertNewestTag("ALEX")
+            }
+        }
+
+    @Test
+    fun `given the viewer wrote the newest piece when the story screen is shown then it is tagged YOU`() =
+        componentTest {
+            GIVEN("Alex's prompt is the newest piece and Alex is watching") {
+                useState(alexWritingTurnThree(viewerId = alex.id, timeLeftMillis = 4_200L))
+            }
+
+            WHEN("Alex sees the story screen") {
+                show()
+            }
+
+            THEN("the newest piece is tagged YOU") {
+                playingRobot.assertNewestTag("YOU")
+            }
+        }
+
+    @Test
+    fun `given a turn expired and passed to the viewer when the story screen is shown then the toast says it is over to them`() =
+        componentTest {
+            GIVEN("Sam's turn just expired and it passed to Alex, who is watching") {
+                useState(alexWritingTurnThree(viewerId = alex.id, timeLeftMillis = 12_000L, timeUpHandOver = alex))
+            }
+
+            WHEN("Alex sees the story screen") {
+                show()
+            }
+
+            THEN("a toast says time is up and it is over to them") {
+                playingRobot.assertTimeUpToast("you")
+            }
+        }
+
+    @Test
+    fun `should name the next writer in a toast when a turn has expired`() =
+        componentTest {
+            GIVEN("Sam's turn just expired and it passed to Alex") {
+                useState(alexWritingTurnThree(viewerId = sam.id, timeLeftMillis = 12_000L, timeUpHandOver = alex))
+            }
+
+            WHEN("Sam sees the story screen") {
+                show()
+            }
+
+            THEN("a toast says time is up and names Alex") {
+                playingRobot.assertTimeUpToast("Alex")
+            }
+        }
+
+    @Test
+    fun `should show the reconnecting banner when the connection drops during play`() =
+        componentTest {
+            GIVEN("the connection has dropped during Alex's turn") {
+                useState(alexWritingTurnThree(viewerId = sam.id, timeLeftMillis = 4_200L, isReconnecting = true))
+            }
+
+            WHEN("Sam sees the story screen") {
+                show()
+            }
+
+            THEN("the reconnecting banner is shown") {
+                playingRobot.assertReconnectingShown()
+            }
+        }
+
+    @Test
+    fun `given a one word game when it is the viewer's turn then the field asks for one word without ideas`() =
+        componentTest {
+            GIVEN("it is Alex's turn in a one word game") {
+                useState(alexWritingTurnThree(viewerId = alex.id, timeLeftMillis = 7_300L, oneWordPerTurn = true))
+            }
+
+            WHEN("Alex sees the story screen") {
+                show()
+            }
+
+            THEN("the turn is tagged one word and the field asks for one word of up to 30 characters") {
+                playingRobot.assertOneWordTag()
+                playingRobot.assertAskedForOneWord()
+                playingRobot.assertCounter("0/30")
+            }
+        }
+
+    @Test
+    fun `given a one word game when the draft has two words then the rule is explained and submit is disabled`() =
+        componentTest {
+            GIVEN("Alex has typed two words in a one word game") {
+                useState(
+                    alexWritingTurnThree(
+                        viewerId = alex.id,
+                        timeLeftMillis = 7_300L,
+                        draft = "a horse",
+                        oneWordPerTurn = true,
+                        isDraftValid = false,
+                    ),
+                )
+            }
+
+            WHEN("Alex sees the story screen") {
+                show()
+            }
+
+            THEN("Alex is told it must be one word and cannot submit") {
+                playingRobot.assertOneWordOnly()
+                playingRobot.assertSubmitEnabled(false)
+            }
+        }
+
+    @Test
+    fun `given a one word game with a word typed when the keyboard send key is pressed then the word is submitted`() =
+        componentTest {
+            GIVEN("Alex has typed one word in a one word game") {
+                useState(alexWritingTurnThree(viewerId = alex.id, timeLeftMillis = 7_300L, draft = "horse", oneWordPerTurn = true))
+                show()
+            }
+
+            WHEN("Alex presses the keyboard's send key") {
+                playingRobot.pressKeyboardSend()
+            }
+
+            THEN("the word is submitted") {
+                actions.assertEmitted(StoryAction.SubmitContribution)
+            }
+        }
+
+    @Test
+    fun `given a one word game when it is someone else's turn then they are shown picking a word`() =
+        componentTest {
+            GIVEN("Sam is watching Alex's turn in a one word game") {
+                useState(alexWritingTurnThree(viewerId = sam.id, timeLeftMillis = 4_200L, oneWordPerTurn = true))
+            }
+
+            WHEN("Sam sees the story screen") {
+                show()
+            }
+
+            THEN("Alex is shown picking a word") {
+                playingRobot.assertPickingAWord("Alex")
+                playingRobot.assertOneWordTag()
+            }
         }
 }
