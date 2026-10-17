@@ -8,9 +8,14 @@ import kotlin.test.assertEquals
 
 class PlayerUiMapperImplTest {
     @Test
-    fun `given a protocol player when mapped then its id, name and colour are kept`() {
-        val mapped = PlayerUiMapperImpl().map(Player(id = "alex", name = "Alex", colour = PlayerColour.Blue))
+    fun `should keep the player's identity and colour when a protocol player is mapped`() {
+        // Given
+        val player = Player(id = "alex", name = "Alex", colour = PlayerColour.Blue)
 
+        // When
+        val mapped = PlayerUiMapperImpl().map(player)
+
+        // Then
         assertEquals(PlayerUi("alex", "Alex", PlayerColour.Blue), mapped)
     }
 }

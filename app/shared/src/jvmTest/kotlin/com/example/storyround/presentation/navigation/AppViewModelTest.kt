@@ -5,11 +5,9 @@ import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.storyround.domain.model.GameState
+import com.example.storyround.domain.model.StoryHistoryState
 import com.example.storyround.domain.repository.GameRepository
-import com.example.storyround.domain.usecase.CloseSavedStoryUseCase
-import com.example.storyround.domain.usecase.ConnectToGameUseCase
-import com.example.storyround.domain.usecase.DisconnectFromGameUseCase
-import com.example.storyround.domain.usecase.LeaveRoomUseCase
+import com.example.storyround.domain.repository.StoryHistoryRepository
 import com.example.storyround.protocol.GameStatus
 import com.example.storyround.protocol.RoomSettings
 import com.example.storyround.protocol.RoomState
@@ -38,11 +36,9 @@ import kotlin.test.assertEquals
 class AppViewModelTest {
     private val dispatcher = StandardTestDispatcher()
     private val gameState = MutableStateFlow(GameState())
-    private val repository = mockk<GameRepository> { every { state } returns gameState }
-    private val connectToGameUseCase = mockk<ConnectToGameUseCase>(relaxed = true)
-    private val leaveRoomUseCase = mockk<LeaveRoomUseCase>(relaxed = true)
-    private val disconnectFromGameUseCase = mockk<DisconnectFromGameUseCase>(relaxed = true)
-    private val closeSavedStoryUseCase = mockk<CloseSavedStoryUseCase>(relaxed = true)
+    private val historyState = MutableStateFlow(StoryHistoryState())
+    private val gameRepository = mockk<GameRepository>(relaxed = true) { every { state } returns gameState }
+    private val storyHistoryRepository = mockk<StoryHistoryRepository>(relaxed = true) { every { state } returns historyState }
     private val story = SavedStory("story-1", "A door opened.", "host", 1, emptyList(), emptyList())
 
     @BeforeTest
@@ -58,15 +54,18 @@ class AppViewModelTest {
     @Test
     fun `given the app starts when the view model is created then it connects to the game`() =
         runTest(dispatcher) {
+            // When
             viewModel()
             advanceUntilIdle()
 
-            coVerify(exactly = 1) { connectToGameUseCase() }
+            // Then
+            coVerify(exactly = 1) { gameRepository.connect() }
         }
 
     @Test
     fun `given each room status when observed then the matching screen is shown`() =
         runTest(dispatcher) {
+            // Given
             val viewModel = viewModel()
             val expected =
                 mapOf(
@@ -77,90 +76,110 @@ class AppViewModelTest {
                     GameStatus.Finished to AppDestination.Finished,
                 )
 
-            expected.forEach { (status, destination) ->
-                gameState.value = GameState(room = status?.let(::room))
-                advanceUntilIdle()
-                assertEquals(destination, viewModel.destination.value, "Destination for $status")
-            }
+            // When
+            val shown =
+                expected.keys.associateWith { status ->
+                    gameState.value = GameState(room = status?.let(::room))
+                    advanceUntilIdle()
+                    viewModel.destination.value
+                }
+
+            // Then
+            assertEquals(expected, shown)
         }
 
     @Test
     fun `given a room when history is opened and closed then history shows and back returns to the room`() =
         runTest(dispatcher) {
+            // Given
             gameState.value = GameState(room = room(GameStatus.Lobby))
             val viewModel = viewModel()
 
+            // When
             viewModel.showHistory()
             advanceUntilIdle()
-            assertEquals(AppDestination.History, viewModel.destination.value)
-
+            val shownWhileOpen = viewModel.destination.value
             viewModel.closeHistory()
             advanceUntilIdle()
+
+            // Then
+            assertEquals(AppDestination.History, shownWhileOpen)
             assertEquals(AppDestination.Lobby, viewModel.destination.value)
         }
 
     @Test
     fun `given a selected saved story when it is closed then the story is released and history reopens`() =
         runTest(dispatcher) {
-            gameState.value = GameState(selectedStory = story)
+            // Given
+            historyState.value = StoryHistoryState(selectedStory = story)
             val viewModel = viewModel()
             advanceUntilIdle()
             assertEquals(AppDestination.SavedStory, viewModel.destination.value)
 
+            // When
             viewModel.closeSavedStory()
-            gameState.value = GameState()
+            historyState.value = StoryHistoryState()
             advanceUntilIdle()
 
-            verify(exactly = 1) { closeSavedStoryUseCase() }
+            // Then
+            verify(exactly = 1) { storyHistoryRepository.close() }
             assertEquals(AppDestination.History, viewModel.destination.value)
         }
 
     @Test
     fun `given a finished game when returning home then the game is disconnected without leaving`() =
         runTest(dispatcher) {
+            // Given
             val viewModel = viewModel()
 
-            viewModel.returnHome()
+            // When
+            viewModel.goHomeWithoutLeavingRoom()
             advanceUntilIdle()
 
-            verify(exactly = 1) { disconnectFromGameUseCase() }
-            coVerify(exactly = 0) { leaveRoomUseCase() }
+            // Then
+            verify(exactly = 1) { gameRepository.disconnect() }
+            coVerify(exactly = 0) { gameRepository.leaveRoom() }
         }
 
     @Test
     fun `given the lobby when leaving then the room is left`() =
         runTest(dispatcher) {
+            // Given
             val viewModel = viewModel()
 
+            // When
             viewModel.leaveLobby()
             advanceUntilIdle()
 
-            coVerify(exactly = 1) { leaveRoomUseCase() }
+            // Then
+            coVerify(exactly = 1) { gameRepository.leaveRoom() }
         }
 
     @Test
     fun `given the app UI goes away when the view model is cleared then the game is disconnected but the shared repository stays usable`() =
         runTest(dispatcher) {
+            // Given
             val store = ViewModelStore()
             ViewModelProvider.create(
                 store,
                 viewModelFactory {
                     initializer {
-                        AppViewModel(repository, connectToGameUseCase, leaveRoomUseCase, disconnectFromGameUseCase, closeSavedStoryUseCase)
+                        AppViewModel(gameRepository, storyHistoryRepository)
                     }
                 },
             )[AppViewModel::class]
             advanceUntilIdle()
 
+            // When
             store.clear()
 
-            verify(exactly = 1) { disconnectFromGameUseCase() }
-            coVerify(exactly = 0) { leaveRoomUseCase() }
+            // Then
+            verify(exactly = 1) { gameRepository.disconnect() }
+            coVerify(exactly = 0) { gameRepository.leaveRoom() }
         }
 
     private fun TestScope.viewModel(): AppViewModel {
-        val viewModel =
-            AppViewModel(repository, connectToGameUseCase, leaveRoomUseCase, disconnectFromGameUseCase, closeSavedStoryUseCase)
+        val viewModel = AppViewModel(gameRepository, storyHistoryRepository)
         backgroundScope.launch { viewModel.destination.collect() }
         return viewModel
     }

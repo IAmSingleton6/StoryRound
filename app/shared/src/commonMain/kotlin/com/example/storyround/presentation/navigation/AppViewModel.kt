@@ -3,11 +3,9 @@ package com.example.storyround.presentation.navigation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.storyround.domain.model.GameState
+import com.example.storyround.domain.model.StoryHistoryState
 import com.example.storyround.domain.repository.GameRepository
-import com.example.storyround.domain.usecase.CloseSavedStoryUseCase
-import com.example.storyround.domain.usecase.ConnectToGameUseCase
-import com.example.storyround.domain.usecase.DisconnectFromGameUseCase
-import com.example.storyround.domain.usecase.LeaveRoomUseCase
+import com.example.storyround.domain.repository.StoryHistoryRepository
 import com.example.storyround.presentation.WhileUiSubscribed
 import com.example.storyround.protocol.GameStatus
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,20 +17,17 @@ import kotlinx.coroutines.launch
 internal enum class AppDestination { Home, Lobby, Story, Finished, History, SavedStory }
 
 internal class AppViewModel(
-    repository: GameRepository,
-    connectToGameUseCase: ConnectToGameUseCase,
-    private val leaveRoomUseCase: LeaveRoomUseCase,
-    private val disconnectFromGameUseCase: DisconnectFromGameUseCase,
-    private val closeSavedStoryUseCase: CloseSavedStoryUseCase,
+    private val gameRepository: GameRepository,
+    private val storyHistoryRepository: StoryHistoryRepository,
 ) : ViewModel() {
     private val isHistoryOpen = MutableStateFlow(false)
 
     val destination: StateFlow<AppDestination> =
-        combine(repository.state, isHistoryOpen, ::destinationFor)
+        combine(gameRepository.state, storyHistoryRepository.state, isHistoryOpen, ::destinationFor)
             .stateIn(viewModelScope, WhileUiSubscribed, AppDestination.Home)
 
     init {
-        viewModelScope.launch { connectToGameUseCase() }
+        viewModelScope.launch { gameRepository.connect() }
     }
 
     fun showHistory() {
@@ -44,31 +39,32 @@ internal class AppViewModel(
     }
 
     fun closeSavedStory() {
-        closeSavedStoryUseCase()
+        storyHistoryRepository.close()
         showHistory()
     }
 
-    fun returnHome() {
+    fun goHomeWithoutLeavingRoom() {
         isHistoryOpen.value = false
-        disconnectFromGameUseCase()
+        gameRepository.disconnect()
     }
 
     fun leaveLobby() {
         isHistoryOpen.value = false
-        viewModelScope.launch { leaveRoomUseCase() }
+        viewModelScope.launch { gameRepository.leaveRoom() }
     }
 
     override fun onCleared() {
-        disconnectFromGameUseCase()
+        gameRepository.disconnect()
     }
 
     private fun destinationFor(
         state: GameState,
+        history: StoryHistoryState,
         isHistoryOpen: Boolean,
     ): AppDestination {
         val room = state.room
         return when {
-            state.selectedStory != null -> AppDestination.SavedStory
+            history.selectedStory != null -> AppDestination.SavedStory
             isHistoryOpen -> AppDestination.History
             room == null -> AppDestination.Home
             else ->

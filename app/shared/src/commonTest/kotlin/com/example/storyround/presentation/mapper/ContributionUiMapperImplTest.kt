@@ -12,14 +12,23 @@ class ContributionUiMapperImplTest {
     private val alex = PlayerUi("alex", "Alex", PlayerColour.Blue)
 
     @Test
-    fun `given contributions by known players when mapped then each keeps its author, text and order`() {
-        val mapped = mapper.map(listOf(Contribution(alex.id, "A horse arrived.", 3)), mapOf(alex.id to alex))
+    fun `should keep each contribution's author and text in order when contributions by known players are mapped`() {
+        // Given
+        val contributions = listOf(Contribution(alex.id, "A horse arrived.", 3))
 
+        // When
+        val mapped = mapper.map(contributions, mapOf(alex.id to alex))
+
+        // Then
         assertEquals(listOf(ContributionUi(alex, "A horse arrived.", 3)), mapped)
     }
 
     @Test
     fun `given a contribution by a player who is no longer listed when mapped then it is omitted`() {
-        assertEquals(emptyList(), mapper.map(listOf(Contribution("unknown", "Ignored", 1)), mapOf(alex.id to alex)))
+        // When
+        val mapped = mapper.map(listOf(Contribution("unknown", "Ignored", 1)), mapOf(alex.id to alex))
+
+        // Then
+        assertEquals(emptyList(), mapped)
     }
 }
