@@ -3,7 +3,6 @@ package com.example.storyround.presentation.lobby
 import com.example.storyround.configuration.GameConfiguration
 import com.example.storyround.domain.model.GameState
 import com.example.storyround.domain.repository.GameRepository
-import com.example.storyround.domain.usecase.StartGameUseCase
 import com.example.storyround.presentation.mapper.ContributionUiMapperImpl
 import com.example.storyround.presentation.mapper.PlayerUiMapperImpl
 import com.example.storyround.presentation.mapper.RoomUiMapperImpl
@@ -45,8 +44,7 @@ class LobbyViewModelTest {
         RoomState("AB12", host.id, listOf(host, guest), GameStatus.Lobby, maxPlayers = 10, settings = RoomSettings(rounds = 3))
     private val configuration = GameConfiguration(minRounds = 1, maxRounds = 10, defaultRounds = 3)
     private val gameState = MutableStateFlow(GameState(room = room, playerId = host.id, isConnected = true))
-    private val repository = mockk<GameRepository> { every { state } returns gameState }
-    private val startGameUseCase = mockk<StartGameUseCase>(relaxed = true)
+    private val gameRepository = mockk<GameRepository>(relaxed = true) { every { state } returns gameState }
 
     @BeforeTest
     fun setUp() {
@@ -61,10 +59,14 @@ class LobbyViewModelTest {
     @Test
     fun `given a guest in a connected lobby when observed then host, current player and seats are exposed`() =
         runTest(dispatcher) {
+            // Given
             gameState.value = gameState.value.copy(playerId = guest.id)
+
+            // When
             val viewModel = viewModel()
             advanceUntilIdle()
 
+            // Then
             val uiState = viewModel.uiState.value
             assertEquals("AB12", uiState.roomCode)
             assertFalse(uiState.isHost)
@@ -77,23 +79,29 @@ class LobbyViewModelTest {
     @Test
     fun `given the socket drops while in the lobby when observed then reconnecting is exposed`() =
         runTest(dispatcher) {
+            // Given
             val viewModel = viewModel()
             advanceUntilIdle()
 
+            // When
             gameState.value = gameState.value.copy(isConnected = false)
             advanceUntilIdle()
 
+            // Then
             assertTrue(viewModel.uiState.value.isReconnecting)
         }
 
     @Test
-    fun `given the minimum rounds when rounds are lowered then the value is clamped and only increasing is allowed`() =
+    fun `given the default rounds when rounds are lowered past the minimum then they stop there and only increasing is allowed`() =
         runTest(dispatcher) {
+            // Given
             val viewModel = viewModel()
 
-            viewModel.onAction(LobbyAction.RoundsChanged(0))
+            // When
+            repeat(3) { viewModel.onAction(LobbyAction.DecreaseRounds) }
             advanceUntilIdle()
 
+            // Then
             val uiState = viewModel.uiState.value
             assertEquals(1, uiState.maxRounds)
             assertFalse(uiState.canDecreaseRounds)
@@ -104,62 +112,73 @@ class LobbyViewModelTest {
     @Test
     fun `given the host changes nothing when starting then a random opener and the configured default rounds are sent`() =
         runTest(dispatcher) {
+            // Given
             val viewModel = viewModel()
 
+            // When
             viewModel.onAction(LobbyAction.StartGame)
             advanceUntilIdle()
 
+            // Then
             assertTrue(viewModel.uiState.value.isHost)
-            coVerify(exactly = 1) { startGameUseCase(null, RoomSettings(rounds = 3)) }
+            coVerify(exactly = 1) { gameRepository.startGame(null, RoomSettings(rounds = 3)) }
         }
 
     @Test
     fun `given a chosen opener and rounds when the host starts then the settings are sent`() =
         runTest(dispatcher) {
+            // Given
             val viewModel = viewModel()
-
             viewModel.onAction(LobbyAction.OpeningPlayerSelected(guest.id))
-            viewModel.onAction(LobbyAction.RoundsChanged(10))
+            repeat(7) { viewModel.onAction(LobbyAction.IncreaseRounds) }
+
+            // When
             viewModel.onAction(LobbyAction.StartGame)
             advanceUntilIdle()
 
+            // Then
             assertEquals(guest.id, viewModel.uiState.value.openingPlayerId)
             assertFalse(viewModel.uiState.value.canIncreaseRounds)
-            coVerify(exactly = 1) { startGameUseCase(guest.id, RoomSettings(rounds = 10)) }
+            coVerify(exactly = 1) { gameRepository.startGame(guest.id, RoomSettings(rounds = 10)) }
         }
 
     @Test
     fun `given the host turns on one word each when the game starts then one word turns are sent`() =
         runTest(dispatcher) {
+            // Given
             val viewModel = viewModel()
+            viewModel.onAction(LobbyAction.OneWordPerTurnChanged(enabled = true))
 
-            viewModel.onAction(LobbyAction.OneWordPerTurnChanged(true))
+            // When
             viewModel.onAction(LobbyAction.StartGame)
             advanceUntilIdle()
 
+            // Then
             assertTrue(viewModel.uiState.value.oneWordPerTurn)
-            coVerify(exactly = 1) { startGameUseCase(null, RoomSettings(rounds = 3, oneWordPerTurn = true)) }
+            coVerify(exactly = 1) { gameRepository.startGame(null, RoomSettings(rounds = 3, oneWordPerTurn = true)) }
         }
 
     @Test
     fun `given the chosen opener leaves the lobby when the host starts then a random opener is sent as shown`() =
         runTest(dispatcher) {
+            // Given
             val viewModel = viewModel()
             viewModel.onAction(LobbyAction.OpeningPlayerSelected(guest.id))
-
             gameState.value = gameState.value.copy(room = room.copy(players = listOf(host)))
+
+            // When
             viewModel.onAction(LobbyAction.StartGame)
             advanceUntilIdle()
 
+            // Then
             assertNull(viewModel.uiState.value.openingPlayerId)
-            coVerify(exactly = 1) { startGameUseCase(null, RoomSettings(rounds = 3)) }
+            coVerify(exactly = 1) { gameRepository.startGame(null, RoomSettings(rounds = 3)) }
         }
 
     private fun TestScope.viewModel(): LobbyViewModel {
         val viewModel =
             LobbyViewModel(
-                repository = repository,
-                startGameUseCase = startGameUseCase,
+                gameRepository = gameRepository,
                 roomUiMapper = RoomUiMapperImpl(PlayerUiMapperImpl(), ContributionUiMapperImpl(), StorySegmentMapperImpl()),
                 gameConfiguration = configuration,
                 turnRules = TurnRulesImpl(configuration),

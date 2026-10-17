@@ -7,9 +7,9 @@ internal sealed interface LobbyAction {
         val playerId: String?,
     ) : LobbyAction
 
-    data class RoundsChanged(
-        val value: Int,
-    ) : LobbyAction
+    data object DecreaseRounds : LobbyAction
+
+    data object IncreaseRounds : LobbyAction
 
     data class OneWordPerTurnChanged(
         val enabled: Boolean,

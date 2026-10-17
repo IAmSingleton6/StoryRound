@@ -28,5 +28,24 @@ internal data class LobbyUiState(
     val openSeats: Int
         get() = (maxPlayers - players.size).coerceAtLeast(0)
 
-    fun displayName(player: PlayerUi): String = if (player.id == currentPlayerId) "You" else player.name
+    val seats: List<LobbySeat>
+        get() {
+            val taken =
+                players.map { player ->
+                    LobbySeat.Taken(player, isHost = player.id == hostId, isCurrentPlayer = player.id == currentPlayerId)
+                }
+            return if (openSeats > 0) taken + LobbySeat.Open(openSeats) else taken
+        }
+}
+
+internal sealed interface LobbySeat {
+    data class Taken(
+        val player: PlayerUi,
+        val isHost: Boolean,
+        val isCurrentPlayer: Boolean,
+    ) : LobbySeat
+
+    data class Open(
+        val count: Int,
+    ) : LobbySeat
 }

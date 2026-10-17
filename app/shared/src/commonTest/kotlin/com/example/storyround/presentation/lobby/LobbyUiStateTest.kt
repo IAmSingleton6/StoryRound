@@ -13,20 +13,49 @@ class LobbyUiStateTest {
     private val lobby = LobbyUiState(players = listOf(alex, sam), maxPlayers = 10, hostId = alex.id, currentPlayerId = sam.id)
 
     @Test
-    fun `given this player and another when names are shown then this player reads as You`() {
-        assertEquals("You", lobby.displayName(sam))
-        assertEquals("Alex", lobby.displayName(alex))
-    }
-
-    @Test
     fun `given the current player when hosting is checked then only the host sees host controls`() {
-        assertFalse(lobby.isHost)
-        assertTrue(lobby.copy(currentPlayerId = alex.id).isHost)
+        // When
+        val guestIsHost = lobby.isHost
+        val hostIsHost = lobby.copy(currentPlayerId = alex.id).isHost
+
+        // Then
+        assertFalse(guestIsHost)
+        assertTrue(hostIsHost)
     }
 
     @Test
     fun `given seats taken when open seats are counted then they never drop below zero`() {
-        assertEquals(8, lobby.openSeats)
-        assertEquals(0, lobby.copy(maxPlayers = 1).openSeats)
+        // When
+        val openSeats = lobby.openSeats
+        val openSeatsWhenOverfull = lobby.copy(maxPlayers = 1).openSeats
+
+        // Then
+        assertEquals(8, openSeats)
+        assertEquals(0, openSeatsWhenOverfull)
+    }
+
+    @Test
+    fun `given players and open seats when seats are read then each player is seated and the open seats share one tile`() {
+        // When
+        val seats = lobby.seats
+
+        // Then
+        assertEquals(
+            listOf(
+                LobbySeat.Taken(alex, isHost = true, isCurrentPlayer = false),
+                LobbySeat.Taken(sam, isHost = false, isCurrentPlayer = true),
+                LobbySeat.Open(8),
+            ),
+            seats,
+        )
+    }
+
+    @Test
+    fun `given a full lobby when seats are read then there is no open seats tile`() {
+        // When
+        val seats = lobby.copy(maxPlayers = 2).seats
+
+        // Then
+        assertEquals(listOf(alex, sam), seats.map { (it as LobbySeat.Taken).player })
     }
 }

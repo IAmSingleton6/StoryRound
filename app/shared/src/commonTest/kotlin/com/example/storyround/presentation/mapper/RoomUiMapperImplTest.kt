@@ -31,9 +31,14 @@ class RoomUiMapperImplTest {
         )
 
     @Test
-    fun `given an active room when mapped then players, contributions, the running turn and the prompt author are kept`() {
-        val mapped = mapper.map(playingRoom)
+    fun `should keep the room's details when an active room is mapped`() {
+        // Given
+        val room = playingRoom
 
+        // When
+        val mapped = mapper.map(room)
+
+        // Then
         assertEquals("ABCD", mapped.roomCode)
         assertEquals(10, mapped.maxPlayers)
         assertEquals(
@@ -50,19 +55,29 @@ class RoomUiMapperImplTest {
 
     @Test
     fun `given an active room when mapped then its story is laid out with each writer's share`() {
+        // When
         val mapped = mapper.map(playingRoom)
 
+        // Then
         assertEquals(listOf("A door opened." to "Sam", "A horse arrived." to "Alex"), mapped.segments.map { it.text to it.author?.name })
         assertEquals(listOf("Alex" to 1, "Sam" to 1), mapped.writers.map { it.player.name to it.pieces })
     }
 
     @Test
     fun `given a room without a chosen opener when mapped then the host is credited with the prompt`() {
-        assertEquals("Alex", mapper.map(playingRoom.copy(openingPlayerId = null)).promptAuthor?.name)
+        // When
+        val promptAuthor = mapper.map(playingRoom.copy(openingPlayerId = null)).promptAuthor
+
+        // Then
+        assertEquals("Alex", promptAuthor?.name)
     }
 
     @Test
     fun `given a room without complete turn data when mapped then it has no running turn`() {
-        assertNull(mapper.map(playingRoom.copy(turnDeadlineEpochMillis = null)).turn)
+        // When
+        val turn = mapper.map(playingRoom.copy(turnDeadlineEpochMillis = null)).turn
+
+        // Then
+        assertNull(turn)
     }
 }

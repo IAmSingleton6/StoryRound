@@ -1,114 +1,320 @@
 package com.example.storyround.presentation.lobby
 
-import androidx.compose.ui.test.ExperimentalTestApi
-import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsNotEnabled
-import androidx.compose.ui.test.assertIsOff
-import androidx.compose.ui.test.assertIsOn
-import androidx.compose.ui.test.assertIsSelected
-import androidx.compose.ui.test.hasClickAction
-import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.onNodeWithContentDescription
-import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollTo
-import androidx.compose.ui.test.v2.runComposeUiTest
 import com.example.storyround.presentation.model.PlayerUi
 import com.example.storyround.protocol.PlayerColour
-import com.example.storyround.ui.theme.StoryRoundTheme
+import com.example.storyround.testing.GIVEN
+import com.example.storyround.testing.THEN
+import com.example.storyround.testing.WHEN
+import com.example.storyround.testing.base.ComponentTest
+import com.example.storyround.testing.fixtures.alex
+import com.example.storyround.testing.fixtures.guestLobby
+import com.example.storyround.testing.fixtures.hostLobby
+import com.example.storyround.testing.fixtures.sam
 import kotlin.test.Test
-import kotlin.test.assertEquals
 
-@OptIn(ExperimentalTestApi::class)
-class LobbyScreenTest {
-    private val alex = PlayerUi("alex", "Alex", PlayerColour.Blue)
-    private val sam = PlayerUi("sam", "Sam", PlayerColour.Yellow)
-    private val hostLobby =
-        LobbyUiState(
-            roomCode = "7F2K",
-            players = listOf(alex, sam),
-            maxPlayers = 10,
-            hostId = alex.id,
-            currentPlayerId = alex.id,
-            maxRounds = 1,
-            canDecreaseRounds = false,
-            canIncreaseRounds = true,
-            totalTurns = 2,
-        )
-
+internal class LobbyScreenTest : ComponentTest<LobbyUiState, LobbyAction>({ state, onAction -> LobbyScreen(state, onAction) }) {
     @Test
-    fun `given a host lobby when shown then the ticket, seats and host settings are displayed`() =
-        runComposeUiTest {
-            setContent { StoryRoundTheme { LobbyScreen(hostLobby) {} } }
+    fun `should show the room code and seats when the lobby is shown`() =
+        componentTest {
+            GIVEN("Alex hosts a ten-seat room 7F2K with Sam") {
+                useState(hostLobby())
+            }
 
-            onNodeWithText("7F2K").assertIsDisplayed()
-            onNodeWithText("2 / 10 PLAYERS").assertIsDisplayed()
-            onNodeWithText("8 seats open").assertIsDisplayed()
-            onNodeWithText("Random player").assertIsDisplayed()
-            onNodeWithText("Random").assertIsSelected()
-            onNodeWithText("Everyone writes 1 time · 2 turns").assertIsDisplayed()
-            onNodeWithContentDescription("Fewer rounds").assertIsNotEnabled()
-            onNodeWithText("You are the host. Start when you're ready.").assertIsDisplayed()
+            WHEN("the lobby is shown") {
+                show()
+            }
+
+            THEN("the ticket shows the code and the seats show who is in and how many are free") {
+                lobbyRobot.assertRoomCodeShown("7F2K")
+                lobbyRobot.assertPlayerCount("2 / 10 PLAYERS")
+                lobbyRobot.assertPlayersShown("Alex", "Sam")
+                lobbyRobot.assertSeatsOpen(8)
+            }
         }
 
     @Test
-    fun `given a host lobby when an opener, more rounds, start and leave are pressed then the actions are emitted`() =
-        runComposeUiTest {
-            val actions = mutableListOf<LobbyAction>()
-            setContent { StoryRoundTheme { LobbyScreen(hostLobby) { actions += it } } }
+    fun `should hide the open seats when the room is full`() =
+        componentTest {
+            GIVEN("all ten seats are taken") {
+                useState(hostLobby(players = List(10) { PlayerUi("p$it", "Player $it", PlayerColour.entries[it]) }))
+            }
 
-            onNode(hasText("Sam") and hasClickAction()).performClick()
-            onNodeWithContentDescription("More rounds").performClick()
-            onNodeWithText("START GAME").performClick()
-            onNodeWithText("Leave lobby").performClick()
+            WHEN("the lobby is shown") {
+                show()
+            }
 
-            assertEquals(
-                listOf(
-                    LobbyAction.OpeningPlayerSelected(sam.id),
-                    LobbyAction.RoundsChanged(2),
-                    LobbyAction.StartGame,
-                    LobbyAction.Leave,
-                ),
-                actions,
-            )
+            THEN("it shows ten of ten players and no open seats") {
+                lobbyRobot.assertPlayerCount("10 / 10 PLAYERS")
+                lobbyRobot.assertNoSeatsOpen()
+            }
         }
 
     @Test
-    fun `given a guest lobby when shown then the host is awaited and no host controls are offered`() =
-        runComposeUiTest {
-            setContent { StoryRoundTheme { LobbyScreen(hostLobby.copy(currentPlayerId = sam.id)) {} } }
+    fun `given one seat left when the lobby is shown then the open seat is counted in the singular`() =
+        componentTest {
+            GIVEN("nine of the ten seats are taken") {
+                useState(hostLobby(players = List(9) { PlayerUi("p$it", "Player $it", PlayerColour.entries[it]) }))
+            }
 
-            onNodeWithText("Waiting for Alex to start the game…").assertIsDisplayed()
-            onNodeWithText("YOU").assertIsDisplayed()
-            onNodeWithText("START GAME").assertDoesNotExist()
-            onNodeWithText("Who opens the story?").assertDoesNotExist()
+            WHEN("the lobby is shown") {
+                show()
+            }
+
+            THEN("one seat is shown open") {
+                lobbyRobot.assertSeatsOpen(1)
+            }
         }
 
     @Test
-    fun `given one word each is off when the host presses it then turning it on is requested`() =
-        runComposeUiTest {
-            val actions = mutableListOf<LobbyAction>()
-            setContent { StoryRoundTheme { LobbyScreen(hostLobby) { actions += it } } }
+    fun `should leave the opener to chance when the host has not chosen one`() =
+        componentTest {
+            GIVEN("the host has not chosen an opener") {
+                useState(hostLobby())
+            }
 
-            onNodeWithText("One word each").performScrollTo().assertIsOff().performClick()
+            WHEN("the lobby is shown") {
+                show()
+            }
 
-            assertEquals(listOf<LobbyAction>(LobbyAction.OneWordPerTurnChanged(true)), actions)
+            THEN("a random player opens and the random chip is selected") {
+                lobbyRobot.assertOpenerChoice("Random player")
+                lobbyRobot.assertOpenerSelected("Random")
+            }
+        }
+
+    @Test
+    fun `should mark the chosen opener when the host has chosen a player`() =
+        componentTest {
+            GIVEN("the host has chosen Sam to open") {
+                useState(hostLobby().copy(openingPlayerId = sam.id))
+            }
+
+            WHEN("the lobby is shown") {
+                show()
+            }
+
+            THEN("Sam's chip is selected") {
+                lobbyRobot.assertOpenerSelected("Sam")
+            }
+        }
+
+    @Test
+    fun `given the host has chosen themselves to open when the lobby is shown then they are named You`() =
+        componentTest {
+            GIVEN("Alex hosts and has chosen to open") {
+                useState(hostLobby().copy(openingPlayerId = alex.id))
+            }
+
+            WHEN("the lobby is shown") {
+                show()
+            }
+
+            THEN("Alex's choice and chip read You") {
+                lobbyRobot.assertOpenerChoice("You")
+                lobbyRobot.assertOpenerSelected("You")
+            }
+        }
+
+    @Test
+    fun `should show the rounds and disable fewer rounds when the rounds are at the minimum`() =
+        componentTest {
+            GIVEN("the game is set to one round, the minimum") {
+                useState(hostLobby(maxRounds = 1, canDecreaseRounds = false))
+            }
+
+            WHEN("the lobby is shown") {
+                show()
+            }
+
+            THEN("it summarises one round and fewer rounds is disabled") {
+                lobbyRobot.assertRoundsSummary("Everyone writes 1 time · 2 turns")
+                lobbyRobot.assertFewerRoundsEnabled(false)
+            }
+        }
+
+    @Test
+    fun `should disable more rounds when the rounds are at the maximum`() =
+        componentTest {
+            GIVEN("the game is set to ten rounds, the maximum") {
+                useState(hostLobby(maxRounds = 10, canDecreaseRounds = true, canIncreaseRounds = false))
+            }
+
+            WHEN("the lobby is shown") {
+                show()
+            }
+
+            THEN("it summarises ten rounds and more rounds is disabled") {
+                lobbyRobot.assertRoundsSummary("Everyone writes 10 times · 20 turns")
+                lobbyRobot.assertMoreRoundsEnabled(false)
+            }
+        }
+
+    @Test
+    fun `should show the host controls when the viewer hosts`() =
+        componentTest {
+            GIVEN("Alex hosts the lobby") {
+                useState(hostLobby())
+            }
+
+            WHEN("Alex views the lobby") {
+                show()
+            }
+
+            THEN("Alex can choose the opener and rounds and start") {
+                lobbyRobot.assertHostControlsShown()
+            }
+        }
+
+    @Test
+    fun `should emit the chosen opener when a player's chip is pressed`() =
+        componentTest {
+            GIVEN("Alex's lobby is showing") {
+                useState(hostLobby())
+                show()
+            }
+
+            WHEN("Alex chooses Sam to open") {
+                lobbyRobot.selectOpener("Sam")
+            }
+
+            THEN("Sam is emitted as the opener") {
+                actions.assertEmitted(LobbyAction.OpeningPlayerSelected(sam.id))
+            }
+        }
+
+    @Test
+    fun `should emit a random opener when the random chip is pressed`() =
+        componentTest {
+            GIVEN("Alex's lobby is showing with Sam chosen to open") {
+                useState(hostLobby().copy(openingPlayerId = sam.id))
+                show()
+            }
+
+            WHEN("Alex chooses a random opener") {
+                lobbyRobot.selectRandomOpener()
+            }
+
+            THEN("no particular opener is emitted") {
+                actions.assertEmitted(LobbyAction.OpeningPlayerSelected(null))
+            }
+        }
+
+    @Test
+    fun `given one round when more rounds is pressed then increasing the rounds is emitted`() =
+        componentTest {
+            GIVEN("Alex's lobby is showing one round") {
+                useState(hostLobby(maxRounds = 1))
+                show()
+            }
+
+            WHEN("Alex presses more rounds") {
+                lobbyRobot.tapMoreRounds()
+            }
+
+            THEN("increasing the rounds is emitted") {
+                actions.assertEmitted(LobbyAction.IncreaseRounds)
+            }
+        }
+
+    @Test
+    fun `should emit start game when start is pressed`() =
+        componentTest {
+            GIVEN("Alex's lobby is showing") {
+                useState(hostLobby())
+                show()
+            }
+
+            WHEN("Alex presses start") {
+                lobbyRobot.tapStartGame()
+            }
+
+            THEN("the start game action is emitted") {
+                actions.assertEmitted(LobbyAction.StartGame)
+            }
+        }
+
+    @Test
+    fun `should emit leave when leave lobby is pressed`() =
+        componentTest {
+            GIVEN("Alex's lobby is showing") {
+                useState(hostLobby())
+                show()
+            }
+
+            WHEN("Alex presses leave lobby") {
+                lobbyRobot.tapLeave()
+            }
+
+            THEN("the leave action is emitted") {
+                actions.assertEmitted(LobbyAction.Leave)
+            }
+        }
+
+    @Test
+    fun `should wait for the host without host controls when a guest views the lobby`() =
+        componentTest {
+            GIVEN("Sam is a guest in Alex's lobby") {
+                useState(guestLobby())
+            }
+
+            WHEN("Sam views the lobby") {
+                show()
+            }
+
+            THEN("Sam waits for Alex, sees their own seat tagged, and has no host controls") {
+                lobbyRobot.assertWaitingForHost("Alex")
+                lobbyRobot.assertYouTagShown()
+                lobbyRobot.assertHostControlsNotShown()
+            }
+        }
+
+    @Test
+    fun `should show the reconnecting banner when the connection has dropped`() =
+        componentTest {
+            GIVEN("the connection has dropped") {
+                useState(hostLobby(isReconnecting = true))
+            }
+
+            WHEN("the lobby is shown") {
+                show()
+            }
+
+            THEN("the reconnecting banner is shown") {
+                lobbyRobot.assertReconnectingShown()
+            }
+        }
+
+    @Test
+    fun `given one word each is off when the host turns it on then turning it on is emitted`() =
+        componentTest {
+            GIVEN("Alex's lobby is showing with one word each off") {
+                useState(hostLobby())
+                show()
+                lobbyRobot.assertOneWordEach(on = false)
+            }
+
+            WHEN("Alex turns on one word each") {
+                lobbyRobot.tapOneWordEach()
+            }
+
+            THEN("turning on one word each is emitted") {
+                actions.assertEmitted(LobbyAction.OneWordPerTurnChanged(enabled = true))
+            }
         }
 
     @Test
     fun `given one word each is on when the lobby is shown then the switch is on`() =
-        runComposeUiTest {
-            setContent { StoryRoundTheme { LobbyScreen(hostLobby.copy(oneWordPerTurn = true)) {} } }
+        componentTest {
+            GIVEN("Alex has turned on one word each") {
+                useState(hostLobby(oneWordPerTurn = true))
+            }
 
-            onNodeWithText("One word each").performScrollTo().assertIsOn()
-            onNodeWithText("Every turn is a single word, opening included").assertExists()
-        }
+            WHEN("the lobby is shown") {
+                show()
+            }
 
-    @Test
-    fun `given a dropped connection when the lobby is shown then the reconnecting banner is displayed`() =
-        runComposeUiTest {
-            setContent { StoryRoundTheme { LobbyScreen(hostLobby.copy(isReconnecting = true)) {} } }
-
-            onNodeWithText("Reconnecting… your seat is saved").assertIsDisplayed()
+            THEN("the one word each switch is on") {
+                lobbyRobot.assertOneWordEach(on = true)
+            }
         }
 }
