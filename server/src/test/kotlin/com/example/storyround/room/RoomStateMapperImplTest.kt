@@ -13,6 +13,7 @@ class RoomStateMapperImplTest {
 
     @Test
     fun `given populated mutable room when mapped then it exposes the complete room state as snapshots`() {
+        // Given
         val host = Player(id = "host", name = "Alex", colour = PlayerColour.Blue)
         val contribution = Contribution(playerId = "host", text = "Once upon a time", turnNumber = 2)
         val room =
@@ -31,8 +32,12 @@ class RoomStateMapperImplTest {
                 settings = RoomSettings(rounds = 4),
             )
 
+        // When
         val state = mapper.map(room)
+        room.players.clear()
+        room.contributions.clear()
 
+        // Then
         assertEquals("AB12", state.roomCode)
         assertEquals(host.id, state.hostId)
         assertEquals(listOf(host), state.players)
@@ -45,11 +50,5 @@ class RoomStateMapperImplTest {
         assertEquals(1_234L, state.turnDeadlineEpochMillis)
         assertEquals(6, state.maxPlayers)
         assertEquals(RoomSettings(rounds = 4), state.settings)
-
-        room.players.clear()
-        room.contributions.clear()
-
-        assertEquals(listOf(host), state.players)
-        assertEquals(listOf(contribution), state.contributions)
     }
 }

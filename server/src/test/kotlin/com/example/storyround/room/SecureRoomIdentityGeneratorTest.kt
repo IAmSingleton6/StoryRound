@@ -15,13 +15,19 @@ class SecureRoomIdentityGeneratorTest {
 
     @Test
     fun `given injected generators when identities are requested then their generated values are used`() {
+        // Given
         every { randomNumberGenerator.nextInt(any()) } returns 1
         every { identifierGenerator.generate() } returnsMany listOf("player-id", "session-token")
 
-        assertEquals("BBBB", generator.generateRoomCode())
-        assertEquals("player-id", generator.generatePlayerId())
-        assertEquals("session-token", generator.generateSessionToken())
+        // When
+        val roomCode = generator.generateRoomCode()
+        val playerId = generator.generatePlayerId()
+        val sessionToken = generator.generateSessionToken()
 
+        // Then
+        assertEquals("BBBB", roomCode)
+        assertEquals("player-id", playerId)
+        assertEquals("session-token", sessionToken)
         verify(exactly = 4) { randomNumberGenerator.nextInt(32) }
     }
 }

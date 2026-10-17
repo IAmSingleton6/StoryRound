@@ -49,4 +49,6 @@ internal interface RoomRegistry {
         roomCode: String,
         deadlineEpochMillis: Long,
     ): RegistryResult.Success?
+
+    fun closeRoom(roomCode: String): RegistryResult.Success?
 }
