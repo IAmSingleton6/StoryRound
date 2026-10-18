@@ -2,7 +2,7 @@ import dev.detekt.gradle.Detekt
 import org.jlleitschuh.gradle.ktlint.KtlintExtension
 import org.jlleitschuh.gradle.ktlint.tasks.BaseKtLintCheckTask
 
-apply(from = "scripts/build/git-hooks.gradle.kts")
+apply(from = "gradle/git-hooks.gradle.kts")
 
 plugins {
     alias(libs.plugins.androidApplication) apply false
