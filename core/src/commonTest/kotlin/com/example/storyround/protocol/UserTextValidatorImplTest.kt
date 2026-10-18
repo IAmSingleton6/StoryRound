@@ -65,7 +65,7 @@ class UserTextValidatorImplTest {
     }
 
     @Test
-    fun `given one word turns and several words, a blank or an over-long word when validated then it is rejected`() {
+    fun `given one word turns and several words or a blank or an over-long word when validated then it is rejected`() {
         // When
         val twoWords = validator.validStoryText("a horse", oneWord)
         val splitByNewline = validator.validStoryText("a\nhorse", oneWord)
