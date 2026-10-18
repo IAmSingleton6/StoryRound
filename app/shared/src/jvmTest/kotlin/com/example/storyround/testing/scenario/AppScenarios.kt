@@ -20,14 +20,21 @@ suspend fun FullStackTestScope.appHostingGame(
     guests: List<String> = emptyList(),
     opener: String = host,
     rounds: Int = 1,
+    oneWordPerTurn: Boolean = false,
 ) {
     appHostingLobby(host, guests)
     lobbyRobot.selectOpener(if (opener == host) "You" else opener)
+    if (oneWordPerTurn) lobbyRobot.tapOneWordEach()
     val defaultRounds = GameConfiguration().defaultRounds
     repeat(defaultRounds - rounds) { lobbyRobot.tapFewerRounds() }
     repeat(rounds - defaultRounds) { lobbyRobot.tapMoreRounds() }
     lobbyRobot.tapStartGame()
-    if (opener == host) openingPromptRobot.assertAskedForPrompt() else openingPromptRobot.assertWaitingFor(opener)
+    when {
+        opener == host && oneWordPerTurn -> openingPromptRobot.assertAskedForFirstWord()
+        opener == host -> openingPromptRobot.assertAskedForPrompt()
+        oneWordPerTurn -> openingPromptRobot.assertChoosingFirstWord(opener)
+        else -> openingPromptRobot.assertWaitingFor(opener)
+    }
 }
 
 suspend fun FullStackTestScope.appFinishedGame(
