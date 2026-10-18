@@ -86,7 +86,9 @@ kotlin {
             implementation(libs.ktor.clientWebSockets)
         }
         commonTest.dependencies {
+            implementation(project(":testing"))
             implementation(libs.kotlin.test)
+            implementation(libs.kotlinx.coroutines.test)
             implementation(libs.multiplatform.settings.test)
         }
         jsMain.dependencies {
@@ -99,7 +101,12 @@ kotlin {
         jvmMain.dependencies {
             implementation(libs.ktor.clientCio)
         }
+        jvmTest {
+            languageSettings.optIn("androidx.compose.ui.test.ExperimentalTestApi")
+        }
         jvmTest.dependencies {
+            implementation(project(":server"))
+            implementation(project.dependencies.testFixtures(project(":server")))
             implementation(libs.mockk.jvm)
             implementation(libs.kotlinx.coroutines.test)
             implementation("org.jetbrains.compose.ui:ui-test-junit4:${libs.versions.composeMultiplatform.get()}")
