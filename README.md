@@ -4,6 +4,10 @@ A real-time multiplayer story-writing game for Android, iOS, desktop and web, bu
 
 Players take turns adding to one continuous story against a shrinking timer. When the last round ends, the finished story is saved on each player's device.
 
+<p align="center">
+  <img src="screenshots/story.png" alt="A game in progress: two players' contributions highlighted in their colours, with a countdown on the current turn" width="320">
+</p>
+
 ## How it plays
 
 - One player creates a room and shares the four-character code. Up to 10 players can join.
