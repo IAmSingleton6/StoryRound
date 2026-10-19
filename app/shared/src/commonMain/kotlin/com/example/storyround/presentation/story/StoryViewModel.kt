@@ -130,7 +130,8 @@ internal class StoryViewModel(
                 previousTurnNumber = room.turnNumber
                 showTimeUpHandOver(room.currentPlayerId?.takeIf { expired })
                 if (expired) {
-                    delay(TIME_UP_TOAST_MILLIS)
+                    val hideAtEpochMillis = timeProvider.nowEpochMillis() + TIME_UP_TOAST_MILLIS
+                    while (timeProvider.nowEpochMillis() < hideAtEpochMillis) delay(COUNTDOWN_TICK_MILLIS)
                     showTimeUpHandOver(null)
                 }
             }

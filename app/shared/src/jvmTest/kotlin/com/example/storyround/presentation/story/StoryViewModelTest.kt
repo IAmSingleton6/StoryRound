@@ -53,7 +53,7 @@ class StoryViewModelTest {
     private val configuration = GameConfiguration(firstTurnMillis = 15_000L, turnReductionMillis = 1_000L, minimumTurnMillis = 5_000L)
     private val gameState = MutableStateFlow(GameState())
     private val gameRepository = mockk<GameRepository>(relaxed = true) { every { state } returns gameState }
-    private val timeProvider = mockk<TimeProvider> { every { nowEpochMillis() } returns 0L }
+    private val timeProvider = mockk<TimeProvider> { every { nowEpochMillis() } answers { dispatcher.scheduler.currentTime } }
     private val storyIdeaProvider = mockk<StoryIdeaProvider>()
 
     @BeforeTest

@@ -24,7 +24,8 @@ class ConnectionFlowTest : AppFlowTest() {
                 lobbyRobot.assertShown()
             }
 
-            WHEN("the connection drops") {
+            WHEN("the connection drops and the server cannot be reached") {
+                serverRobot.refuseConnections()
                 serverRobot.dropConnection()
             }
 
@@ -41,7 +42,8 @@ class ConnectionFlowTest : AppFlowTest() {
                 playingRobot.assertTurnOf("Alex")
             }
 
-            WHEN("the connection drops") {
+            WHEN("the connection drops and the server cannot be reached") {
+                serverRobot.refuseConnections()
                 serverRobot.dropConnection()
             }
 
